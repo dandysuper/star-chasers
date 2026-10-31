@@ -101,21 +101,27 @@ export class MenuScene extends Phaser.Scene {
 
     // ---- top-right toggles ----
     const langFrame = state.lang === 'ru' ? 'ico_ru' : 'ico_en';
-    this.ui.push(this.add.text(width - 130, 34, t('menu.lang'), { ...TXT.small, fontSize: '12px' }).setOrigin(0.5, 0));
-    this.ui.push(makeIconButton(this, width - 130, 74, langFrame, () => {
+    const langLabel = this.add.text(width - 130, 34, t('menu.lang'), { ...TXT.small, fontSize: '12px' }).setOrigin(0.5, 0);
+    const toggleLang = () => {
       state.lang = state.lang === 'ru' ? 'en' : 'ru';
       saveGame();
       this.renderUI();
-    }, 54));
+    };
+    langLabel.setInteractive({ useHandCursor: true }).on('pointerup', toggleLang);
+    this.ui.push(langLabel);
+    this.ui.push(makeIconButton(this, width - 130, 74, langFrame, toggleLang, 54));
 
     const soundFrame = state.music ? 'ico_sound' : 'ico_mute';
-    this.ui.push(this.add.text(width - 60, 34, t('menu.sound'), { ...TXT.small, fontSize: '12px' }).setOrigin(0.5, 0));
-    this.ui.push(makeIconButton(this, width - 60, 74, soundFrame, () => {
+    const soundLabel = this.add.text(width - 60, 34, t('menu.sound'), { ...TXT.small, fontSize: '12px' }).setOrigin(0.5, 0);
+    const toggleSound = () => {
       state.music = !state.music;
       saveGame();
       ensureMusic(this, state.music);
       this.renderUI();
-    }, 54));
+    };
+    soundLabel.setInteractive({ useHandCursor: true }).on('pointerup', toggleSound);
+    this.ui.push(soundLabel);
+    this.ui.push(makeIconButton(this, width - 60, 74, soundFrame, toggleSound, 54));
 
     if (state.dev) {
       this.ui.push(this.add.text(12, 16, 'DEV — all missions unlocked', {

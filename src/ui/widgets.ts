@@ -1,7 +1,6 @@
-/** Chunky cartoon UI. Prefers the ui_v1 sprite art and falls back to drawn
- *  vector shapes so the game still renders if an atlas frame is missing. */
 import Phaser from 'phaser';
 import { UI, hasFrame } from './theme';
+import { state } from '../core/state';
 
 export const COL = {
   panel: 0x2b2d5c,
@@ -193,14 +192,24 @@ export function makeIconButton(
 ): Phaser.GameObjects.Image | Phaser.GameObjects.Container {
   if (hasFrame(scene, frame)) {
     const img = scene.add.image(x, y, UI, frame).setDisplaySize(size, size);
-    // hit area is padded and independent of the hover scale, so the icon stays
-    // as easy to hit as it looks (small round targets need the slack)
-    const pad = Math.max(6, size * 0.16);
-    img.setInteractive(new Phaser.Geom.Rectangle(-size / 2 - pad, -size / 2 - pad, size + pad * 2, size + pad * 2), Phaser.Geom.Rectangle.Contains);
+    // Phaser Image hit test local coordinates are in texture-frame coordinates (0..width, 0..height).
+    const frameObj = scene.textures.getFrame(UI, frame);
+    const fw = frameObj?.width ?? size;
+    const fh = frameObj?.height ?? size;
+    const padX = fw * 0.18;
+    const padY = fh * 0.18;
+    img.setInteractive(
+      new Phaser.Geom.Rectangle(-padX, -padY, fw + padX * 2, fh + padY * 2),
+      Phaser.Geom.Rectangle.Contains,
+    );
     if (img.input) img.input.cursor = 'pointer';
-    img.on('pointerover', () => img.setScale(img.scaleX * 1.08, img.scaleY * 1.08));
+    img.on('pointerover', () => img.setDisplaySize(size * 1.08, size * 1.08));
     img.on('pointerout', () => img.setDisplaySize(size, size));
-    img.on('pointerup', onClick);
+    img.on('pointerdown', () => img.setDisplaySize(size * 0.95, size * 0.95));
+    img.on('pointerup', () => {
+      img.setDisplaySize(size, size);
+      onClick();
+    });
     return img;
   }
   // fallback: a labelled chip so the control still exists
@@ -213,7 +222,13 @@ export function makeIconButton(
   c.setSize(size, size);
   c.setInteractive(new Phaser.Geom.Rectangle(-size / 2, -size / 2, size, size), Phaser.Geom.Rectangle.Contains);
   if (c.input) c.input.cursor = 'pointer';
-  c.on('pointerup', onClick);
+  c.on('pointerover', () => c.setScale(1.08));
+  c.on('pointerout', () => c.setScale(1));
+  c.on('pointerdown', () => c.setScale(0.95));
+  c.on('pointerup', () => {
+    c.setScale(1);
+    onClick();
+  });
   return c;
 }
 
@@ -243,21 +258,38 @@ const MUSIC_DUCKED = 0.25;
 
 /** Music manager — shared across scenes. `ducked` is used during flight. */
 export function ensureMusic(scene: Phaser.Scene, on: boolean, ducked = false): void {
-  const sound = scene.sound as Phaser.Sound.WebAudioSoundManager | Phaser.Sound.NoAudioSoundManager;
   const target = !on ? 0 : ducked ? MUSIC_DUCKED : MUSIC_VOLUME;
   let theme = (scene.game as Phaser.Game & { __theme?: Phaser.Sound.BaseSound }).__theme;
   if (!theme) {
-    theme = scene.sound.add('theme', { loop: true, volume: on ? target : 0 });
+    theme = scene.sound.add('theme', { loop: true, volume: target });
     (scene.game as Phaser.Game & { __theme?: Phaser.Sound.BaseSound }).__theme = theme;
-    void sound;
   }
+
+  // Sync master sound system mute state
+  scene.sound.mute = !on;
+
+  if (!on) {
+    (theme as Phaser.Sound.WebAudioSound | undefined)?.setVolume?.(0);
+    if (theme.isPlaying) {
+      theme.pause();
+    }
+    return;
+  }
+
   (theme as Phaser.Sound.WebAudioSound | undefined)?.setVolume?.(target);
-  if (!theme.isPlaying) {
-    // autoplay policy: start on first pointer down
-    const start = () => {
+  const playIfReady = () => {
+    if (!state.music) return;
+    if (theme!.isPaused) {
+      theme!.resume();
+    } else if (!theme!.isPlaying) {
       theme!.play();
-      scene.input.off('pointerdown', start);
-    };
-    scene.input.once('pointerdown', start);
+    }
+  };
+
+  if (scene.sound.locked) {
+    scene.sound.once('unlocked', playIfReady);
+    scene.input.once('pointerdown', playIfReady);
+  } else {
+    playIfReady();
   }
 }
