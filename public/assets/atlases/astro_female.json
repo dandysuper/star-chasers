@@ -1,0 +1,94 @@
+{
+ "frames": {
+  "astro_female_front": {
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 102,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 102,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 102,
+    "h": 128
+   }
+  },
+  "astro_female_back": {
+   "frame": {
+    "x": 104,
+    "y": 0,
+    "w": 102,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 102,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 102,
+    "h": 128
+   }
+  },
+  "astro_female_side_right": {
+   "frame": {
+    "x": 208,
+    "y": 0,
+    "w": 98,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 98,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 98,
+    "h": 128
+   }
+  },
+  "astro_female_side_left": {
+   "frame": {
+    "x": 308,
+    "y": 0,
+    "w": 98,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 98,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 98,
+    "h": 128
+   }
+  }
+ },
+ "meta": {
+  "app": "space-sim slice_sprites.py",
+  "image": "astro_female.png",
+  "format": "RGBA8888",
+  "size": {
+   "w": 408,
+   "h": 128
+  },
+  "scale": "1"
+ }
+}

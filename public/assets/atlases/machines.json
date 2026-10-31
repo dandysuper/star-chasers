@@ -1,0 +1,134 @@
+{
+ "frames": {
+  "machines_workbench": {
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 210
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 210
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 210
+   }
+  },
+  "machines_fabricator": {
+   "frame": {
+    "x": 258,
+    "y": 0,
+    "w": 256,
+    "h": 243
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 243
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 243
+   }
+  },
+  "machines_solar_array": {
+   "frame": {
+    "x": 516,
+    "y": 0,
+    "w": 256,
+    "h": 237
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 237
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 237
+   }
+  },
+  "machines_generator": {
+   "frame": {
+    "x": 0,
+    "y": 245,
+    "w": 256,
+    "h": 245
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 245
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 245
+   }
+  },
+  "machines_rover": {
+   "frame": {
+    "x": 258,
+    "y": 245,
+    "w": 256,
+    "h": 214
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 214
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 214
+   }
+  },
+  "machines_rocket_launchpad": {
+   "frame": {
+    "x": 516,
+    "y": 245,
+    "w": 247,
+    "h": 256
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 247,
+    "h": 256
+   },
+   "sourceSize": {
+    "w": 247,
+    "h": 256
+   }
+  }
+ },
+ "meta": {
+  "app": "space-sim slice_sprites.py",
+  "image": "machines.png",
+  "format": "RGBA8888",
+  "size": {
+   "w": 1024,
+   "h": 501
+  },
+  "scale": "1"
+ }
+}

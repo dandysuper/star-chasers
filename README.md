@@ -1,0 +1,169 @@
+# Star Chasers · «Звёздные гонщики»
+
+A browser game for **NASA Space Apps 2026**: build a rocket, program its flight with
+Blockly blocks, then fly it — and walk the Moon to collect samples. No install, no
+account, no server: everything runs client-side, in Russian and English.
+
+Phaser 3 · TypeScript · Vite · Blockly. Targets a 1280×720 canvas, scaled to fit.
+
+## Quick start
+
+```bash
+npm install
+npm run dev        # http://localhost:5173
+npm test           # 22 unit tests (physics, interpreter, rocket math)
+npm run build      # dist/ — a static bundle, deployable anywhere
+npm run typecheck  # tsc --noEmit
+```
+
+## How the game flows
+
+| Scene | What happens |
+|---|---|
+| **Menu** | switch language / sound, choose the astronaut, jump into the game |
+| **Hub** | walk the base on foot, use the mission board, the flight computer and the pad |
+| **Builder** | drag parts onto the stack, watch mass / Δv / TWR / stability update live |
+| **Code** | a Blockly workspace with ~20 blocks; the right panel restates the goal |
+| **Flight** | the program runs against a real 2-D physics sim — throttle, staging, parachute |
+| **Explore** | walk the Moon, drill samples, beam the data home |
+| **Result** | stars, telemetry, a fun fact, and the next step |
+
+Three missions (`m1` reach 10 km, `m2` reach 70 km and cut the engine, `moon` walk and
+sample) plus a Sandbox that starts from the working preset rocket.
+
+**Controls (Desktop & Smartphones/Tablets).**
+- **Hub & Explore**: WASD / arrows or the bottom-left **virtual thumbstick** to walk; `E`, the bottom-right **action button**, or tapping a nearby station/sample/lander directly to interact/drill/transmit.
+- **Builder**: drag or tap palette cards to attach parts; wheel or on-screen `+` / `−` / reset buttons to zoom; right-drag or 1-finger grid drag to pan; `Delete` or the on-screen **✕ Remove part** button to remove the selected part.
+- **Flight**: `Space` or pause icon to pause, `[` / `]` or warp icon (cycles 1× → 2× → 5× → 10× → 1×) to warp, `R` or reset icon to restart, `Esc` or back icon to return to code.
+
+## Layout
+
+```
+src/
+  core/       state, save, i18n, devtools, walker (player), crew (patrols)
+  data/       parts, bodies, mission definitions and their win/lose checks
+  physics/    the flight sim + rocket stat maths (pure, unit-tested)
+  rocketscript/ Blockly block definitions, JSON → AST compiler, interpreter
+  scenes/     boot, menu, hub, builder, code, flight, explore, result
+  ui/         theme (atlas wiring), widgets, touch (mobile joystick/action), drawn part fallbacks
+  i18n/       en.json, ru.json — every string in the game lives here
+public/assets/
+  ui/ui.png|json   packed atlas: parts, buttons, panels, icons, effects, logo
+  v2/v2.png|json   packed atlas: base buildings, ground tiles, crew walks/idles, bells, fx, plumes, UI v2
+  bg/*.webp        nine painted backdrops
+  anims/           walk-cycle JSON for the astronauts and the base crew
+  atlases/         handoff art (astronauts, minions, terrain, machines, tools)
+v2_src/            raw wishlist drop the v2 atlas is cut from (never shipped)
+tools/
+  cut-sprites.mjs  one-time segmenter: ui_v1 sheets → atlas + backdrops
+  cut-v2.mjs       cutter for the v2 wishlist drops → v2 atlas + crew anims
+  frame-names.json cutter config: which cut cells get a name
+  check-atlas.mjs  verifies the packed atlas (size, alpha, frame list)
+  icon-sheet.html  visual contact sheet of the atlas art, by frame name
+  crew-check.mjs   QA strip: crops the crew frames out of the v2 atlas
+  batch2-check.mjs QA strip: crops batch2 frames (bells, idles, poses, fx)
+  batch3-check.mjs QA strip: crops batch3 frames (dialog, minimap, portraits, icons)
+  tile-check.mjs   QA strip: 3×3 repeat check of the four ground tiles
+```
+
+`public/assets/` from the art handoff is **do not edit**; new UI art goes through the
+cutter instead.
+
+## The art pipeline
+
+The `ui_v1/` sheets are irregular collages with no frame metadata, so the cutter
+flood-fills the background inward from the border, labels 8-connected components,
+crops each one, and repacks the named ones into a single atlas.
+
+```bash
+node tools/cut-sprites.mjs     # writes public/assets/ui/ui.{png,json} + bg/*.webp
+node tools/check-atlas.mjs     # sanity check
+open tools/icon-sheet.html     # eyeball the frames against their names
+```
+
+Only cells listed in `tools/frame-names.json` are packed, so every atlas frame is
+deliberate. Naming a cell is how new art enters the game — then wire the name in
+`src/ui/theme.ts` (`PART_FRAME`, `BG`) or use it directly via `hasFrame()`.
+
+Every art lookup is defensive: if a frame is missing the game falls back to drawn
+vector art instead of rendering blank. `tools/cut-frames/` holds the working crops and
+is deliberately outside `public/` so it never ships.
+
+### The v2 wishlist drops (batches 1, 2 & 3)
+
+The v2 drops are big studio renders, irregular multi-object sheets, and clean grids, so
+they have their own cutter. Raw files live in `v2_src/` (outside `public/`, never shipped).
+
+```bash
+node tools/cut-v2.mjs        # → public/assets/v2/v2.{png,json} + anims/crew_walk_anims.json
+node tools/crew-check.mjs    # QA strip of the crew frames → tools/crew-check.png
+node tools/batch2-check.mjs  # QA strip of the batch2 frames (bells, idles, poses, fx)
+node tools/batch3-check.mjs  # QA strip of the batch3 frames (dialog, minimap, portraits, icons)
+node tools/tile-check.mjs    # 3×3 repeat check of the four ground tiles
+open tools/v2-report.html    # every cut frame, labelled
+```
+
+`cut-v2.mjs` handles six kinds of source, and the difference matters:
+
+| Source | Treatment |
+|---|---|
+| single objects (`base_*.png`, `astro_wave.png`, `astro_point.png`, `ui_dialog.png`, `ui_minimap_frame.png`) | flood-fill the studio background inward from the border, comparing each pixel to its *parent* so the gradient key follows, trim, downscale, bleed the edge colours outward so resampling cannot pull the light background into the outline (`ui_minimap_frame.png` also floods from its centre via `keyCenter` so the viewport is hollow) |
+| grid sheets (`minion_walk_*`) | deterministic `cols × 4` slice (`mechanic`/`driller`/`radio` are 4×4, `chemist` is 6×4), then key + trim each cell — the crew art has no separators to segment on |
+| `base_crates_sheet.png` | three objects in a row, sliced by column band |
+| irregular multi-object sheets (`minion_idle.png`, `engine_bells.png`, `fx_misc.png`, `ui_portraits.png`, `ui_icons.png`) | 8-connected component labelling (`components`), proximity box merging (`mergeBoxes`) so scattered debris/sparkles stay attached to their parent element, row banding (`bandRows`), and **one uniform scale factor per sheet** (derived from the largest element) so size ladders (`fx_cloud_s..xl`, `fx_sparkle_s..l`) keep their relative proportions |
+| `fx_flames_sheet.png` | **kept black**, no keying at all: the plumes are drawn with `BlendModes.ADD`, so black is the transparent value |
+| ground tiles | full-bleed: downscale only, never trimmed or keyed |
+
+Gotchas worth keeping in mind when the next drop lands:
+
+- **Walk-sheet row order is front / left / right / back**, not front / right / left.
+  It's verified by cropping the frames (`crew-check.mjs`) — get it backwards and the
+  entire crew moonwalks.
+- **Per-sheet column counts (`CREW` table)**: `minion_walk_chemist.png` is 6 columns wide
+  while the earlier three sheets are 4 columns wide. Both grid slicing and
+  `crew_walk_anims.json` frame counts read `cols` from `CREW`.
+- **Uniform scale per sheet (`cutComponents`)**: fitting each element to `maxEdge`
+  individually flattens size ladders to the same width; computing a single
+  `scale = Math.min(1, maxEdge / biggest)` preserves the progression.
+- **Tight gaps & hollow interiors in Batch 3 (`ui_portraits.png`, `ui_icons.png`, `ui_minimap_frame.png`)**:
+  the five round portraits sit ~6 px apart, so `ui_portraits.png` uses `mergeDist: 4`
+  (larger merge distances fuse all five into one box, and equal-width `cutRow` bands clip
+  the outer portraits). Hollow shapes (`ui_minimap_frame`, `ui_star_empty`, `ui_icon_gear`)
+  pass interior seed points (`keyCenter` / `extraSeeds`) so their enclosed studio-white
+  centres are keyed out cleanly.
+- **Blast naming by shape**: row 2 of `fx_misc.png` is three distinct shapes
+  (`fx_blast_burst` tall radial flash, `fx_blast_hit` wide debris fireball,
+  `fx_blast_ground` flat ground trail), layered together in `FlightScene.explode()`.
+- `pad_mark.png` is a full-bleed painted quadrant centred on its bottom-left corner,
+  not a cut-out decal. It is used as one slab under the pad plus a drawn ring, because
+  four rotated copies of a *square* produce a pinwheel, not a circle.
+
+Frame names are wired in `src/ui/theme.ts` (`BASE_ART`, `GROUND_ART`, `FLAME_ART`,
+`FX_ART`, `BELL_ART`, `UI_V2_ART`, `PORTRAIT_ART`) and the crew patrols in
+`src/core/crew.ts` pick their anim by movement direction and pause on `minion_idle_*` at
+waypoints.
+
+## Dev shortcuts
+
+Add these to the URL:
+
+| Query | Effect |
+|---|---|
+| `?dev=1` | unlock all missions, show the DEV banner |
+| `?scene=code` | boot straight into a scene (`menu`, `hub`, `builder`, `code`, `flight`, `explore`) |
+| `?mission=m2` | boot a real mission (pairs with `?scene=`) |
+| `?lang=en` | pin the language for this run |
+| `?spawn=pad` | hub only: start next to a station (`board`, `lab`, `pad`) |
+
+Combining them makes screenshots and manual checks one URL, e.g.
+`?dev=1&scene=flight&mission=m1&lang=en`.
+
+## Tests
+
+`tests/` covers the parts that must not drift: the flight integrator (staging, drag,
+landing), the rocket stat calculator (Δv, TWR, stability warnings), and the Blockly
+interpreter (loops, waits, sensors, error reporting). Scene code is verified by hand in
+the browser.
+
+`PLAN.md` holds the original build plan; `handoff/CORE_SPEC.txt` is the authoritative
+spec and `handoff/ASSETS.md` the asset inventory.

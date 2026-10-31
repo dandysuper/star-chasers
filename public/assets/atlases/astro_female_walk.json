@@ -1,0 +1,334 @@
+{
+ "frames": {
+  "astro_female_walk_front_0": {
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 101,
+    "h": 128
+   }
+  },
+  "astro_female_walk_front_1": {
+   "frame": {
+    "x": 103,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 101,
+    "h": 128
+   }
+  },
+  "astro_female_walk_front_2": {
+   "frame": {
+    "x": 206,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 101,
+    "h": 128
+   }
+  },
+  "astro_female_walk_front_3": {
+   "frame": {
+    "x": 309,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 101,
+    "h": 128
+   }
+  },
+  "astro_female_walk_back_0": {
+   "frame": {
+    "x": 412,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 101,
+    "h": 128
+   }
+  },
+  "astro_female_walk_back_1": {
+   "frame": {
+    "x": 515,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 101,
+    "h": 128
+   }
+  },
+  "astro_female_walk_back_2": {
+   "frame": {
+    "x": 618,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 101,
+    "h": 128
+   }
+  },
+  "astro_female_walk_back_3": {
+   "frame": {
+    "x": 721,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 101,
+    "h": 128
+   }
+  },
+  "astro_female_walk_side_right_0": {
+   "frame": {
+    "x": 824,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 101,
+    "h": 128
+   }
+  },
+  "astro_female_walk_side_right_1": {
+   "frame": {
+    "x": 927,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 101,
+    "h": 128
+   }
+  },
+  "astro_female_walk_side_right_2": {
+   "frame": {
+    "x": 1030,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 101,
+    "h": 128
+   }
+  },
+  "astro_female_walk_side_right_3": {
+   "frame": {
+    "x": 1133,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 101,
+    "h": 128
+   }
+  },
+  "astro_female_walk_side_left_0": {
+   "frame": {
+    "x": 1236,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 101,
+    "h": 128
+   }
+  },
+  "astro_female_walk_side_left_1": {
+   "frame": {
+    "x": 1339,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 101,
+    "h": 128
+   }
+  },
+  "astro_female_walk_side_left_2": {
+   "frame": {
+    "x": 1442,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 101,
+    "h": 128
+   }
+  },
+  "astro_female_walk_side_left_3": {
+   "frame": {
+    "x": 1545,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 101,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 101,
+    "h": 128
+   }
+  }
+ },
+ "meta": {
+  "app": "space-sim slice_sprites.py",
+  "image": "astro_female_walk.png",
+  "format": "RGBA8888",
+  "size": {
+   "w": 1648,
+   "h": 128
+  },
+  "scale": "1"
+ }
+}

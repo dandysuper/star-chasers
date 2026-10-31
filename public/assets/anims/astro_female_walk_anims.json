@@ -1,0 +1,140 @@
+{
+ "anims": [
+  {
+   "key": "astro_female_walk_front",
+   "frames": [
+    {
+     "key": "astro_female_walk",
+     "frame": "astro_female_walk_front_0"
+    },
+    {
+     "key": "astro_female_walk",
+     "frame": "astro_female_walk_front_1"
+    },
+    {
+     "key": "astro_female_walk",
+     "frame": "astro_female_walk_front_2"
+    },
+    {
+     "key": "astro_female_walk",
+     "frame": "astro_female_walk_front_3"
+    }
+   ],
+   "frameRate": 8,
+   "repeat": -1
+  },
+  {
+   "key": "astro_female_walk_back",
+   "frames": [
+    {
+     "key": "astro_female_walk",
+     "frame": "astro_female_walk_back_0"
+    },
+    {
+     "key": "astro_female_walk",
+     "frame": "astro_female_walk_back_1"
+    },
+    {
+     "key": "astro_female_walk",
+     "frame": "astro_female_walk_back_2"
+    },
+    {
+     "key": "astro_female_walk",
+     "frame": "astro_female_walk_back_3"
+    }
+   ],
+   "frameRate": 8,
+   "repeat": -1
+  },
+  {
+   "key": "astro_female_walk_side_right",
+   "frames": [
+    {
+     "key": "astro_female_walk",
+     "frame": "astro_female_walk_side_right_0"
+    },
+    {
+     "key": "astro_female_walk",
+     "frame": "astro_female_walk_side_right_1"
+    },
+    {
+     "key": "astro_female_walk",
+     "frame": "astro_female_walk_side_right_2"
+    },
+    {
+     "key": "astro_female_walk",
+     "frame": "astro_female_walk_side_right_3"
+    }
+   ],
+   "frameRate": 8,
+   "repeat": -1
+  },
+  {
+   "key": "astro_female_walk_side_left",
+   "frames": [
+    {
+     "key": "astro_female_walk",
+     "frame": "astro_female_walk_side_left_0"
+    },
+    {
+     "key": "astro_female_walk",
+     "frame": "astro_female_walk_side_left_1"
+    },
+    {
+     "key": "astro_female_walk",
+     "frame": "astro_female_walk_side_left_2"
+    },
+    {
+     "key": "astro_female_walk",
+     "frame": "astro_female_walk_side_left_3"
+    }
+   ],
+   "frameRate": 8,
+   "repeat": -1
+  },
+  {
+   "key": "astro_female_idle_front",
+   "frames": [
+    {
+     "key": "astro_female_walk",
+     "frame": "astro_female_walk_front_0"
+    }
+   ],
+   "frameRate": 1,
+   "repeat": -1
+  },
+  {
+   "key": "astro_female_idle_back",
+   "frames": [
+    {
+     "key": "astro_female_walk",
+     "frame": "astro_female_walk_back_0"
+    }
+   ],
+   "frameRate": 1,
+   "repeat": -1
+  },
+  {
+   "key": "astro_female_idle_side_right",
+   "frames": [
+    {
+     "key": "astro_female_walk",
+     "frame": "astro_female_walk_side_right_0"
+    }
+   ],
+   "frameRate": 1,
+   "repeat": -1
+  },
+  {
+   "key": "astro_female_idle_side_left",
+   "frames": [
+    {
+     "key": "astro_female_walk",
+     "frame": "astro_female_walk_side_left_0"
+    }
+   ],
+   "frameRate": 1,
+   "repeat": -1
+  }
+ ]
+}

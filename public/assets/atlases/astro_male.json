@@ -1,0 +1,94 @@
+{
+ "frames": {
+  "astro_male_front": {
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 92,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 92,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 92,
+    "h": 128
+   }
+  },
+  "astro_male_back": {
+   "frame": {
+    "x": 94,
+    "y": 0,
+    "w": 92,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 92,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 92,
+    "h": 128
+   }
+  },
+  "astro_male_side_right": {
+   "frame": {
+    "x": 188,
+    "y": 0,
+    "w": 89,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 89,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 89,
+    "h": 128
+   }
+  },
+  "astro_male_side_left": {
+   "frame": {
+    "x": 279,
+    "y": 0,
+    "w": 87,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 87,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 87,
+    "h": 128
+   }
+  }
+ },
+ "meta": {
+  "app": "space-sim slice_sprites.py",
+  "image": "astro_male.png",
+  "format": "RGBA8888",
+  "size": {
+   "w": 368,
+   "h": 128
+  },
+  "scale": "1"
+ }
+}

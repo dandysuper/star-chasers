@@ -1,0 +1,18 @@
+# Dependencies & build output
+node_modules/
+dist/
+
+# Raw / intermediate art sources (never shipped; packed atlases live in public/assets/)
+v2_src/
+ui_v1/
+handoff/
+handoff.zip
+tools/cut-frames/
+tools/*.png
+tools/*.html
+public/__inspect/
+
+# OS & editor files
+.DS_Store
+.vscode/
+*.log

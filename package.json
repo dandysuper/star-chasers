@@ -1,0 +1,24 @@
+{
+  "name": "star-chasers",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "blockly": "^11.2.0",
+    "phaser": "^3.88.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "sharp": "^0.35.5",
+    "typescript": "^5.6.0",
+    "vite": "^6.0.0",
+    "vitest": "^3.0.0"
+  }
+}
