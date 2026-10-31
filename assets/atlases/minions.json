@@ -1,0 +1,94 @@
+{
+ "frames": {
+  "minions_mechanic": {
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 74
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 74
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 74
+   }
+  },
+  "minions_miner_driller": {
+   "frame": {
+    "x": 114,
+    "y": 0,
+    "w": 112,
+    "h": 95
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 95
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 95
+   }
+  },
+  "minions_radio_scout": {
+   "frame": {
+    "x": 228,
+    "y": 0,
+    "w": 112,
+    "h": 94
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 94
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 94
+   }
+  },
+  "minions_chemist": {
+   "frame": {
+    "x": 342,
+    "y": 0,
+    "w": 112,
+    "h": 89
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 89
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 89
+   }
+  }
+ },
+ "meta": {
+  "app": "space-sim slice_sprites.py",
+  "image": "minions.png",
+  "format": "RGBA8888",
+  "size": {
+   "w": 456,
+   "h": 95
+  },
+  "scale": "1"
+ }
+}

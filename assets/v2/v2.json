@@ -1,0 +1,2514 @@
+{
+ "frames": {
+  "tower": {
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 391,
+    "h": 720
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 391,
+    "h": 720
+   },
+   "sourceSize": {
+    "w": 391,
+    "h": 720
+   }
+  },
+  "habitat": {
+   "frame": {
+    "x": 393,
+    "y": 0,
+    "w": 615,
+    "h": 640
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 615,
+    "h": 640
+   },
+   "sourceSize": {
+    "w": 615,
+    "h": 640
+   }
+  },
+  "control": {
+   "frame": {
+    "x": 1010,
+    "y": 0,
+    "w": 509,
+    "h": 620
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 509,
+    "h": 620
+   },
+   "sourceSize": {
+    "w": 509,
+    "h": 620
+   }
+  },
+  "pad_mark": {
+   "frame": {
+    "x": 1521,
+    "y": 0,
+    "w": 512,
+    "h": 512
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 512,
+    "h": 512
+   },
+   "sourceSize": {
+    "w": 512,
+    "h": 512
+   }
+  },
+  "tanks": {
+   "frame": {
+    "x": 0,
+    "y": 722,
+    "w": 520,
+    "h": 438
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 520,
+    "h": 438
+   },
+   "sourceSize": {
+    "w": 520,
+    "h": 438
+   }
+  },
+  "flame_medium": {
+   "frame": {
+    "x": 522,
+    "y": 722,
+    "w": 320,
+    "h": 420
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 320,
+    "h": 420
+   },
+   "sourceSize": {
+    "w": 320,
+    "h": 420
+   }
+  },
+  "board": {
+   "frame": {
+    "x": 844,
+    "y": 722,
+    "w": 250,
+    "h": 420
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 250,
+    "h": 420
+   },
+   "sourceSize": {
+    "w": 250,
+    "h": 420
+   }
+  },
+  "flame_large": {
+   "frame": {
+    "x": 1096,
+    "y": 722,
+    "w": 219,
+    "h": 420
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 219,
+    "h": 420
+   },
+   "sourceSize": {
+    "w": 219,
+    "h": 420
+   }
+  },
+  "flame_small": {
+   "frame": {
+    "x": 1317,
+    "y": 722,
+    "w": 198,
+    "h": 420
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 198,
+    "h": 420
+   },
+   "sourceSize": {
+    "w": 198,
+    "h": 420
+   }
+  },
+  "dish": {
+   "frame": {
+    "x": 1517,
+    "y": 722,
+    "w": 281,
+    "h": 380
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 281,
+    "h": 380
+   },
+   "sourceSize": {
+    "w": 281,
+    "h": 380
+   }
+  },
+  "airlock": {
+   "frame": {
+    "x": 1800,
+    "y": 722,
+    "w": 229,
+    "h": 320
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 229,
+    "h": 320
+   },
+   "sourceSize": {
+    "w": 229,
+    "h": 320
+   }
+  },
+  "ui_dialog": {
+   "frame": {
+    "x": 0,
+    "y": 1162,
+    "w": 520,
+    "h": 312
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 520,
+    "h": 312
+   },
+   "sourceSize": {
+    "w": 520,
+    "h": 312
+   }
+  },
+  "ui_minimap_frame": {
+   "frame": {
+    "x": 522,
+    "y": 1162,
+    "w": 240,
+    "h": 240
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 240,
+    "h": 240
+   },
+   "sourceSize": {
+    "w": 240,
+    "h": 240
+   }
+  },
+  "crate_c": {
+   "frame": {
+    "x": 764,
+    "y": 1162,
+    "w": 204,
+    "h": 220
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 204,
+    "h": 220
+   },
+   "sourceSize": {
+    "w": 204,
+    "h": 220
+   }
+  },
+  "astro_point": {
+   "frame": {
+    "x": 970,
+    "y": 1162,
+    "w": 202,
+    "h": 220
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 202,
+    "h": 220
+   },
+   "sourceSize": {
+    "w": 202,
+    "h": 220
+   }
+  },
+  "astro_wave": {
+   "frame": {
+    "x": 1174,
+    "y": 1162,
+    "w": 187,
+    "h": 220
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 187,
+    "h": 220
+   },
+   "sourceSize": {
+    "w": 187,
+    "h": 220
+   }
+  },
+  "minion_idle_mechanic": {
+   "frame": {
+    "x": 1363,
+    "y": 1162,
+    "w": 178,
+    "h": 220
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 178,
+    "h": 220
+   },
+   "sourceSize": {
+    "w": 178,
+    "h": 220
+   }
+  },
+  "minion_idle_driller": {
+   "frame": {
+    "x": 1543,
+    "y": 1162,
+    "w": 168,
+    "h": 219
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 168,
+    "h": 219
+   },
+   "sourceSize": {
+    "w": 168,
+    "h": 219
+   }
+  },
+  "minion_idle_radio": {
+   "frame": {
+    "x": 1713,
+    "y": 1162,
+    "w": 164,
+    "h": 219
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 164,
+    "h": 219
+   },
+   "sourceSize": {
+    "w": 164,
+    "h": 219
+   }
+  },
+  "minion_idle_chemist": {
+   "frame": {
+    "x": 1879,
+    "y": 1162,
+    "w": 126,
+    "h": 219
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 126,
+    "h": 219
+   },
+   "sourceSize": {
+    "w": 126,
+    "h": 219
+   }
+  },
+  "crate_a": {
+   "frame": {
+    "x": 0,
+    "y": 1476,
+    "w": 220,
+    "h": 213
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 220,
+    "h": 213
+   },
+   "sourceSize": {
+    "w": 220,
+    "h": 213
+   }
+  },
+  "crate_b": {
+   "frame": {
+    "x": 222,
+    "y": 1476,
+    "w": 220,
+    "h": 201
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 220,
+    "h": 201
+   },
+   "sourceSize": {
+    "w": 220,
+    "h": 201
+   }
+  },
+  "pad_clamp": {
+   "frame": {
+    "x": 444,
+    "y": 1476,
+    "w": 131,
+    "h": 200
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 131,
+    "h": 200
+   },
+   "sourceSize": {
+    "w": 131,
+    "h": 200
+   }
+  },
+  "bell_whisper": {
+   "frame": {
+    "x": 577,
+    "y": 1476,
+    "w": 85,
+    "h": 200
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 85,
+    "h": 200
+   },
+   "sourceSize": {
+    "w": 85,
+    "h": 200
+   }
+  },
+  "minion_radio_left_0": {
+   "frame": {
+    "x": 664,
+    "y": 1476,
+    "w": 190,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 190,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 190,
+    "h": 192
+   }
+  },
+  "minion_radio_left_1": {
+   "frame": {
+    "x": 856,
+    "y": 1476,
+    "w": 189,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 189,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 189,
+    "h": 192
+   }
+  },
+  "minion_radio_back_3": {
+   "frame": {
+    "x": 1047,
+    "y": 1476,
+    "w": 184,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 184,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 184,
+    "h": 192
+   }
+  },
+  "minion_radio_back_0": {
+   "frame": {
+    "x": 1233,
+    "y": 1476,
+    "w": 183,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 183,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 183,
+    "h": 192
+   }
+  },
+  "minion_radio_back_2": {
+   "frame": {
+    "x": 1418,
+    "y": 1476,
+    "w": 183,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 183,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 183,
+    "h": 192
+   }
+  },
+  "minion_radio_back_1": {
+   "frame": {
+    "x": 1603,
+    "y": 1476,
+    "w": 181,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 181,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 181,
+    "h": 192
+   }
+  },
+  "minion_driller_right_3": {
+   "frame": {
+    "x": 1786,
+    "y": 1476,
+    "w": 178,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 178,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 178,
+    "h": 192
+   }
+  },
+  "minion_chemist_front_2": {
+   "frame": {
+    "x": 0,
+    "y": 1691,
+    "w": 177,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 177,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 177,
+    "h": 192
+   }
+  },
+  "minion_chemist_front_1": {
+   "frame": {
+    "x": 179,
+    "y": 1691,
+    "w": 172,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 172,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 172,
+    "h": 192
+   }
+  },
+  "minion_chemist_front_4": {
+   "frame": {
+    "x": 353,
+    "y": 1691,
+    "w": 172,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 172,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 172,
+    "h": 192
+   }
+  },
+  "minion_chemist_front_5": {
+   "frame": {
+    "x": 527,
+    "y": 1691,
+    "w": 171,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 171,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 171,
+    "h": 192
+   }
+  },
+  "minion_chemist_front_0": {
+   "frame": {
+    "x": 700,
+    "y": 1691,
+    "w": 170,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 170,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 170,
+    "h": 192
+   }
+  },
+  "minion_chemist_front_3": {
+   "frame": {
+    "x": 872,
+    "y": 1691,
+    "w": 168,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 168,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 168,
+    "h": 192
+   }
+  },
+  "minion_mechanic_left_2": {
+   "frame": {
+    "x": 1042,
+    "y": 1691,
+    "w": 164,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 164,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 164,
+    "h": 192
+   }
+  },
+  "minion_chemist_back_0": {
+   "frame": {
+    "x": 1208,
+    "y": 1691,
+    "w": 164,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 164,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 164,
+    "h": 192
+   }
+  },
+  "minion_driller_front_0": {
+   "frame": {
+    "x": 1374,
+    "y": 1691,
+    "w": 163,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 163,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 163,
+    "h": 192
+   }
+  },
+  "minion_driller_right_0": {
+   "frame": {
+    "x": 1539,
+    "y": 1691,
+    "w": 163,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 163,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 163,
+    "h": 192
+   }
+  },
+  "minion_chemist_back_3": {
+   "frame": {
+    "x": 1704,
+    "y": 1691,
+    "w": 162,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 162,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 162,
+    "h": 192
+   }
+  },
+  "minion_driller_back_1": {
+   "frame": {
+    "x": 1868,
+    "y": 1691,
+    "w": 158,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 158,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 158,
+    "h": 192
+   }
+  },
+  "minion_driller_back_3": {
+   "frame": {
+    "x": 0,
+    "y": 1885,
+    "w": 158,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 158,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 158,
+    "h": 192
+   }
+  },
+  "minion_driller_back_0": {
+   "frame": {
+    "x": 160,
+    "y": 1885,
+    "w": 157,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 157,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 157,
+    "h": 192
+   }
+  },
+  "minion_driller_back_2": {
+   "frame": {
+    "x": 319,
+    "y": 1885,
+    "w": 157,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 157,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 157,
+    "h": 192
+   }
+  },
+  "minion_chemist_left_1": {
+   "frame": {
+    "x": 478,
+    "y": 1885,
+    "w": 157,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 157,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 157,
+    "h": 192
+   }
+  },
+  "minion_chemist_left_0": {
+   "frame": {
+    "x": 637,
+    "y": 1885,
+    "w": 156,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 156,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 156,
+    "h": 192
+   }
+  },
+  "minion_chemist_left_3": {
+   "frame": {
+    "x": 795,
+    "y": 1885,
+    "w": 156,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 156,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 156,
+    "h": 192
+   }
+  },
+  "minion_chemist_left_4": {
+   "frame": {
+    "x": 953,
+    "y": 1885,
+    "w": 156,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 156,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 156,
+    "h": 192
+   }
+  },
+  "minion_chemist_left_5": {
+   "frame": {
+    "x": 1111,
+    "y": 1885,
+    "w": 156,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 156,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 156,
+    "h": 192
+   }
+  },
+  "minion_chemist_right_0": {
+   "frame": {
+    "x": 1269,
+    "y": 1885,
+    "w": 155,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 155,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 155,
+    "h": 192
+   }
+  },
+  "minion_chemist_right_1": {
+   "frame": {
+    "x": 1426,
+    "y": 1885,
+    "w": 155,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 155,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 155,
+    "h": 192
+   }
+  },
+  "minion_chemist_right_2": {
+   "frame": {
+    "x": 1583,
+    "y": 1885,
+    "w": 155,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 155,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 155,
+    "h": 192
+   }
+  },
+  "minion_chemist_right_4": {
+   "frame": {
+    "x": 1740,
+    "y": 1885,
+    "w": 155,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 155,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 155,
+    "h": 192
+   }
+  },
+  "minion_mechanic_left_3": {
+   "frame": {
+    "x": 0,
+    "y": 2079,
+    "w": 154,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 154,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 154,
+    "h": 192
+   }
+  },
+  "minion_chemist_right_3": {
+   "frame": {
+    "x": 156,
+    "y": 2079,
+    "w": 154,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 154,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 154,
+    "h": 192
+   }
+  },
+  "minion_chemist_right_5": {
+   "frame": {
+    "x": 312,
+    "y": 2079,
+    "w": 154,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 154,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 154,
+    "h": 192
+   }
+  },
+  "minion_chemist_back_1": {
+   "frame": {
+    "x": 468,
+    "y": 2079,
+    "w": 153,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 153,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 153,
+    "h": 192
+   }
+  },
+  "minion_chemist_back_2": {
+   "frame": {
+    "x": 623,
+    "y": 2079,
+    "w": 153,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 153,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 153,
+    "h": 192
+   }
+  },
+  "minion_chemist_back_4": {
+   "frame": {
+    "x": 778,
+    "y": 2079,
+    "w": 153,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 153,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 153,
+    "h": 192
+   }
+  },
+  "minion_chemist_back_5": {
+   "frame": {
+    "x": 933,
+    "y": 2079,
+    "w": 153,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 153,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 153,
+    "h": 192
+   }
+  },
+  "minion_chemist_left_2": {
+   "frame": {
+    "x": 1088,
+    "y": 2079,
+    "w": 151,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 151,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 151,
+    "h": 192
+   }
+  },
+  "minion_driller_left_0": {
+   "frame": {
+    "x": 1241,
+    "y": 2079,
+    "w": 147,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 147,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 147,
+    "h": 192
+   }
+  },
+  "minion_mechanic_left_1": {
+   "frame": {
+    "x": 1390,
+    "y": 2079,
+    "w": 143,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 143,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 143,
+    "h": 192
+   }
+  },
+  "minion_mechanic_left_0": {
+   "frame": {
+    "x": 1535,
+    "y": 2079,
+    "w": 192,
+    "h": 191
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 191
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 191
+   }
+  },
+  "minion_radio_left_3": {
+   "frame": {
+    "x": 1729,
+    "y": 2079,
+    "w": 192,
+    "h": 191
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 191
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 191
+   }
+  },
+  "bell_bull": {
+   "frame": {
+    "x": 0,
+    "y": 2273,
+    "w": 145,
+    "h": 189
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 145,
+    "h": 189
+   },
+   "sourceSize": {
+    "w": 145,
+    "h": 189
+   }
+  },
+  "minion_radio_right_0": {
+   "frame": {
+    "x": 147,
+    "y": 2273,
+    "w": 192,
+    "h": 188
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 188
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 188
+   }
+  },
+  "minion_driller_left_3": {
+   "frame": {
+    "x": 341,
+    "y": 2273,
+    "w": 192,
+    "h": 184
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 184
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 184
+   }
+  },
+  "minion_radio_front_0": {
+   "frame": {
+    "x": 535,
+    "y": 2273,
+    "w": 192,
+    "h": 180
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 180
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 180
+   }
+  },
+  "minion_mechanic_right_2": {
+   "frame": {
+    "x": 729,
+    "y": 2273,
+    "w": 192,
+    "h": 173
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 173
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 173
+   }
+  },
+  "minion_radio_right_1": {
+   "frame": {
+    "x": 923,
+    "y": 2273,
+    "w": 192,
+    "h": 167
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 167
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 167
+   }
+  },
+  "minion_driller_front_3": {
+   "frame": {
+    "x": 1117,
+    "y": 2273,
+    "w": 192,
+    "h": 166
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 166
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 166
+   }
+  },
+  "minion_mechanic_right_1": {
+   "frame": {
+    "x": 1311,
+    "y": 2273,
+    "w": 192,
+    "h": 164
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 164
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 164
+   }
+  },
+  "minion_mechanic_back_2": {
+   "frame": {
+    "x": 1505,
+    "y": 2273,
+    "w": 192,
+    "h": 164
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 164
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 164
+   }
+  },
+  "minion_radio_right_3": {
+   "frame": {
+    "x": 1699,
+    "y": 2273,
+    "w": 192,
+    "h": 164
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 164
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 164
+   }
+  },
+  "minion_mechanic_right_3": {
+   "frame": {
+    "x": 0,
+    "y": 2464,
+    "w": 192,
+    "h": 162
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 162
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 162
+   }
+  },
+  "minion_driller_left_2": {
+   "frame": {
+    "x": 194,
+    "y": 2464,
+    "w": 192,
+    "h": 162
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 162
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 162
+   }
+  },
+  "minion_mechanic_back_1": {
+   "frame": {
+    "x": 388,
+    "y": 2464,
+    "w": 192,
+    "h": 160
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 160
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 160
+   }
+  },
+  "minion_mechanic_back_3": {
+   "frame": {
+    "x": 582,
+    "y": 2464,
+    "w": 192,
+    "h": 160
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 160
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 160
+   }
+  },
+  "minion_mechanic_back_0": {
+   "frame": {
+    "x": 776,
+    "y": 2464,
+    "w": 192,
+    "h": 159
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 159
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 159
+   }
+  },
+  "minion_radio_left_2": {
+   "frame": {
+    "x": 970,
+    "y": 2464,
+    "w": 192,
+    "h": 159
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 159
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 159
+   }
+  },
+  "minion_radio_front_1": {
+   "frame": {
+    "x": 1164,
+    "y": 2464,
+    "w": 192,
+    "h": 158
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 158
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 158
+   }
+  },
+  "minion_radio_right_2": {
+   "frame": {
+    "x": 1358,
+    "y": 2464,
+    "w": 192,
+    "h": 155
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 155
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 155
+   }
+  },
+  "minion_radio_front_3": {
+   "frame": {
+    "x": 1552,
+    "y": 2464,
+    "w": 192,
+    "h": 154
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 154
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 154
+   }
+  },
+  "minion_mechanic_right_0": {
+   "frame": {
+    "x": 1746,
+    "y": 2464,
+    "w": 192,
+    "h": 152
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 152
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 152
+   }
+  },
+  "minion_mechanic_front_2": {
+   "frame": {
+    "x": 0,
+    "y": 2628,
+    "w": 192,
+    "h": 143
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 143
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 143
+   }
+  },
+  "fx_cloud_xl": {
+   "frame": {
+    "x": 194,
+    "y": 2628,
+    "w": 172,
+    "h": 143
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 172,
+    "h": 143
+   },
+   "sourceSize": {
+    "w": 172,
+    "h": 143
+   }
+  },
+  "minion_mechanic_front_1": {
+   "frame": {
+    "x": 368,
+    "y": 2628,
+    "w": 192,
+    "h": 141
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 141
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 141
+   }
+  },
+  "minion_mechanic_front_3": {
+   "frame": {
+    "x": 562,
+    "y": 2628,
+    "w": 192,
+    "h": 139
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 139
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 139
+   }
+  },
+  "minion_mechanic_front_0": {
+   "frame": {
+    "x": 756,
+    "y": 2628,
+    "w": 192,
+    "h": 134
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 134
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 134
+   }
+  },
+  "minion_radio_front_2": {
+   "frame": {
+    "x": 950,
+    "y": 2628,
+    "w": 192,
+    "h": 131
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 131
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 131
+   }
+  },
+  "ground_plate": {
+   "frame": {
+    "x": 1144,
+    "y": 2628,
+    "w": 128,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 128,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 128,
+    "h": 128
+   }
+  },
+  "ground_plate_worn": {
+   "frame": {
+    "x": 1274,
+    "y": 2628,
+    "w": 128,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 128,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 128,
+    "h": 128
+   }
+  },
+  "ground_hazard": {
+   "frame": {
+    "x": 1404,
+    "y": 2628,
+    "w": 128,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 128,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 128,
+    "h": 128
+   }
+  },
+  "ground_road": {
+   "frame": {
+    "x": 1534,
+    "y": 2628,
+    "w": 128,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 128,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 128,
+    "h": 128
+   }
+  },
+  "ui_portrait_chemist": {
+   "frame": {
+    "x": 1664,
+    "y": 2628,
+    "w": 127,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 127,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 127,
+    "h": 128
+   }
+  },
+  "ui_portrait_mechanic": {
+   "frame": {
+    "x": 1793,
+    "y": 2628,
+    "w": 126,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 126,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 126,
+    "h": 128
+   }
+  },
+  "ui_portrait_driller": {
+   "frame": {
+    "x": 1921,
+    "y": 2628,
+    "w": 126,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 126,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 126,
+    "h": 128
+   }
+  },
+  "ui_portrait_astronaut": {
+   "frame": {
+    "x": 0,
+    "y": 2773,
+    "w": 126,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 126,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 126,
+    "h": 128
+   }
+  },
+  "ui_portrait_radio": {
+   "frame": {
+    "x": 128,
+    "y": 2773,
+    "w": 125,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 125,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 125,
+    "h": 128
+   }
+  },
+  "bell_spark": {
+   "frame": {
+    "x": 255,
+    "y": 2773,
+    "w": 79,
+    "h": 127
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 79,
+    "h": 127
+   },
+   "sourceSize": {
+    "w": 79,
+    "h": 127
+   }
+  },
+  "minion_driller_right_2": {
+   "frame": {
+    "x": 336,
+    "y": 2773,
+    "w": 192,
+    "h": 116
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 116
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 116
+   }
+  },
+  "minion_driller_front_2": {
+   "frame": {
+    "x": 530,
+    "y": 2773,
+    "w": 192,
+    "h": 114
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 114
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 114
+   }
+  },
+  "minion_driller_right_1": {
+   "frame": {
+    "x": 724,
+    "y": 2773,
+    "w": 192,
+    "h": 111
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 111
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 111
+   }
+  },
+  "fx_sparkle_l": {
+   "frame": {
+    "x": 918,
+    "y": 2773,
+    "w": 104,
+    "h": 108
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 104,
+    "h": 108
+   },
+   "sourceSize": {
+    "w": 104,
+    "h": 108
+   }
+  },
+  "minion_driller_left_1": {
+   "frame": {
+    "x": 1024,
+    "y": 2773,
+    "w": 192,
+    "h": 106
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 106
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 106
+   }
+  },
+  "fx_cloud_l": {
+   "frame": {
+    "x": 1218,
+    "y": 2773,
+    "w": 126,
+    "h": 106
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 126,
+    "h": 106
+   },
+   "sourceSize": {
+    "w": 126,
+    "h": 106
+   }
+  },
+  "minion_driller_front_1": {
+   "frame": {
+    "x": 1346,
+    "y": 2773,
+    "w": 192,
+    "h": 101
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 101
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 101
+   }
+  },
+  "fx_blast_hit": {
+   "frame": {
+    "x": 1540,
+    "y": 2773,
+    "w": 192,
+    "h": 101
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 101
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 101
+   }
+  },
+  "fx_blast_ground": {
+   "frame": {
+    "x": 1734,
+    "y": 2773,
+    "w": 260,
+    "h": 91
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 260,
+    "h": 91
+   },
+   "sourceSize": {
+    "w": 260,
+    "h": 91
+   }
+  },
+  "fx_sparkle_m": {
+   "frame": {
+    "x": 0,
+    "y": 2903,
+    "w": 84,
+    "h": 87
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 84,
+    "h": 87
+   },
+   "sourceSize": {
+    "w": 84,
+    "h": 87
+   }
+  },
+  "fx_cloud_m": {
+   "frame": {
+    "x": 86,
+    "y": 2903,
+    "w": 90,
+    "h": 76
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 90,
+    "h": 76
+   },
+   "sourceSize": {
+    "w": 90,
+    "h": 76
+   }
+  },
+  "ui_icon_wrench": {
+   "frame": {
+    "x": 178,
+    "y": 2903,
+    "w": 60,
+    "h": 64
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 60,
+    "h": 64
+   },
+   "sourceSize": {
+    "w": 60,
+    "h": 64
+   }
+  },
+  "ui_icon_gear": {
+   "frame": {
+    "x": 240,
+    "y": 2903,
+    "w": 60,
+    "h": 64
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 60,
+    "h": 64
+   },
+   "sourceSize": {
+    "w": 60,
+    "h": 64
+   }
+  },
+  "ui_icon_rocket": {
+   "frame": {
+    "x": 302,
+    "y": 2903,
+    "w": 50,
+    "h": 64
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 50,
+    "h": 64
+   },
+   "sourceSize": {
+    "w": 50,
+    "h": 64
+   }
+  },
+  "ui_icon_fuel": {
+   "frame": {
+    "x": 354,
+    "y": 2903,
+    "w": 52,
+    "h": 63
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 52,
+    "h": 63
+   },
+   "sourceSize": {
+    "w": 52,
+    "h": 63
+   }
+  },
+  "ui_arrow": {
+   "frame": {
+    "x": 408,
+    "y": 2903,
+    "w": 58,
+    "h": 60
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 58,
+    "h": 60
+   },
+   "sourceSize": {
+    "w": 58,
+    "h": 60
+   }
+  },
+  "ui_star_empty": {
+   "frame": {
+    "x": 468,
+    "y": 2903,
+    "w": 58,
+    "h": 60
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 58,
+    "h": 60
+   },
+   "sourceSize": {
+    "w": 58,
+    "h": 60
+   }
+  },
+  "ui_star_full": {
+   "frame": {
+    "x": 528,
+    "y": 2903,
+    "w": 58,
+    "h": 60
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 58,
+    "h": 60
+   },
+   "sourceSize": {
+    "w": 58,
+    "h": 60
+   }
+  },
+  "ui_cursor_hand": {
+   "frame": {
+    "x": 588,
+    "y": 2903,
+    "w": 52,
+    "h": 60
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 52,
+    "h": 60
+   },
+   "sourceSize": {
+    "w": 52,
+    "h": 60
+   }
+  },
+  "fx_sparkle_s": {
+   "frame": {
+    "x": 642,
+    "y": 2903,
+    "w": 47,
+    "h": 49
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 47,
+    "h": 49
+   },
+   "sourceSize": {
+    "w": 47,
+    "h": 49
+   }
+  },
+  "fx_blast_burst": {
+   "frame": {
+    "x": 691,
+    "y": 2903,
+    "w": 65,
+    "h": 48
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 65,
+    "h": 48
+   },
+   "sourceSize": {
+    "w": 65,
+    "h": 48
+   }
+  },
+  "fx_cloud_s": {
+   "frame": {
+    "x": 758,
+    "y": 2903,
+    "w": 46,
+    "h": 45
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 46,
+    "h": 45
+   },
+   "sourceSize": {
+    "w": 46,
+    "h": 45
+   }
+  }
+ },
+ "meta": {
+  "app": "cut-v2.mjs",
+  "image": "v2.png",
+  "format": "RGBA8888",
+  "size": {
+   "w": 2048,
+   "h": 2990
+  },
+  "scale": "1"
+ }
+}
