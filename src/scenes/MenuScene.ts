@@ -5,6 +5,8 @@ import { t } from '../core/i18n';
 import { MISSIONS, MISSION_ORDER } from '../data/missions';
 import { makeButton, makeIconButton, makePanel, ensureMusic, TXT, type ButtonVariant } from '../ui/widgets';
 import { UI, BG, hasFrame, starFrame, addStarRow, UI_V2_ART, hasV2 } from '../ui/theme';
+import { deviceSilenced, onDeviceSilenceChange, resumeAudio, watchAudioOutput } from '../core/audioState';
+import { attachMinionFit } from '../core/minionArt';
 
 export class MenuScene extends Phaser.Scene {
   private ui: Phaser.GameObjects.GameObject[] = [];
@@ -15,6 +17,11 @@ export class MenuScene extends Phaser.Scene {
 
   create(): void {
     ensureMusic(this, state.music);
+    watchAudioOutput(this);
+    // the platform can silence the page on its own (a call, a backgrounded
+    // tab); when that flips, the sound button has to follow
+    const offSilence = onDeviceSilenceChange(() => this.renderUI());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, offSilence);
     this.renderUI();
     const game = this.game as Phaser.Game & { __saveReset?: boolean };
     if (game.__saveReset) {
@@ -72,8 +79,12 @@ export class MenuScene extends Phaser.Scene {
     astro.setScale(1.15);
     this.ui.push(astro);
     this.tweens.add({ targets: astro, y: astro.y - 7, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    // the crew line-up: four frames cropped to their own bounds, so they are
+    // fitted by height — a single scale here drew them at four different sizes
+    const crewH = 84;
     ['minions_mechanic', 'minions_miner_driller', 'minions_radio_scout', 'minions_chemist'].forEach((f, i) => {
-      const m = this.add.sprite(1040 + (i % 2) * 74, height - 132 + Math.floor(i / 2) * 62, 'minions', f).setScale(0.66);
+      const m = this.add.sprite(1030 + (i % 2) * 128, height - 150 + Math.floor(i / 2) * 88, 'minions', f);
+      attachMinionFit(m, crewH);
       this.ui.push(m);
       this.tweens.add({ targets: m, y: m.y - 9, duration: 600 + i * 130, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
     });
@@ -111,9 +122,23 @@ export class MenuScene extends Phaser.Scene {
     this.ui.push(langLabel);
     this.ui.push(makeIconButton(this, width - 130, 74, langFrame, toggleLang, 54));
 
-    const soundFrame = state.music ? 'ico_sound' : 'ico_mute';
-    const soundLabel = this.add.text(width - 60, 34, t('menu.sound'), { ...TXT.small, fontSize: '12px' }).setOrigin(0.5, 0);
+    // The button shows what the player hears, not just the stored flag: a
+    // suspended or interrupted audio context means silence however the setting
+    // reads, and showing "on" there is a lie the player notices immediately.
+    const silenced = deviceSilenced();
+    const soundFrame = state.music && !silenced ? 'ico_sound' : 'ico_mute';
+    const soundLabel = this.add.text(
+      width - 60, 34, silenced ? t('menu.sound_off') : t('menu.sound'),
+      { ...TXT.small, fontSize: '12px', color: silenced ? '#ffb3b3' : TXT.small.color },
+    ).setOrigin(0.5, 0);
     const toggleSound = () => {
+      if (silenced) {
+        // the platform is holding the audio, not the game: ask for it back and
+        // say why the tap did not simply toggle the setting
+        resumeAudio();
+        this.toast(t('menu.sound_device'));
+        return;
+      }
       state.music = !state.music;
       saveGame();
       ensureMusic(this, state.music);

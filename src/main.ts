@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { watchInputMode } from './core/device';
+import { useMediaAudioSession } from './core/audioState';
 import { BootScene } from './scenes/BootScene';
 import { MenuScene } from './scenes/MenuScene';
 import { HubScene } from './scenes/HubScene';
@@ -7,6 +9,11 @@ import { CodeScene } from './scenes/CodeScene';
 import { FlightScene } from './scenes/FlightScene';
 import { ExploreScene } from './scenes/ExploreScene';
 import { ResultScene } from './scenes/ResultScene';
+
+// Phones start reporting touch *after* the first layout, so the input mode is
+// derived once here and then corrected by the first real pointer event.
+watchInputMode();
+useMediaAudioSession();
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,

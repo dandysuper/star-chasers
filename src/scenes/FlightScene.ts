@@ -8,6 +8,7 @@ import { computeStats } from '../physics/rocket';
 import { compileBlocklyJSON } from '../rocketscript/compile';
 import { Interpreter, type InterpEvent } from '../rocketscript/interp';
 import { makeButton, makeIconButton, makePanel, ensureMusic, TXT } from '../ui/widgets';
+import { isTouchMode, onInputModeChange } from '../core/device';
 import { addPart, partMetrics, UI, V2, FLAME_ART, FX_ART, UI_V2_ART, BG, hasFrame, hasV2, bellDrop, makeSpeechBubble } from '../ui/theme';
 
 const M2PX_MIN = 1;        // px per metre near the ground
@@ -45,6 +46,7 @@ export class FlightScene extends Phaser.Scene {
   private statusText!: Phaser.GameObjects.Text;
   private fuelBar!: Phaser.GameObjects.Graphics;
   private pauseIcon!: Phaser.GameObjects.Image | Phaser.GameObjects.Container;
+  private hintText?: Phaser.GameObjects.Text;
 
   private warp = 1;
   private paused = false;
@@ -132,6 +134,11 @@ export class FlightScene extends Phaser.Scene {
 
     this.buildHUD(width, height);
 
+    // the keyboard hint is dead weight on a phone, where the same actions are
+    // four on-screen buttons
+    const offInputMode = onInputModeChange(() => this.refreshHintText());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, offInputMode);
+
     // the main camera renders the world + backdrop; the HUD camera only the HUD
     this.uiCam.ignore(this.worldObjects);
     this.uiCam.ignore(this.bgRoot);
@@ -204,10 +211,17 @@ export class FlightScene extends Phaser.Scene {
     });
     this.uiObjects.push(giveUp);
 
-    this.uiObjects.push(this.add.text(14, height - 26, t('flight.hint_keys'), {
+    this.hintText = this.add.text(14, height - 26, '', {
       ...TXT.small, fontSize: '12px', color: '#9a9ad0',
       backgroundColor: '#0b0b2acc', padding: { x: 8, y: 4 },
-    }).setOrigin(0, 0.5).setDepth(50));
+    }).setOrigin(0, 0.5).setDepth(50);
+    this.uiObjects.push(this.hintText);
+    this.refreshHintText();
+  }
+
+  /** Name the controls the player actually has in front of them. */
+  private refreshHintText(): void {
+    this.hintText?.setText(t(isTouchMode() ? 'flight.hint_keys_touch' : 'flight.hint_keys'));
   }
 
   private togglePause(): void {

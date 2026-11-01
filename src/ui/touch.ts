@@ -38,6 +38,9 @@ export class TouchControls {
   private _dy = 0;
   private actionJustPressed = false;
   private actionPulse = false;
+  /** Off on a desktop: the pads are hidden and the listeners ignore pointers,
+   *  so a mouse drag across the bottom-left corner never walks the player. */
+  private enabled = true;
 
   constructor(scene: Phaser.Scene, opts: TouchControlsOpts = {}) {
     this.scene = scene;
@@ -89,6 +92,7 @@ export class TouchControls {
     this.actionContainer.add(this.actionLabel);
 
     this.objects.push(this.baseGfx, this.knobGfx, this.actionContainer);
+    this.applyVisibility();
 
     // ---- Pointer listeners (multi-touch aware) ----
     scene.input.on('pointerdown', this.onPointerDown, this);
@@ -109,9 +113,33 @@ export class TouchControls {
     return this._dy;
   }
 
+  /** Show or hide the on-screen pads. A hidden pad also stops listening, so the
+   *  keyboard stays the only input on a desktop. */
+  setEnabled(on: boolean): void {
+    if (this.enabled === on) return;
+    this.enabled = on;
+    if (!on) {
+      this.resetStick();
+      this.actionJustPressed = false;
+      this.actionPulse = false;
+    }
+    this.applyVisibility();
+  }
+
+  get isEnabled(): boolean {
+    return this.enabled;
+  }
+
+  private applyVisibility(): void {
+    for (const o of this.objects) {
+      (o as unknown as { setVisible(v: boolean): unknown }).setVisible(this.enabled);
+    }
+    if (!this.enabled) this.actionContainer.setScale(1);
+  }
+
   /** Consume a single press of the right-hand action button. */
   consumeAction(): boolean {
-    if (!this.actionJustPressed) return false;
+    if (!this.enabled || !this.actionJustPressed) return false;
     this.actionJustPressed = false;
     return true;
   }
@@ -128,6 +156,7 @@ export class TouchControls {
   }
 
   private onPointerDown(p: Phaser.Input.Pointer): void {
+    if (!this.enabled) return;
     // Check action button first (bottom-right)
     const distAction = Math.hypot(p.x - this.actionX, p.y - this.actionY);
     if (distAction <= this.actionRadius + 18) {
@@ -160,6 +189,7 @@ export class TouchControls {
     if (this.joyPointerId !== null && p.id === this.joyPointerId) {
       this.resetStick();
     }
+    if (!this.enabled) return;
     this.drawActionBg(false, this.actionPulse);
     this.actionContainer.setScale(1);
   }

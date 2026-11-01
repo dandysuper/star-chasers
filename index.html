@@ -12,6 +12,18 @@
     }
     #game { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; touch-action: none; }
     #blockly-div { position: absolute; z-index: 10; touch-action: manipulation; }
+    /* Blockly paints the toolbox category labels near-black, which vanishes on
+       the dark toolbox it also paints. The selectors carry the container id so
+       they outrank Blockly's own stylesheet whatever order the styles land in. */
+    #blockly-div .blocklyTreeRow,
+    #blockly-div .blocklyTreeLabel { color: #e8eaff; }
+    #blockly-div .blocklyTreeRow:hover,
+    #blockly-div .blocklyTreeRow:hover .blocklyTreeLabel { color: #ffffff; }
+    /* A selected category is filled with its own colour, so the label flips
+       back to dark to stay readable on that brighter fill. */
+    #blockly-div .blocklyTreeRow.blocklyTreeSelected,
+    #blockly-div .blocklyTreeRow.blocklyTreeSelected .blocklyTreeLabel { color: #101028; }
+    #blockly-div .blocklyFlyoutLabelText { fill: #e8eaff; }
     #ui-overlay { position: absolute; z-index: 20; pointer-events: none; top: 0; left: 0; }
     .rs-button {
       pointer-events: auto; display: block; margin: 6px; padding: 12px 20px;

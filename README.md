@@ -11,7 +11,7 @@ Phaser 3 · TypeScript · Vite · Blockly. Targets a 1280×720 canvas, scaled to
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # 22 unit tests (physics, interpreter, rocket math)
+npm test           # 32 unit tests (physics, interpreter, rocket math, audio state)
 npm run build      # dist/ — a static bundle, deployable anywhere
 npm run typecheck  # tsc --noEmit
 ```
@@ -31,7 +31,10 @@ npm run typecheck  # tsc --noEmit
 Three missions (`m1` reach 10 km, `m2` reach 70 km and cut the engine, `moon` walk and
 sample) plus a Sandbox that starts from the working preset rocket.
 
-**Controls (Desktop & Smartphones/Tablets).**
+**Controls.** The scheme is detected, not assumed: a phone or tablet gets the
+on-screen pads and touch wording, a desktop gets the keyboard and no pads, and a
+hybrid device switches to whichever was used last without a reload.
+
 - **Hub & Explore**: WASD / arrows or the bottom-left **virtual thumbstick** to walk; `E`, the bottom-right **action button**, or tapping a nearby station/sample/lander directly to interact/drill/transmit.
 - **Builder**: drag or tap palette cards to attach parts; wheel or on-screen `+` / `−` / reset buttons to zoom; right-drag or 1-finger grid drag to pan; `Delete` or the on-screen **✕ Remove part** button to remove the selected part.
 - **Flight**: `Space` or pause icon to pause, `[` / `]` or warp icon (cycles 1× → 2× → 5× → 10× → 1×) to warp, `R` or reset icon to restart, `Esc` or back icon to return to code.
@@ -40,7 +43,9 @@ sample) plus a Sandbox that starts from the working preset rocket.
 
 ```
 src/
-  core/       state, save, i18n, devtools, walker (player), crew (patrols)
+  core/       state, save, i18n, devtools, walker (player), crew (patrols),
+              device (input-mode detection), minionArt (one size for every
+              minion), audioState + audioSignals (is sound actually audible)
   data/       parts, bodies, mission definitions and their win/lose checks
   physics/    the flight sim + rocket stat maths (pure, unit-tested)
   rocketscript/ Blockly block definitions, JSON → AST compiler, interpreter
@@ -161,8 +166,9 @@ Combining them makes screenshots and manual checks one URL, e.g.
 ## Tests
 
 `tests/` covers the parts that must not drift: the flight integrator (staging, drag,
-landing), the rocket stat calculator (Δv, TWR, stability warnings), and the Blockly
-interpreter (loops, waits, sensors, error reporting). Scene code is verified by hand in
+landing), the rocket stat calculator (Δv, TWR, stability warnings), the Blockly
+interpreter (loops, waits, sensors, error reporting), and the audio-state classifier
+(which platform signals count as "the sound is off"). Scene code is verified by hand in
 the browser.
 
 `PLAN.md` holds the original build plan; `handoff/CORE_SPEC.txt` is the authoritative

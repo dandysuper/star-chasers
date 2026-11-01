@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { TouchControls } from '../ui/touch';
+import { isTouchMode, onInputModeChange } from './device';
 
 /** Shared keyboard + smartphone touch movement for the on-foot scenes.
  *
@@ -27,6 +28,13 @@ export class Walker {
     this.wasd = kb.addKeys('W,A,S,D') as Record<string, Phaser.Input.Keyboard.Key>;
     this.keyE = kb.addKey('E');
     this.touch = new TouchControls(scene);
+
+    // The pads exist for every input scheme but are only shown — and only
+    // listen — on a touch device. Flipping a tablet out of its keyboard brings
+    // them back without a reload.
+    this.touch.setEnabled(isTouchMode());
+    const unsubscribe = onInputModeChange(() => this.touch.setEnabled(isTouchMode()));
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, unsubscribe);
   }
 
   /** True on the frame the interact key (`E`) or touch action button was pressed. */

@@ -11,6 +11,7 @@
  */
 import Phaser from 'phaser';
 import { V2 } from '../ui/theme';
+import { MINION_HEIGHT, attachMinionFit, fitMinion } from './minionArt';
 
 export type CrewWho = 'mechanic' | 'driller' | 'radio' | 'chemist';
 
@@ -22,12 +23,11 @@ export interface CrewSpec {
   path: { x: number; y: number }[];
   /** World px per second. */
   speed?: number;
-  /** Sprite scale. The art is cut ~192 px tall; the astronaut stands ~90. */
-  scale?: number;
+  /** Rendered height in world px. Defaults to the shared minion height. */
+  height?: number;
 }
 
 const DEFAULT_SPEED = 46;
-const DEFAULT_SCALE = 0.5;
 /** Arrive tolerance so the sprite does not jitter on the waypoint. */
 const ARRIVE_EPS = 6;
 /** How long a breather lasts, and how often one happens. */
@@ -41,6 +41,7 @@ export class CrewMember {
   private readonly who: CrewWho;
   private readonly path: { x: number; y: number }[];
   private readonly speed: number;
+  private readonly height: number;
   private readonly animPrefix: string;
   private readonly walkReady: boolean;
   private readonly idleFrame: string | null;
@@ -54,6 +55,7 @@ export class CrewMember {
     this.who = spec.who;
     this.path = spec.path;
     this.speed = spec.speed ?? DEFAULT_SPEED;
+    this.height = spec.height ?? MINION_HEIGHT;
     this.animPrefix = `minion_${spec.who}_walk`;
     this.walkReady = scene.anims.exists(`${this.animPrefix}_front`);
 
@@ -62,8 +64,10 @@ export class CrewMember {
 
     const start = this.path[0];
     this.sprite = scene.add.sprite(start.x, start.y, V2, `minion_${spec.who}_front_0`)
-      .setScale(spec.scale ?? DEFAULT_SCALE)
       .setDepth(start.y);
+    // Height, not scale: the cut frames have no shared anchor, so a fixed scale
+    // makes the crew change size as the animation walks through its frames.
+    attachMinionFit(this.sprite, spec.height ?? MINION_HEIGHT);
     this.next = this.path.length > 1 ? 1 : 0;
     this.play();
   }
@@ -116,12 +120,16 @@ export class CrewMember {
     this.idleLeft = Phaser.Math.Between(IDLE_MIN_MS, IDLE_MAX_MS);
     this.sprite.anims.stop();
     this.sprite.setTexture(V2, this.idleFrame);
+    // the idle pose is cut taller than any walk frame — re-fit or the minion
+    // visibly grows the moment it stops walking
+    fitMinion(this.sprite, this.height);
     return true;
   }
 
   private resume(): void {
     if (!this.idleFrame) return;
     this.sprite.setTexture(V2, `minion_${this.who}_${this.dir}_0`);
+    fitMinion(this.sprite, this.height);
     if (!this.walkReady) return;
     this.sprite.play(`${this.animPrefix}_${this.dir}`, true);
   }

@@ -5,6 +5,8 @@ import { missionById } from '../data/missions';
 import { makePanel, ensureMusic, TXT } from '../ui/widgets';
 import { V2, FX_ART, UI_V2_ART, hasV2, makeSpeechBubble } from '../ui/theme';
 import { TouchControls } from '../ui/touch';
+import { isTouchMode, onInputModeChange } from '../core/device';
+import { MINION_HEIGHT, attachMinionFit } from '../core/minionArt';
 
 const TILE = 64;
 const MAP_W = 40;
@@ -165,10 +167,15 @@ export class ExploreScene extends Phaser.Scene {
     // --- helpers (minions follow the player) ---
     const helperFrames = ['minions_mechanic', 'minions_miner_driller', 'minions_radio_scout', 'minions_chemist'];
     for (let i = 0; i < 4; i++) {
-      const go = this.add.image(spawn.x + 140 + i * 30, spawn.y + 80 + i * 25, 'minions', helperFrames[i]).setScale(0.55);
+      const go = this.add.image(spawn.x + 140 + i * 30, spawn.y + 80 + i * 25, 'minions', helperFrames[i]);
+      // same rendered height as the hub crew, so the helpers do not change
+      // size between the base and the Moon
+      attachMinionFit(go, MINION_HEIGHT);
+      // a 2×2 escort behind the astronaut: the old 30 px diagonal packed four
+      // full-size minions on top of each other and on top of the player
       this.helpers.push({
         go,
-        offset: { x: -50 - i * 30, y: 20 + i * 30 },
+        offset: { x: -70 - (i % 2) * 84, y: 36 + Math.floor(i / 2) * 58 },
         kind: helperFrames[i],
       });
     }
@@ -183,7 +190,12 @@ export class ExploreScene extends Phaser.Scene {
     this.buildMinimap();
 
     // --- on-screen touch controls (bottom-left thumbstick + bottom-right action) ---
+    // Only a touch device gets them; a desktop keeps the keyboard and the
+    // bottom corners of the screen free.
     this.touch = new TouchControls(this);
+    this.touch.setEnabled(isTouchMode());
+    const unsubscribeMode = onInputModeChange(() => this.touch.setEnabled(isTouchMode()));
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, unsubscribeMode);
 
     // The world camera is zoomed 1.4, which scales and shifts any
     // scroll-factor-0 text off screen. The overlay gets its own camera.
@@ -367,7 +379,7 @@ export class ExploreScene extends Phaser.Scene {
     const h = this.helpers[Math.floor(Math.random() * this.helpers.length)];
     const hints = this.mission?.hintKeys ?? ['hint.explore.1'];
     const key = hints[Math.floor(Math.random() * hints.length)];
-    this.bubble(h, t(key));
+    this.bubble(h, t(key, { act: this.actionLabel() }));
   }
 
   private bubble(h: Helper, text: string): void {
@@ -388,30 +400,42 @@ export class ExploreScene extends Phaser.Scene {
     const nearSample = s && Math.hypot(s.x - px, s.y - py) < 64;
     const nearLander = Math.hypot(px - this.lander.x, py - this.lander.y) < 96;
     const pressed = Phaser.Input.Keyboard.JustDown(this.keyE) || this.touch.consumeAction();
+    // On a phone the "E" in the prompt is meaningless — name the button the
+    // player actually presses instead.
+    const act = this.actionLabel();
 
     if (this.drilling) {
       this.promptText.setText(t('explore.drilling'));
       this.touch.setActionState(false, '…');
       return;
     }
-
     if (nearSample) {
-      this.promptText.setText(t('explore.prompt_drill'));
-      this.touch.setActionState(true, 'E');
+      this.promptText.setText(t('explore.prompt_drill', { act }));
+      this.touch.setActionState(true, this.touchLabel());
       if (pressed) this.startDrill(s);
     } else if (nearLander) {
       if (this.collected >= 3) {
-        this.promptText.setText(t('explore.prompt_transmit'));
-        this.touch.setActionState(true, 'E');
+        this.promptText.setText(t('explore.prompt_transmit', { act }));
+        this.touch.setActionState(true, this.touchLabel());
         if (pressed) this.transmit();
       } else {
         this.promptText.setText(t('explore.need_more', { n: 3 - this.collected }));
-        this.touch.setActionState(false, 'E');
+        this.touch.setActionState(false, this.touchLabel());
       }
     } else {
       this.promptText.setText('');
-      this.touch.setActionState(false, 'E');
+      this.touch.setActionState(false, this.touchLabel());
     }
+  }
+
+  /** What the player should press, phrased for the current input scheme. */
+  private actionLabel(): string {
+    return isTouchMode() ? t('touch.tap') : 'E';
+  }
+
+  /** Caption on the round on-screen button itself. */
+  private touchLabel(): string {
+    return t('touch.action');
   }
 
   private startDrill(s: Sample): void {

@@ -5,6 +5,7 @@ import { t } from '../core/i18n';
 import { Walker } from '../core/walker';
 import { MISSIONS, MISSION_ORDER } from '../data/missions';
 import { devSpawnOverride } from '../core/devtools';
+import { isTouchMode, onInputModeChange } from '../core/device';
 import { makeButton, makeIconButton, makePanel, ensureMusic, TXT, type LabelButton } from '../ui/widgets';
 import { V2, BASE_ART, GROUND_ART, UI_V2_ART, hasV2, addStarRow } from '../ui/theme';
 import { CrewMember, type CrewWho } from '../core/crew';
@@ -44,6 +45,7 @@ export class HubScene extends Phaser.Scene {
   private overlayButtons: LabelButton[] = [];
   private hudObjects: Phaser.GameObjects.GameObject[] = [];
   private hudCam!: Phaser.Cameras.Scene2D.Camera;
+  private controlsText?: Phaser.GameObjects.Text;
   private leaving = false;
   /** Time spent standing still, and whether the wave pose is currently up. */
   private waveTimer = 0;
@@ -78,6 +80,15 @@ export class HubScene extends Phaser.Scene {
     this.cameras.main.ignore(this.hudObjects);
 
     this.input.keyboard?.on('keydown-ESC', () => this.leave('menu'));
+
+    // plugging a keyboard into a tablet flips the scheme mid-walk; the hint has
+    // to follow, or the player is told to press keys that are not there
+    const unsubscribe = onInputModeChange(() => this.refreshControlsHint());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, unsubscribe);
+  }
+
+  private refreshControlsHint(): void {
+    this.controlsText?.setText(t(isTouchMode() ? 'hub.controls_touch' : 'hub.controls'));
   }
 
   // ---------------------------------------------------------------- world ---
@@ -311,6 +322,8 @@ export class HubScene extends Phaser.Scene {
       ...TXT.small, fontSize: '12px', color: '#b9bde0',
       backgroundColor: '#1d1d3acc', padding: { x: 10, y: 5 },
     }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(60);
+    this.controlsText = keys;
+    this.refreshControlsHint();
 
     const backBtn = makeIconButton(this, width - 38, 36, 'ico_back', () => this.leave('menu'), 44);
     backBtn.setDepth(65);
@@ -341,14 +354,17 @@ export class HubScene extends Phaser.Scene {
     this.updateWave(move.moving, delta);
     this.player.setDepth(this.player.y + 10);
 
+    // the keyboard prompt is noise on a phone: there is no E to press there
+    const key = isTouchMode() ? '' : '  ·  E';
+    const actionLabel = t('touch.action');
     const near = this.nearestStation();
     if (near) {
-      this.promptText.setText(`${t(near.promptKey)}  ·  E`);
-      this.walker.touch.setActionState(true, 'E');
+      this.promptText.setText(`${t(near.promptKey)}${key}`);
+      this.walker.touch.setActionState(true, actionLabel);
       if (this.walker.interactJustPressed) this.useStation(near.id);
     } else {
       this.promptText.setText(t('hub.prompt_walk'));
-      this.walker.touch.setActionState(false, 'E');
+      this.walker.touch.setActionState(false, actionLabel);
     }
 
     this.drawGuide();
