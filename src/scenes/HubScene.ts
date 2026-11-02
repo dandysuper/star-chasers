@@ -7,6 +7,7 @@ import { MISSIONS, MISSION_ORDER } from '../data/missions';
 import { devSpawnOverride } from '../core/devtools';
 import { isTouchMode, onInputModeChange } from '../core/device';
 import { makeButton, makeIconButton, makePanel, ensureMusic, TXT, type LabelButton } from '../ui/widgets';
+import { InGameMenu } from '../ui/ingameMenu';
 import { V2, BASE_ART, GROUND_ART, UI_V2_ART, hasV2, addStarRow } from '../ui/theme';
 import { CrewMember, type CrewWho } from '../core/crew';
 
@@ -46,6 +47,7 @@ export class HubScene extends Phaser.Scene {
   private hudObjects: Phaser.GameObjects.GameObject[] = [];
   private hudCam!: Phaser.Cameras.Scene2D.Camera;
   private controlsText?: Phaser.GameObjects.Text;
+  private inGameMenu!: InGameMenu;
   private leaving = false;
   /** Time spent standing still, and whether the wave pose is currently up. */
   private waveTimer = 0;
@@ -79,7 +81,19 @@ export class HubScene extends Phaser.Scene {
     this.hudCam.ignore(this.children.list.filter((o) => !hudSet.has(o)));
     this.cameras.main.ignore(this.hudObjects);
 
-    this.input.keyboard?.on('keydown-ESC', () => this.leave('menu'));
+    this.inGameMenu = new InGameMenu(this, {
+      onEscapeBeforeOpen: () => {
+        if (this.overlay) {
+          this.closeOverlay();
+          return true;
+        }
+        return false;
+      },
+      onOpen: () => {
+        this.player.setVelocity(0, 0);
+      },
+      onQuit: () => this.leave('menu'),
+    });
 
     // plugging a keyboard into a tablet flips the scheme mid-walk; the hint has
     // to follow, or the player is told to press keys that are not there
@@ -244,7 +258,7 @@ export class HubScene extends Phaser.Scene {
       const z = this.add.zone(s.x, s.y - 40, 240, 200).setInteractive();
       if (z.input) z.input.cursor = 'pointer';
       z.on('pointerup', () => {
-        if (this.overlay || this.leaving) return;
+        if (this.overlay || this.inGameMenu?.isOpen || this.leaving) return;
         const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, s.x, s.y);
         if (d > INTERACT_RADIUS) { this.showToast(t('hub.too_far')); return; }
         this.useStation(s.id);
@@ -325,10 +339,13 @@ export class HubScene extends Phaser.Scene {
     this.controlsText = keys;
     this.refreshControlsHint();
 
-    const backBtn = makeIconButton(this, width - 38, 36, 'ico_back', () => this.leave('menu'), 44);
-    backBtn.setDepth(65);
+    const menuBtn = makeIconButton(this, width - 38, 36, 'ico_gear', () => {
+      if (this.overlay) this.closeOverlay();
+      this.inGameMenu.toggle();
+    }, 44);
+    menuBtn.setDepth(65);
 
-    this.hudObjects = [this.objectiveText, this.promptText, keys, backBtn, ...this.walker.touch.objects];
+    this.hudObjects = [this.objectiveText, this.promptText, keys, menuBtn, ...this.walker.touch.objects];
   }
 
   private showToast(msg: string): void {
@@ -348,7 +365,7 @@ export class HubScene extends Phaser.Scene {
     if (this.leaving) return;
     // the crew keeps walking while the mission picker is open
     for (const c of this.crew) c.update(delta);
-    if (this.overlay) { this.player.setVelocity(0, 0); return; }
+    if (this.overlay || this.inGameMenu?.isOpen) { this.player.setVelocity(0, 0); return; }
 
     const move = this.walker.update();
     this.updateWave(move.moving, delta);

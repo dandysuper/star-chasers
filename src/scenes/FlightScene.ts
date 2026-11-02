@@ -8,6 +8,7 @@ import { computeStats } from '../physics/rocket';
 import { compileBlocklyJSON } from '../rocketscript/compile';
 import { Interpreter, type InterpEvent } from '../rocketscript/interp';
 import { makeButton, makeIconButton, makePanel, ensureMusic, TXT } from '../ui/widgets';
+import { InGameMenu } from '../ui/ingameMenu';
 import { isTouchMode, onInputModeChange } from '../core/device';
 import { addPart, partMetrics, UI, V2, FLAME_ART, FX_ART, UI_V2_ART, BG, hasFrame, hasV2, bellDrop, makeSpeechBubble } from '../ui/theme';
 
@@ -50,6 +51,8 @@ export class FlightScene extends Phaser.Scene {
 
   private warp = 1;
   private paused = false;
+  private wasPausedBeforeMenu = false;
+  private inGameMenu!: InGameMenu;
   private simAcc = 0;
   private logLines: string[] = [];
   private engineOffByProgram = false;
@@ -145,11 +148,25 @@ export class FlightScene extends Phaser.Scene {
     this.cameras.main.ignore(this.uiObjects);
 
     // ---- controls ----
-    this.input.keyboard?.on('keydown-SPACE', () => this.togglePause());
-    this.input.keyboard?.on('keydown-OPEN_BRACKET', () => this.setWarp(-1));
-    this.input.keyboard?.on('keydown-CLOSE_BRACKET', () => this.setWarp(1));
-    this.input.keyboard?.on('keydown-R', () => this.restart());
-    this.input.keyboard?.on('keydown-ESC', () => this.leave('code'));
+    this.input.keyboard?.on('keydown-SPACE', () => { if (!this.inGameMenu?.isOpen) this.togglePause(); });
+    this.input.keyboard?.on('keydown-OPEN_BRACKET', () => { if (!this.inGameMenu?.isOpen) this.setWarp(-1); });
+    this.input.keyboard?.on('keydown-CLOSE_BRACKET', () => { if (!this.inGameMenu?.isOpen) this.setWarp(1); });
+    this.input.keyboard?.on('keydown-R', () => { if (!this.inGameMenu?.isOpen) this.restart(); });
+    this.inGameMenu = new InGameMenu(this, {
+      musicDucked: true,
+      extraAction: { labelKey: 'result.edit', variant: 'blue', onClick: () => this.leave('code') },
+      onHub: () => this.leave('hub'),
+      onQuit: () => this.leave('menu'),
+      onOpen: () => {
+        this.wasPausedBeforeMenu = this.paused;
+        this.paused = true;
+        this.setOverlayVisible(false);
+      },
+      onClose: () => {
+        this.paused = this.wasPausedBeforeMenu;
+        this.setOverlayVisible(true);
+      },
+    });
 
     this.cameras.main.startFollow(this.rocket, true, 0.12, 0.12);
     this.cameras.main.setZoom(M2PX_MIN);
@@ -727,9 +744,17 @@ export class FlightScene extends Phaser.Scene {
     this.scene.start(scene, data);
   }
 
+  private setOverlayVisible(visible: boolean): void {
+    const container = document.getElementById('ui-overlay');
+    if (container) container.style.display = visible ? 'block' : 'none';
+  }
+
   private cleanupOverlay(): void {
     const container = document.getElementById('ui-overlay');
-    if (container) container.innerHTML = '';
+    if (container) {
+      container.innerHTML = '';
+      container.style.display = 'block';
+    }
     const game = this.game as Phaser.Game & { __programButtons?: HTMLButtonElement[] };
     game.__programButtons = [];
   }

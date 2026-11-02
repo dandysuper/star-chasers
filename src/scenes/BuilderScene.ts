@@ -6,6 +6,7 @@ import { partDef, PART_IDS, PRESET_BASIC } from '../data/parts';
 import { missionById } from '../data/missions';
 import { computeStats, MAX_PARTS } from '../physics/rocket';
 import { makeButton, makeIconButton, makePanel, ensureMusic, TXT, drawBar, type LabelButton } from '../ui/widgets';
+import { InGameMenu } from '../ui/ingameMenu';
 import { addPart, partMetrics, makePartInteractive, BG, V2, UI_V2_ART, hasV2 } from '../ui/theme';
 
 type PartGO = Phaser.GameObjects.Image | Phaser.GameObjects.Container;
@@ -40,6 +41,7 @@ export class BuilderScene extends Phaser.Scene {
   private snapTopY = 0;
   private snapBottomY = 0;
   private isPanningBg = false;
+  private inGameMenu!: InGameMenu;
 
   constructor() { super('builder'); }
 
@@ -94,10 +96,22 @@ export class BuilderScene extends Phaser.Scene {
       ...TXT.small, fontSize: '12px', color: '#9a9ad0', wordWrap: { width: 320 },
     }).setOrigin(0, 0.5);
 
-    this.input.keyboard?.on('keydown-DELETE', () => this.deleteSelected());
-    this.input.keyboard?.on('keydown-BACKSPACE', () => this.deleteSelected());
+    this.input.keyboard?.on('keydown-DELETE', () => { if (!this.inGameMenu?.isOpen) this.deleteSelected(); });
+    this.input.keyboard?.on('keydown-BACKSPACE', () => { if (!this.inGameMenu?.isOpen) this.deleteSelected(); });
+
+    this.inGameMenu = new InGameMenu(this, {
+      onHub: () => {
+        this.saveDesign();
+        this.scene.start('hub');
+      },
+      onQuit: () => {
+        this.saveDesign();
+        this.scene.start('menu');
+      },
+    });
 
     this.input.on('wheel', (_p: unknown, _o: unknown, _dx: number, dy: number) => {
+      if (this.inGameMenu?.isOpen) return;
       this.camZoom = Phaser.Math.Clamp(this.camZoom - Math.sign(dy) * 0.1, 0.4, 2.2);
       this.applyCam();
     });
@@ -105,7 +119,7 @@ export class BuilderScene extends Phaser.Scene {
     // Panning: right-drag on desktop, or single-finger drag in the middle
     // canvas area when not dragging a part
     this.input.on('pointerdown', (p: Phaser.Input.Pointer, currentlyOver: Phaser.GameObjects.GameObject[]) => {
-      if (this.dragGhost) return;
+      if (this.dragGhost || this.inGameMenu?.isOpen) return;
       const inCenter = p.x > PAL_W + 8 && p.x < width - STATS_W - 20 && p.y < height - 68;
       if (p.rightButtonDown() || (inCenter && currentlyOver.length === 0)) {
         this.isPanningBg = true;

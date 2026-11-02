@@ -35,6 +35,12 @@
   "hub.board_title": "Что сегодня запускаем?",
   "hub.close": "Закрыть",
 
+  "ingame.title": "Меню игры",
+  "ingame.resume": "Продолжить",
+  "ingame.hub": "Вернуться на базу",
+  "ingame.quit": "Выйти в главное меню",
+  "ingame.esc_hint": "Нажми Esc, чтобы продолжить",
+
   "mission.m1.title": "Первый запуск",
   "mission.m1.brief": "Долети до 10 км! Собери ракету, напиши программу запуска — и вверх!",
   "mission.m2.title": "Выход в космос",
@@ -166,7 +172,7 @@
   "flight.hud.watch": "Переменные",
   "flight.hud.log": "Ракета говорит",
   "flight.give_up": "Сдаться",
-  "flight.hint_keys": "Space пауза · [ ] ускорение · R заново",
+  "flight.hint_keys": "Space пауза · [ ] ускорение · R заново · Esc меню",
   "flight.hint_keys_touch": "Кнопки справа — пауза · ускорение · заново",
   "flight.escape": "убегает",
   "flight.liftoff": "Пуск!",

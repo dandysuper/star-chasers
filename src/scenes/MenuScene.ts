@@ -23,6 +23,9 @@ export class MenuScene extends Phaser.Scene {
     const offSilence = onDeviceSilenceChange(() => this.renderUI());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, offSilence);
     this.renderUI();
+    this.input.keyboard?.on('keydown-ESC', () => {
+      if (this.missionList) this.toggleMissionList();
+    });
     const game = this.game as Phaser.Game & { __saveReset?: boolean };
     if (game.__saveReset) {
       game.__saveReset = false;

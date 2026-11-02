@@ -8,6 +8,7 @@ import { computeStats } from '../physics/rocket';
 import { compileBlocklyJSON } from '../rocketscript/compile';
 import { defineRocketScriptBlocks, rsTheme, toolboxJSON } from '../rocketscript/blocks';
 import { makeButton, makePanel, ensureMusic, TXT } from '../ui/widgets';
+import { InGameMenu } from '../ui/ingameMenu';
 import { BG, V2, UI_V2_ART, hasV2 } from '../ui/theme';
 
 const BLOCKLY_SPLIT = 0.73;   // fraction of the canvas width given to Blockly
@@ -19,6 +20,7 @@ export class CodeScene extends Phaser.Scene {
   private rightPanel?: Phaser.GameObjects.Container;
   private errMsg?: Phaser.GameObjects.Text;
   private blockCountText?: Phaser.GameObjects.Text;
+  private inGameMenu!: InGameMenu;
 
   constructor() { super('code'); }
 
@@ -39,6 +41,7 @@ export class CodeScene extends Phaser.Scene {
     const div = document.getElementById('blockly-div') as HTMLElement;
     this.blocklyDiv = div;
     div.style.display = 'block';
+    div.style.visibility = 'visible';
     this.layoutBlocklyDiv();
 
     this.scale.on(Phaser.Scale.Events.RESIZE, () => this.layoutBlocklyDiv());
@@ -81,6 +84,18 @@ export class CodeScene extends Phaser.Scene {
       w: 240, h: 48, fontSize: 22, variant: 'yellow', onClick: () => this.tryRun(),
     });
     this.errMsg = this.add.text(300, height - 32, '', { ...TXT.warn, fontSize: '14px' }).setOrigin(0, 0.5);
+
+    this.inGameMenu = new InGameMenu(this, {
+      onOpen: () => {
+        Blockly.hideChaff();
+        if (this.blocklyDiv) this.blocklyDiv.style.visibility = 'hidden';
+      },
+      onClose: () => {
+        if (this.blocklyDiv) this.blocklyDiv.style.visibility = 'visible';
+      },
+      onHub: () => this.leave('hub'),
+      onQuit: () => this.leave('menu'),
+    });
 
     this.onWorkspaceChange();
   }
@@ -213,6 +228,7 @@ export class CodeScene extends Phaser.Scene {
     const div = this.blocklyDiv;
     if (div) {
       div.style.display = 'none';
+      div.style.visibility = 'visible';
       div.textContent = '';
     }
   }

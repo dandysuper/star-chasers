@@ -35,6 +35,12 @@
   "hub.board_title": "What are we flying today?",
   "hub.close": "Close",
 
+  "ingame.title": "Game Menu",
+  "ingame.resume": "Resume",
+  "ingame.hub": "Return to Base",
+  "ingame.quit": "Quit to Main Menu",
+  "ingame.esc_hint": "Press Esc to resume",
+
   "mission.m1.title": "First Launch",
   "mission.m1.brief": "Reach 10 km! Build a rocket, write a launch program — and up you go!",
   "mission.m2.title": "Reach Space",
@@ -166,7 +172,7 @@
   "flight.hud.watch": "Variables",
   "flight.hud.log": "Rocket says",
   "flight.give_up": "Give up",
-  "flight.hint_keys": "Space pause · [ ] warp · R restart",
+  "flight.hint_keys": "Space pause · [ ] warp · R restart · Esc menu",
   "flight.hint_keys_touch": "Buttons on the right: pause · warp · restart",
   "flight.escape": "escaping",
   "flight.liftoff": "Liftoff!",

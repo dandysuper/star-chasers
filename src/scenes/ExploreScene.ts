@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { state } from '../core/state';
 import { t, fmtTime } from '../core/i18n';
 import { missionById } from '../data/missions';
-import { makePanel, ensureMusic, TXT } from '../ui/widgets';
+import { makeIconButton, makePanel, ensureMusic, TXT } from '../ui/widgets';
+import { InGameMenu } from '../ui/ingameMenu';
 import { V2, FX_ART, UI_V2_ART, hasV2, makeSpeechBubble } from '../ui/theme';
 import { TouchControls } from '../ui/touch';
 import { isTouchMode, onInputModeChange } from '../core/device';
@@ -66,6 +67,8 @@ export class ExploreScene extends Phaser.Scene {
   private minimapDots?: Phaser.GameObjects.Graphics;
   private hudCam!: Phaser.Cameras.Scene2D.Camera;
   private hudObjects: Phaser.GameObjects.GameObject[] = [];
+  private inGameMenu!: InGameMenu;
+  private pauseStart = 0;
 
   constructor() { super('explore'); }
 
@@ -116,7 +119,7 @@ export class ExploreScene extends Phaser.Scene {
     this.lander.setInteractive();
     if (this.lander.input) this.lander.input.cursor = 'pointer';
     this.lander.on('pointerup', () => {
-      if (this.drilling || this.ended) return;
+      if (this.inGameMenu?.isOpen || this.drilling || this.ended) return;
       if (Math.hypot(this.player.x - this.lander.x, this.player.y - this.lander.y) < 110 && this.collected >= 3) {
         this.transmit();
       }
@@ -156,7 +159,7 @@ export class ExploreScene extends Phaser.Scene {
       go.setInteractive();
       if (go.input) go.input.cursor = 'pointer';
       go.on('pointerup', () => {
-        if (this.drilling || this.ended || sample.collected) return;
+        if (this.inGameMenu?.isOpen || this.drilling || this.ended || sample.collected) return;
         if (Math.hypot(sample.x - this.player.x, sample.y - this.player.y) < 84) {
           this.startDrill(sample);
         }
@@ -189,6 +192,9 @@ export class ExploreScene extends Phaser.Scene {
     // --- radar minimap (top-right, framed by ui_minimap_frame) ---
     this.buildMinimap();
 
+    const menuBtn = makeIconButton(this, this.scale.width - MINIMAP_SIZE - 44, 36, 'ico_gear', () => this.inGameMenu.toggle(), 44);
+    menuBtn.setScrollFactor(0).setDepth(65);
+
     // --- on-screen touch controls (bottom-left thumbstick + bottom-right action) ---
     // Only a touch device gets them; a desktop keeps the keyboard and the
     // bottom corners of the screen free.
@@ -202,11 +208,28 @@ export class ExploreScene extends Phaser.Scene {
     this.hudCam = this.cameras.add(0, 0, this.scale.width, height);
     this.hudCam.setName('hud');
     this.hudCam.transparent = true;
-    this.hudObjects = [this.goalText, this.invText, this.promptText, ...this.touch.objects];
+    this.hudObjects = [this.goalText, this.invText, this.promptText, menuBtn, ...this.touch.objects];
     if (this.minimapContainer) this.hudObjects.push(this.minimapContainer);
     const hudSet = new Set<Phaser.GameObjects.GameObject>(this.hudObjects);
     this.hudCam.ignore(this.children.list.filter((o) => !hudSet.has(o)));
     this.cameras.main.ignore(this.hudObjects);
+
+    this.inGameMenu = new InGameMenu(this, {
+      onOpen: () => {
+        this.player.setVelocity(0, 0);
+        this.pauseStart = this.time.now;
+        if (this.drill) this.drill.timer.paused = true;
+      },
+      onClose: () => {
+        if (this.pauseStart) {
+          this.startT += this.time.now - this.pauseStart;
+          this.pauseStart = 0;
+        }
+        if (this.drill) this.drill.timer.paused = false;
+      },
+      onHub: () => this.scene.start('hub'),
+      onQuit: () => this.scene.start('menu'),
+    });
 
     // input
     this.cursors = this.input.keyboard!.createCursorKeys();
@@ -282,6 +305,10 @@ export class ExploreScene extends Phaser.Scene {
 
   override update(_t: number, delta: number): void {
     if (this.ended) return;
+    if (this.inGameMenu?.isOpen) {
+      this.player.setVelocity(0, 0);
+      return;
+    }
     const speed = 160;
     let vx = (this.cursors.left.isDown || this.keyWASD.A.isDown ? -speed : 0) + (this.cursors.right.isDown || this.keyWASD.D.isDown ? speed : 0);
     let vy = (this.cursors.up.isDown || this.keyWASD.W.isDown ? -speed : 0) + (this.cursors.down.isDown || this.keyWASD.S.isDown ? speed : 0);
