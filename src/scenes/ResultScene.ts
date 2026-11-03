@@ -4,6 +4,7 @@ import { saveGame } from '../core/save';
 import { t, fmtDist, fmtTime } from '../core/i18n';
 import { missionById, MISSION_ORDER } from '../data/missions';
 import { makeButton, makePanel, ensureMusic, TXT, type ButtonVariant } from '../ui/widgets';
+import { playVictoryJingle } from '../ui/music';
 import { UI, BG, hasFrame, starFrame } from '../ui/theme';
 
 interface ResultData {
@@ -33,6 +34,8 @@ export class ResultScene extends Phaser.Scene {
 
   create(data: ResultData): void {
     ensureMusic(this, state.music);
+    // the win gets its own fanfare over the theme; a failure stays on the bed
+    if (data.result.success) playVictoryJingle(this);
     saveGame();
     const { width, height } = this.scale;
     this.cameras.main.setBackgroundColor(0x0b0b2a);

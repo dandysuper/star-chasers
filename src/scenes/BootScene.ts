@@ -7,6 +7,7 @@ import { devSceneOverride, devMissionOverride, devLangOverride } from '../core/d
 import { state } from '../core/state';
 import { PRESET_BASIC } from '../data/parts';
 import { STARTER_PROGRAM, MISSIONS } from '../data/missions';
+import { musicAssetFiles } from '../core/themeTracks';
 
 export class BootScene extends Phaser.Scene {
   constructor() { super('boot'); }
@@ -21,7 +22,10 @@ export class BootScene extends Phaser.Scene {
     void label; void bar;
 
     this.load.image('world_map', 'assets/maps/world_map.webp');
-    this.load.audio('theme', 'assets/audio/main_theme.mp3');
+
+    // soundtrack: one looping bed per room plus the victory sting. The list
+    // comes from the track registry so a new theme only has to be added there.
+    for (const track of musicAssetFiles()) this.load.audio(track.key, track.file);
 
     // ui_v1 art: one packed atlas of sprite frames + the nine painted backdrops
     this.load.atlas(UI, 'assets/ui/ui.png', 'assets/ui/ui.json');

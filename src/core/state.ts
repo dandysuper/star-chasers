@@ -68,4 +68,8 @@ class GameState {
 }
 
 export const state = new GameState();
-(window as unknown as { __state?: GameState }).__state = state;
+// debug handle for the browser console; guarded so the module also imports
+// under node, where the unit tests load it
+if (typeof window !== 'undefined') {
+  (window as unknown as { __state?: GameState }).__state = state;
+}

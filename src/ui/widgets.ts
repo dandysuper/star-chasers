@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { UI, hasFrame } from './theme';
 import { state } from '../core/state';
+import { applyMusicSetting } from './music';
 
 export const COL = {
   panel: 0x2b2d5c,
@@ -253,43 +254,14 @@ export const TXT = {
   warn: { fontFamily: 'system-ui, sans-serif', fontSize: '15px', color: '#ffb3b3' } as Phaser.Types.GameObjects.Text.TextStyle,
 };
 
-const MUSIC_VOLUME = 0.5;
-const MUSIC_DUCKED = 0.25;
-
-/** Music manager — shared across scenes. `ducked` is used during flight. */
-export function ensureMusic(scene: Phaser.Scene, on: boolean, ducked = false): void {
-  const target = !on ? 0 : ducked ? MUSIC_DUCKED : MUSIC_VOLUME;
-  let theme = (scene.game as Phaser.Game & { __theme?: Phaser.Sound.BaseSound }).__theme;
-  if (!theme) {
-    theme = scene.sound.add('theme', { loop: true, volume: target });
-    (scene.game as Phaser.Game & { __theme?: Phaser.Sound.BaseSound }).__theme = theme;
-  }
-
-  // Sync master sound system mute state
-  scene.sound.mute = !on;
-
-  if (!on) {
-    (theme as Phaser.Sound.WebAudioSound | undefined)?.setVolume?.(0);
-    if (theme.isPlaying) {
-      theme.pause();
-    }
-    return;
-  }
-
-  (theme as Phaser.Sound.WebAudioSound | undefined)?.setVolume?.(target);
-  const playIfReady = () => {
-    if (!state.music) return;
-    if (theme!.isPaused) {
-      theme!.resume();
-    } else if (!theme!.isPlaying) {
-      theme!.play();
-    }
-  };
-
-  if (scene.sound.locked) {
-    scene.sound.once('unlocked', playIfReady);
-    scene.input.once('pointerdown', playIfReady);
-  } else {
-    playIfReady();
-  }
+/**
+ * Music entry point kept for the scenes: pick the bed this scene owns and
+ * crossfade into it, or apply the player's on/off choice to what is already
+ * playing.
+ *
+ * The mixing itself lives in `music.ts` — a scene never has to know which
+ * track it gets, only that it wants music.
+ */
+export function ensureMusic(scene: Phaser.Scene, on: boolean, ducked?: boolean): void {
+  applyMusicSetting(scene, on, ducked);
 }
