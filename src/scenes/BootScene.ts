@@ -8,6 +8,7 @@ import { state } from '../core/state';
 import { PRESET_BASIC } from '../data/parts';
 import { STARTER_PROGRAM, MISSIONS } from '../data/missions';
 import { musicAssetFiles } from '../core/themeTracks';
+import { preloadMinionAudio } from '../core/minionAudio';
 
 export class BootScene extends Phaser.Scene {
   constructor() { super('boot'); }
@@ -26,6 +27,10 @@ export class BootScene extends Phaser.Scene {
     // soundtrack: one looping bed per room plus the victory sting. The list
     // comes from the track registry so a new theme only has to be added there.
     for (const track of musicAssetFiles()) this.load.audio(track.key, track.file);
+
+    // minion recordings: whatever the importer has actually written into
+    // src/data/minionAudio.ts, which is nothing at all until a batch lands
+    preloadMinionAudio(this);
 
     // ui_v1 art: one packed atlas of sprite frames + the nine painted backdrops
     this.load.atlas(UI, 'assets/ui/ui.png', 'assets/ui/ui.json');

@@ -10,6 +10,7 @@ import { makeButton, makeIconButton, makePanel, ensureMusic, TXT, type LabelButt
 import { InGameMenu } from '../ui/ingameMenu';
 import { V2, BASE_ART, GROUND_ART, UI_V2_ART, hasV2, addStarRow } from '../ui/theme';
 import { CrewMember, type CrewWho } from '../core/crew';
+import { playAnyMinionVoice, playMinionSfx, stopMinionSound } from '../core/minionAudio';
 
 const TILE = 64;
 const MAP_W = 52;
@@ -20,6 +21,12 @@ const INTERACT_RADIUS = 150;
 
 const SPAWN = { x: 560, y: 1180 };
 const PAD = { x: 2360, y: 1210 };
+/** The fuel tanks, where the chemist works. */
+const FUEL = { x: PAD.x - 380, y: PAD.y + 80 };
+/** How close the player has to be before Fizz starts talking to herself. */
+const FUEL_EARSHOT = 280;
+/** Gap between one Fizz line and the next while the player loiters. */
+const CHEMIST_CHATTER_MS = 13000;
 /** Standing-still greeting: how long before the wave, and the pose frame. */
 const WAVE_AFTER_MS = 4500;
 const WAVE_FRAME = 'astro_wave';
@@ -52,6 +59,10 @@ export class HubScene extends Phaser.Scene {
   /** Time spent standing still, and whether the wave pose is currently up. */
   private waveTimer = 0;
   private waving = false;
+  /** The chemist's bubbling flask, while the player is near the fuel tanks. */
+  private fizzLoop?: Phaser.Sound.BaseSound;
+  /** Milliseconds until Fizz says something else. */
+  private chemistQuietFor = 0;
 
   constructor() { super('hub'); }
 
@@ -99,6 +110,8 @@ export class HubScene extends Phaser.Scene {
     // to follow, or the player is told to press keys that are not there
     const unsubscribe = onInputModeChange(() => this.refreshControlsHint());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, unsubscribe);
+    // the fizz is a global sound: it must not follow the player out of the base
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => stopMinionSound(this.fizzLoop));
   }
 
   private refreshControlsHint(): void {
@@ -224,7 +237,7 @@ export class HubScene extends Phaser.Scene {
     for (const a of clampAngles) {
       this.place(V2, BASE_ART.padClamp, PAD.x + Math.cos(a) * 240, PAD.y + 60 + Math.sin(a) * 170, 96);
     }
-    this.place(V2, BASE_ART.tanks, PAD.x - 380, PAD.y + 80, 210, 'hub.sign_fuel');
+    this.place(V2, BASE_ART.tanks, FUEL.x, FUEL.y, 210, 'hub.sign_fuel');
 
     // --- mission board: a standing holo-terminal ---
     const board = { x: 1180, y: 1010 };
@@ -385,6 +398,39 @@ export class HubScene extends Phaser.Scene {
     }
 
     this.drawGuide();
+    this.updateFuelFarmAudio(delta);
+  }
+
+  /**
+   * Fizz works the fuel tanks. Standing near her should sound like standing
+   * near a chemist: a flask bubbling continuously, and the occasional line in
+   * Fizzle. Both are silent until the recordings are imported, so the base is
+   * unchanged for a player without the audio.
+   */
+  private updateFuelFarmAudio(delta: number): void {
+    const near = Phaser.Math.Distance.Between(this.player.x, this.player.y, FUEL.x, FUEL.y) < FUEL_EARSHOT;
+
+    if (!near) {
+      if (this.fizzLoop) {
+        stopMinionSound(this.fizzLoop);
+        this.fizzLoop = undefined;
+      }
+      this.chemistQuietFor = 0;
+      return;
+    }
+
+    if (!this.fizzLoop) {
+      this.fizzLoop = playMinionSfx(this, 'chemist_fx02', { loop: true, volume: 0.3 });
+      // arriving is worth a greeting straight away, not after the first gap
+      this.chemistQuietFor = 0;
+    }
+
+    this.chemistQuietFor -= delta;
+    if (this.chemistQuietFor > 0) return;
+    this.chemistQuietFor = CHEMIST_CHATTER_MS + Phaser.Math.Between(0, 5000);
+    playAnyMinionVoice(this, [
+      'chemist_v01', 'chemist_v05', 'chemist_v07', 'chemist_v10', 'chemist_v06',
+    ]);
   }
 
   /** After a few seconds standing still the astronaut turns to the camera and

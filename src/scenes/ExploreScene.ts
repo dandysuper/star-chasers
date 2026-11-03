@@ -8,6 +8,9 @@ import { V2, FX_ART, UI_V2_ART, hasV2, makeSpeechBubble } from '../ui/theme';
 import { TouchControls } from '../ui/touch';
 import { isTouchMode, onInputModeChange } from '../core/device';
 import { MINION_HEIGHT, attachMinionFit } from '../core/minionArt';
+import {
+  playAnyMinionVoice, playMinionSfx, playMinionVoice, stopMinionSound,
+} from '../core/minionAudio';
 
 const TILE = 64;
 const MAP_W = 40;
@@ -56,6 +59,8 @@ export class ExploreScene extends Phaser.Scene {
   private factBox?: Phaser.GameObjects.Container;
   private drill?: { sample: Sample; bar: Phaser.GameObjects.Graphics; timer: Phaser.Time.TimerEvent };
   private drilling = false;
+  /** The drill's own engine loop, stopped when the sample breaks free. */
+  private drillLoop?: Phaser.Sound.BaseSound;
   private rockGroup!: Phaser.Physics.Arcade.StaticGroup;
   private mission = null as ReturnType<typeof missionById>;
   private startT = 0;
@@ -219,6 +224,7 @@ export class ExploreScene extends Phaser.Scene {
         this.player.setVelocity(0, 0);
         this.pauseStart = this.time.now;
         if (this.drill) this.drill.timer.paused = true;
+        this.drillLoop?.pause();
       },
       onClose: () => {
         if (this.pauseStart) {
@@ -226,10 +232,16 @@ export class ExploreScene extends Phaser.Scene {
           this.pauseStart = 0;
         }
         if (this.drill) this.drill.timer.paused = false;
+        this.drillLoop?.resume();
       },
       onHub: () => this.scene.start('hub'),
       onQuit: () => this.scene.start('menu'),
     });
+
+    // the sound manager is global, so a loop outlives the scene unless it is
+    // explicitly stopped — leaving the drill running in the menu is the sort of
+    // bug nobody reports, they just hear it
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => stopMinionSound(this.drillLoop));
 
     // input
     this.cursors = this.input.keyboard!.createCursorKeys();
@@ -468,6 +480,10 @@ export class ExploreScene extends Phaser.Scene {
   private startDrill(s: Sample): void {
     this.drilling = true;
     this.player.setVelocity(0, 0);
+    // the driller wakes up: a line, the drill spinning up, then the loop
+    playMinionVoice(this, 'driller_v02');
+    playMinionSfx(this, 'driller_fx01');
+    this.drillLoop = playMinionSfx(this, 'driller_fx02', { loop: true });
     const bar = this.add.graphics().setDepth(70);
     const icon = this.add.image(s.x, s.y - 60, 'tools_v2', 'tools_v2_power_drill').setScale(0.8).setDepth(70);
     this.hudCam.ignore([bar, icon]);   // world-anchored
@@ -489,6 +505,11 @@ export class ExploreScene extends Phaser.Scene {
     this.drill?.bar.destroy();
     this.drill = undefined;
     this.drilling = false;
+    stopMinionSound(this.drillLoop);
+    this.drillLoop = undefined;
+    // the rock breaks, then Grubb celebrates in Dug-Tongue
+    playMinionSfx(this, 'driller_fx03');
+    playAnyMinionVoice(this, ['driller_v04', 'driller_v08', 'driller_v01']);
     s.collected = true;
     s.go.setVisible(false);
     s.ring.setVisible(false);
