@@ -181,7 +181,7 @@ Priority order from `CORE_SPEC` §0 — P1–P5 mostly exist; verify & finish:
 2. **P4 M2 specifics** — "engine off by program" uses `control.engineOn===false` once → `engineOffByProgram`. Verify a no-cutoff program actually fails `fail.no_cutoff` (should trigger when `maxAltitude>=70000` and `!engineOffByProgram`). Test the "wait until altitude>60000 → engine off" program e2e.
 3. **P5 Explore** — verify: 4-dir walk anims play (idle fallback fixed), helpers follow w/ lag, radio-scout points, sample rings pulse, E-drill 1.5s bar, 3 samples → transmit → Result. The `minions_radio_scout` rotation is a stub (0.15·angle) — make it actually face the sample.
 4. **P6 Saves/polish** — `?dev=1` unlocks all (state.dev) — verify mission select respects it. Fail messages kid-friendly (in i18n). Hints shown in Builder/Code for each mission (`hintKeys` defined but only Explore uses them — surface M1/M2 hints in the Code right panel).
-5. **Music ducking** — theme at 0.5 in Menu/Builder/Code, **duck to 0.25 in Flight** (spec) — currently `ensureMusic` uses 0.5 everywhere; lower it in FlightScene.create.
+5. ~~**Music ducking**~~ — **done.** The soundtrack is now per-scene (`src/core/themeTracks.ts` route map + `src/ui/music.ts` runtime): menu/hub/result share `main_theme`, builder/code/explore share `builder_theme`, flight uses `flight_theme` and ducks to half level. Scene changes crossfade instead of cutting, the win screen plays `victory_jingle` over a lowered bed, and the sound toggle silences and restores the bed for wherever the player is. Add a track by adding one entry to `TRACKS` plus one row in `SCENE_TRACKS`.
 
 ---
 
