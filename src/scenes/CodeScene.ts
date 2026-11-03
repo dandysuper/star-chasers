@@ -44,7 +44,18 @@ export class CodeScene extends Phaser.Scene {
     div.style.visibility = 'visible';
     this.layoutBlocklyDiv();
 
-    this.scale.on(Phaser.Scale.Events.RESIZE, () => this.layoutBlocklyDiv());
+    const relayout = () => this.layoutBlocklyDiv();
+    this.scale.on(Phaser.Scale.Events.RESIZE, relayout);
+
+    // The Blockly div is a plain DOM element stacked above the canvas, so it
+    // must be taken down however this scene ends — not only on the leave()
+    // paths. A Phaser Scene has no shutdown() method to override; the exit
+    // hook is the shutdown event. Left behind, the div keeps covering 73% of
+    // the screen and silently swallows every click in the scenes that follow.
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.scale.off(Phaser.Scale.Events.RESIZE, relayout);
+      this.disposeBlockly();
+    });
 
     defineRocketScriptBlocks();
     this.ws = Blockly.inject(div, {
@@ -233,7 +244,4 @@ export class CodeScene extends Phaser.Scene {
     }
   }
 
-  shutdown(): void {
-    this.disposeBlockly();
-  }
 }

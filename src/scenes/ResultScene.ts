@@ -135,9 +135,16 @@ export class ResultScene extends Phaser.Scene {
     }
 
     // ---- buttons, pinned above the bottom rim ----
+    // These stay children of the scene, not of the panel container. makeButton
+    // builds its click Zone as a scene-level sibling of the visuals, so adding
+    // the button to a container moves the art but leaves the hit area behind in
+    // scene space — the buttons drew in the right place and were unclickable.
+    // bx/by are panel-local, so they are offset by the panel's own position.
     const isMoon = state.missionId === 'moon';
+    const panelX = width / 2;
+    const panelY = height / 2 - 2;
     const mk = (label: string, variant: ButtonVariant, cb: () => void, bx: number, by: number, w = 250) => {
-      panel.add(makeButton(this, bx, by, label, { w, h: 48, fontSize: 18, variant, onClick: cb }));
+      makeButton(this, panelX + bx, panelY + by, label, { w, h: 48, fontSize: 18, variant, onClick: cb });
     };
     const rowTwo = innerBottom - 34;
     const rowOne = rowTwo - 66;
