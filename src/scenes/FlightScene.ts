@@ -5,6 +5,7 @@ import { EARTH, MOON } from '../data/bodies';
 import { missionById } from '../data/missions';
 import { FlightSim, defaultControl, DT, type RocketControl, type SimEvent, type Telemetry } from '../physics/sim';
 import { computeStats } from '../physics/rocket';
+import { assemblyFromDesign } from '../data/assembly';
 import { compileBlocklyJSON } from '../rocketscript/compile';
 import { Interpreter, type InterpEvent } from '../rocketscript/interp';
 import { makeButton, makeIconButton, makePanel, ensureMusic, TXT } from '../ui/widgets';
@@ -289,24 +290,43 @@ export class FlightScene extends Phaser.Scene {
   // ---------------- rocket art ----------------
 
   private buildRocketArt(): void {
-    const parts = state.design.parts;
-    const metrics = parts.map((id) => partMetrics(this, id));
+    const asm = assemblyFromDesign(state.design);
+    const metrics = asm.spine.map((n) => partMetrics(this, n.id));
     const total = metrics.reduce((s, m) => s + m.h, 0);
     let y = -total / 2;
 
-    parts.forEach((id, i) => {
+    const hostRects = new Map<number, { x: number; y: number; w: number; h: number }>();
+    asm.spine.forEach((node, i) => {
       const m = metrics[i];
-      const go = addPart(this, id, 0, y + m.h / 2);
-      this.rocket.add(go);
+      const rect = { x: 0, y: y + m.h / 2, w: m.w, h: m.h };
+      hostRects.set(node.uid, rect);
+      this.rocket.add(addPart(this, node.id, rect.x, rect.y));
       y += m.h;
     });
+
+    // Strap-on boosters keep their own column beside the core, so a rocket that
+    // was built three abreast flies three abreast instead of being pulled into
+    // one straight line.
+    for (const col of asm.sides) {
+      const host = hostRects.get(col.hostUid);
+      if (!host) continue;
+      const colMetrics = col.nodes.map((n) => partMetrics(this, n.id));
+      const colW = colMetrics.reduce((mx, m) => Math.max(mx, m.w), host.w);
+      const x = (col.side === 'left' ? -1 : 1) * (host.w / 2 + colW / 2 - 8);
+      let cy = host.y - host.h / 2;
+      col.nodes.forEach((node, i) => {
+        const m = colMetrics[i];
+        this.rocket.add(addPart(this, node.id, x, cy + m.h / 2));
+        cy += m.h;
+      });
+    }
     this.rocketH = total;
 
     // An engine bell hangs below the hull, so the plume has to start at the
     // bell's mouth — anchored to the hull it would burn inside the nozzle.
-    const lastPart = parts[parts.length - 1];
+    const lastPart = asm.spine[asm.spine.length - 1];
     this.nozzleDrop = lastPart && metrics.length
-      ? bellDrop(this, lastPart, metrics[metrics.length - 1].w)
+      ? bellDrop(this, lastPart.id, metrics[metrics.length - 1].w)
       : 0;
     const nozzleY = total / 2 - 2 + this.nozzleDrop;
 

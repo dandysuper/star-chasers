@@ -4,7 +4,8 @@ import { state } from '../core/state';
 import { saveGame } from '../core/save';
 import { t } from '../core/i18n';
 import { missionById, STARTER_PROGRAM } from '../data/missions';
-import { computeStats } from '../physics/rocket';
+import { computeAssemblyStats } from '../physics/rocket';
+import { assemblyFromDesign } from '../data/assembly';
 import { compileBlocklyJSON } from '../rocketscript/compile';
 import { defineRocketScriptBlocks, rsTheme, toolboxJSON } from '../rocketscript/blocks';
 import { makeButton, makePanel, ensureMusic, TXT } from '../ui/widgets';
@@ -145,8 +146,9 @@ export class CodeScene extends Phaser.Scene {
     }).setOrigin(0.5, 0);
     c.add(briefText);
 
-    // rocket summary
-    const stats = computeStats(state.design.parts);
+    // rocket summary — from the assembly, so the numbers always agree with the
+    // builder even when the rocket has strap-on boosters
+    const stats = computeAssemblyStats(assemblyFromDesign(state.design));
     let sy = 52 + briefText.height + 24;
     if (hasV2(this, UI_V2_ART.iconRocket)) {
       c.add(this.add.image(pw / 2 - 64, sy + 14, V2, UI_V2_ART.iconRocket).setDisplaySize(20, 24));

@@ -24,6 +24,7 @@ src/core/save.ts               # localStorage "starchasers.save.v1"
 src/data/parts.ts              # 13-part catalog (spec §3), PART_W/area, PRESET_BASIC
 src/data/bodies.ts             # Earth/Moon constants @ 1/10 scale, MOON_SOI, dominantBody
 src/data/missions.ts           # M1/M2/MOON defs + MISSION_ORDER, starter programs
+src/data/assembly.ts           # design model: core stack + left/right booster columns (pure)
 src/physics/rocket.ts          # splitStages, computeStats, warnings/blocking (pure)
 src/physics/sim.ts             # FlightSim: semi-implicit Euler, patched conic, telemetry, preview (pure)
 src/rocketscript/compile.ts    # Blockly JSON → AST, loose/missing-input checks (pure)
@@ -63,6 +64,7 @@ These are real, verified issues — address before adding polish.
 | 10 | **Verstайка**: Blockly div is 73% but right panel content can be tight; `errMsg` x=420 may overlap bottom-bar buttons at 1280 width. | `CodeScene` | Re-layout when styling UI (§4). |
 | 11 | **Result buttons unclickable** — they drew in the right place but nothing happened. `makeButton` builds its click Zone as a *scene sibling* of the visual container; `ResultScene` did `panel.add(button)`, which re-parented the art into the panel and left the Zone in scene space at x = −150, off the canvas. | `src/scenes/ResultScene.ts` | **Fixed.** Buttons stay scene children and are placed at `panel.x + bx, panel.y + by`. **Rule: never re-parent the container returned by `makeButton` — it moves the art and leaves the hit area behind.** Menu and the in-game menu always obey this. |
 | 12 | **Blockly overlay ate clicks after the Code screen** — a Phaser Scene has no `shutdown()` method to override (`Systems.shutdown()` only emits an event), so `CodeScene.shutdown()` was dead code and the `z-index: 10` Blockly div survived any exit that bypassed `leave()`, covering 73% of the canvas and swallowing taps in the following scenes. | `src/scenes/CodeScene.ts` | **Fixed.** Teardown now hangs off `Phaser.Scenes.Events.SHUTDOWN`, so the div is hidden on every exit path. Any other DOM overlay must do the same. |
+| 13 | **The builder could only stack straight up, and two parts could never be placed.** The fairing was rejected everywhere (a nose already sat at the top, and the bottom is not the top), *everything* dropped at the top was rejected by "nothing above a nose", and an engine could not go under a trailing engine. | `src/scenes/BuilderScene.ts`, `src/data/assembly.ts` | **Fixed.** The rocket is now a core stack plus a booster column on each side — three abreast — saved as `slots`. Insertion is smart instead of refusing: a part dropped at the top lands under the fairing, one dropped at the bottom lands above a trailing engine, and a fairing dropped on a fairing replaces it. Physics judges an engine against *its own column*. |
 
 ---
 

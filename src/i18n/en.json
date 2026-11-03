@@ -107,6 +107,8 @@
   "warn.engine_bottom": "An engine must sit at the bottom of its stage",
   "warn.engine_attach": "Engines go directly under a tank or a separator",
   "warn.nose_top": "The nose cone goes only on top",
+  "warn.nose_side": "The fairing can only sit on the tip",
+  "warn.side_boosters_only": "Only tanks, engines, fins, sensors and parachutes strap on the side",
   "warn.fins_bottom": "Fins work best at the bottom of stage 1",
   "warn.max_parts": "12 parts max!",
   "warn.no_sensor_alt": "No altimeter — altitude reads 0",

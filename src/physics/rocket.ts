@@ -8,6 +8,7 @@
  */
 import { partDef } from '../data/parts';
 import { G0 } from '../data/bodies';
+import { flatten, type Assembly } from '../data/assembly';
 
 export const MAX_PARTS = 12;
 
@@ -68,7 +69,25 @@ export function splitStages(partIds: string[]): string[][] {
   return groups;
 }
 
-export function computeStats(partIds: string[]): RocketStats {
+/**
+ * Stats for a whole assembly — a spine with optional left/right booster
+ * columns. The columns are flattened into the top-to-bottom list the stage
+ * maths already understands, and each part carries the id of its own column so
+ * engine placement is judged per column.
+ */
+export function computeAssemblyStats(asm: Assembly): RocketStats {
+  const flat = flatten(asm);
+  return computeStats(flat.ids, flat.columns);
+}
+
+/**
+ * @param partIds top→bottom.
+ * @param columns optional column id per part (see `flatten`). When given, an
+ *   engine must be the lowest part of *its own column* — that is what makes a
+ *   strap-on booster legal even though other parts sit below it on the spine.
+ *   Without it, the rule falls back to "lowest part of its stage group".
+ */
+export function computeStats(partIds: string[], columns?: number[]): RocketStats {
   const warnings: Warn[] = [];
   let blocking = false;
 
@@ -134,22 +153,54 @@ export function computeStats(partIds: string[]): RocketStats {
     groupEnds.set(gi, flatIdx - 1);
   });
 
+  /**
+   * The part directly above `i` *in its own column*.
+   *
+   * A plain stack is just i-1, but `flatten` interleaves a booster column
+   * between a spine part and the next one, so the flat predecessor of a spine
+   * engine can be a side engine. Judging adjacency from the flat list would
+   * then reject a perfectly good rocket.
+   */
+  const aboveIndex = (i: number): number => {
+    if (!columns) return i - 1;
+    const col = columns[i];
+    for (let j = i - 1; j >= 0; j -= 1) if (columns[j] === col) return j;
+    // first part of a booster column: its support is the spine part it is
+    // bolted to, which flatten emitted immediately before the column
+    if (col !== 0) {
+      for (let j = i - 1; j >= 0; j -= 1) if (columns[j] === 0) return j;
+    }
+    return -1;
+  };
+
   partIds.forEach((id, i) => {
     const d = partDef(id);
     if (d.control) hasControl = true;
     if (d.kind === 'engine') {
       hasEngine = true;
       // must sit directly under a tank or decoupler
-      const above = i > 0 ? partDef(partIds[i - 1]).kind : null;
+      const aboveAt = aboveIndex(i);
+      const above = aboveAt >= 0 ? partDef(partIds[aboveAt]).kind : null;
       if (above !== 'tank' && above !== 'decoupler') {
         warnings.push({ key: 'warn.engine_attach', partIndex: i });
         blocking = true;
       }
-      // must be bottom part of its stage
-      const gi = partIndexToGroup.get(i) ?? 0;
-      if (i !== groupEnds.get(gi)) {
-        warnings.push({ key: 'warn.engine_bottom', partIndex: i });
-        blocking = true;
+      // must be the lowest part of its column: the whole stage group for a
+      // plain stack, just its own booster column when the design has them
+      if (columns) {
+        const column = columns[i];
+        let lowest = i;
+        for (let j = i; j < partIds.length; j += 1) if (columns[j] === column) lowest = j;
+        if (i !== lowest) {
+          warnings.push({ key: 'warn.engine_bottom', partIndex: i });
+          blocking = true;
+        }
+      } else {
+        const gi = partIndexToGroup.get(i) ?? 0;
+        if (i !== groupEnds.get(gi)) {
+          warnings.push({ key: 'warn.engine_bottom', partIndex: i });
+          blocking = true;
+        }
       }
     }
     if (d.kind === 'nose') {

@@ -1,9 +1,16 @@
+import type { DesignSlot } from '../data/assembly';
+
 export type Lang = 'ru' | 'en';
 export type Astronaut = 'female' | 'male';
 
 export interface RocketDesign {
-  /** Part ids, index 0 = top of the rocket. */
+  /** Part ids, index 0 = top of the rocket. Always the flattened list, so the
+   *  physics and the flight scene keep working without knowing about layout. */
   parts: string[];
+  /** Where each part sits: spine, or bolted to the left/right of one. Absent
+   *  on saves made before the builder could build sideways — those reopen as a
+   *  plain stack, which is exactly what they were. */
+  slots?: DesignSlot[];
 }
 
 export interface MissionProgress {

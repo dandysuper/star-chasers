@@ -4,17 +4,36 @@ import { saveGame } from '../core/save';
 import { t } from '../core/i18n';
 import { partDef, PART_IDS, PRESET_BASIC } from '../data/parts';
 import { missionById } from '../data/missions';
-import { computeStats, MAX_PARTS } from '../physics/rocket';
+import { computeAssemblyStats, MAX_PARTS } from '../physics/rocket';
+import {
+  appendToSide, assemblyCount, assemblyFromIds, columnAt, emptyAssembly, flatten,
+  fromSlots, insertAtBottom, insertAtTop, makeNode, removeNode, toSlots,
+  type Assembly, type Node, type Side,
+} from '../data/assembly';
 import { makeButton, makeIconButton, makePanel, ensureMusic, TXT, drawBar, type LabelButton } from '../ui/widgets';
 import { InGameMenu } from '../ui/ingameMenu';
-import { addPart, partMetrics, makePartInteractive, BG, V2, UI_V2_ART, hasV2 } from '../ui/theme';
+import { addPart, partMetrics, makePartInteractive, BG, V2, UI_V2_ART, hasV2, bellDrop } from '../ui/theme';
+import { PART_W } from '../ui/partArt';
 
 type PartGO = Phaser.GameObjects.Image | Phaser.GameObjects.Container;
 
-interface PlacedPart {
-  id: string;
-  go: PartGO | null;
-  index: number;
+/** Where a drop is heading: an end of the core stack, or the flank of one part. */
+type Target =
+  | { kind: 'top' }
+  | { kind: 'bottom' }
+  | { kind: 'side'; hostUid: number; side: Side };
+
+interface Rect { x: number; y: number; w: number; h: number }
+
+interface Layout {
+  pos: Map<number, Rect>;
+  spine: { node: Node; rect: Rect }[];
+  /** top of the core stack, in workspace coordinates */
+  top: number;
+  /** lowest point of anything on the rocket, boosters included */
+  deepest: number;
+  minX: number;
+  maxX: number;
 }
 
 const PAL_W = 272;          // palette panel width
@@ -25,23 +44,39 @@ const WORK_X = 620;         // workspace anchor on screen
 const WORK_Y = 90;
 const STATS_W = 306;
 
+/** Horizontal band around the centre line that means "extend the core stack". */
+const CENTRE_TOL = 72;
+/** How close a drop must be to an end before it counts as that end. */
+const SNAP_DIST = 110;
+/** Gap between an end of the stack and its snap marker. */
+const SNAP_OFFSET = 26;
+/** How far a booster column overlaps its host, so it reads as bolted on. */
+const SIDE_OVERLAP = 8;
+
+/** Parts that make sense strapped to the side as a booster or an instrument. */
+const SIDE_OK = new Set(['tank', 'engine', 'fins', 'sensor', 'decoupler', 'chute']);
+
 export class BuilderScene extends Phaser.Scene {
-  private placed: PlacedPart[] = [];   // index 0 = TOP
+  /** The rocket being built: a core stack plus optional left/right columns. */
+  private asm: Assembly = emptyAssembly();
+  /** One game object per placed part, keyed by the part's stable uid. */
+  private gos = new Map<number, PartGO>();
+  private selectedUid: number | null = null;
+
   private statsPanel?: Phaser.GameObjects.Container;
   private stagePanel?: Phaser.GameObjects.Container;
   private warnPanel?: Phaser.GameObjects.Container;
   private workspace!: Phaser.GameObjects.Container;
-  private selected: PlacedPart | null = null;
   private removeBtn?: LabelButton;
   private dragGhost?: PartGO;
   private snapHi?: Phaser.GameObjects.Graphics;
   private camZoom = 1;
   private camPan = { x: 0, y: 0 };
   private stackTopY = 0;
-  private snapTopY = 0;
-  private snapBottomY = 0;
   private isPanningBg = false;
   private inGameMenu!: InGameMenu;
+  /** Mirror of the last layout, so the drop logic and the highlight agree. */
+  private layoutCache: Layout | null = null;
 
   constructor() { super('builder'); }
 
@@ -64,18 +99,11 @@ export class BuilderScene extends Phaser.Scene {
     for (let y = -120; y <= height + 400; y += 40) grid.lineBetween(-700, y, 700, y);
     this.workspace.add(grid);
 
-    // load saved design
-    const key = state.designKey();
-    const saved = state.designs[key];
     const mission = missionById(state.missionId);
-    const ids = saved?.parts?.length
-      ? saved.parts.filter((id) => !mission || mission.allowedParts.includes(id))
-      // sandbox with no saved design starts from the working preset, so the
-      // player never faces an empty grid wondering what a rocket looks like
-      : (mission ? PRESET_BASIC.filter((id) => mission.allowedParts.includes(id)) : [...PRESET_BASIC]);
-    this.placed = ids.map((id, i) => ({ id, go: null, index: i }));
-    this.rebuildStack();
-    this.buildPalette(mission?.allowedParts ?? PART_IDS);
+    const allowed = mission?.allowedParts ?? PART_IDS;
+    this.asm = this.loadDesign(allowed);
+    this.relayout();
+    this.buildPalette(allowed);
     this.refreshStats();
 
     // ---- on-screen zoom & delete controls for touchscreens ----
@@ -135,6 +163,71 @@ export class BuilderScene extends Phaser.Scene {
     });
   }
 
+  // ---------------- loading & saving ----------------
+
+  /** Restore this mission's design, dropping anything the mission forbids.
+   *  Saves made before sideways building have no `slots` and reopen as the
+   *  plain stack they always were. */
+  private loadDesign(allowed: string[]): Assembly {
+    const key = state.designKey();
+    const saved = state.designs[key];
+    const isAllowed = (id: string) => allowed.includes(id);
+
+    let asm: Assembly;
+    if (saved?.slots?.length) asm = fromSlots(saved.slots);
+    else if (saved?.parts?.length) asm = assemblyFromIds(saved.parts);
+    else if (state.design.slots?.length) asm = fromSlots(state.design.slots);
+    else if (state.design.parts.length) asm = assemblyFromIds(state.design.parts);
+    // sandbox with no saved design starts from the working preset, so the
+    // player never faces an empty grid wondering what a rocket looks like
+    else asm = assemblyFromIds(missionById(state.missionId)
+      ? PRESET_BASIC.filter(isAllowed)
+      : [...PRESET_BASIC]);
+
+    return this.prune(asm, isAllowed);
+  }
+
+  /** Drop parts the mission does not allow, and any booster column whose host
+   *  went with them. */
+  private prune(asm: Assembly, isAllowed: (id: string) => boolean): Assembly {
+    const next: Assembly = { spine: [], sides: [] };
+    for (const node of asm.spine) {
+      if (!isAllowed(node.id)) continue;
+      next.spine.push(node);
+      for (const side of asm.sides) {
+        if (side.hostUid !== node.uid) continue;
+        for (const child of side.nodes) {
+          if (isAllowed(child.id)) appendToSide(next, node.uid, side.side, child);
+        }
+      }
+    }
+    return next;
+  }
+
+  private saveDesign(): void {
+    const flat = flatten(this.asm);
+    const slots = toSlots(this.asm);
+    state.design = { parts: flat.ids, slots };
+    state.designs[state.designKey()] = { parts: flat.ids, slots };
+    saveGame();
+  }
+// ---------------- camera ----------------
+
+  private applyCam(): void {
+    this.workspace.setScale(this.camZoom);
+    this.workspace.x = WORK_X + this.camPan.x;
+    this.workspace.y = WORK_Y + this.camPan.y;
+  }
+
+  private worldPoint(p: Phaser.Input.Pointer): { x: number; y: number } {
+    return {
+      x: (p.x - this.workspace.x) / this.camZoom,
+      y: (p.y - this.workspace.y) / this.camZoom,
+    };
+  }
+
+  // ---------------- touch toolbar ----------------
+
   private buildTouchToolbar(): void {
     const { height } = this.scale;
     const x0 = PAL_W + 34;
@@ -168,25 +261,12 @@ export class BuilderScene extends Phaser.Scene {
   }
 
   private updateRemoveBtn(): void {
-    const on = !!this.selected;
+    const on = this.selectedUid !== null;
     this.removeBtn?.setVisible(on);
     if (this.removeBtn?.hitZone) {
       if (on) this.removeBtn.hitZone.setInteractive();
       else this.removeBtn.hitZone.disableInteractive();
     }
-  }
-
-  private applyCam(): void {
-    this.workspace.setScale(this.camZoom);
-    this.workspace.x = WORK_X + this.camPan.x;
-    this.workspace.y = WORK_Y + this.camPan.y;
-  }
-
-  private worldPoint(p: Phaser.Input.Pointer): { x: number; y: number } {
-    return {
-      x: (p.x - this.workspace.x) / this.camZoom,
-      y: (p.y - this.workspace.y) / this.camZoom,
-    };
   }
 
   // ---------------- palette ----------------
@@ -263,20 +343,19 @@ export class BuilderScene extends Phaser.Scene {
 
     const move = (ptr: Phaser.Input.Pointer) => {
       this.dragGhost?.setPosition(ptr.x, ptr.y);
-      this.highlightSnap(this.worldPoint(ptr), id);
+      this.highlightTarget(this.worldPoint(ptr), id);
     };
     const up = (ptr: Phaser.Input.Pointer) => {
       this.input.off('pointermove', move);
       this.input.off('pointerup', up);
       const wp = this.worldPoint(ptr);
-      this.unhighlightSnap();
-      const placed = this.tryPlace(id, wp);
-      // Quick tap on a palette card (without dragging to the stack) auto-attaches
-      // the part to its natural end (nose on top, everything else on bottom)
+      this.unhighlightTarget();
+      const target = this.targetAt(wp);
+      const placed = target ? this.place(id, target) : false;
+      // A quick tap on a palette card, without dragging to the rocket, drops
+      // the part where it naturally belongs instead of doing nothing.
       if (!placed && Math.hypot(ptr.x - startX, ptr.y - startY) < 18) {
-        const d = partDef(id);
-        const autoTarget: 'top' | 'bottom' = d.kind === 'nose' ? 'top' : 'bottom';
-        this.tryPlaceAt(id, autoTarget);
+        this.place(id, this.autoTarget(id));
       }
       this.dragGhost?.destroy();
       this.dragGhost = undefined;
@@ -285,133 +364,253 @@ export class BuilderScene extends Phaser.Scene {
     this.input.on('pointerup', up);
   }
 
-  private partHeight(id: string): number {
-    return partMetrics(this, id).h;
+  /** Where a tapped palette card should land: the fairing and the instruments
+   *  belong up top, engines always at the very bottom, everything else below. */
+  private autoTarget(id: string): Target {
+    const kind = partDef(id).kind;
+    if (kind === 'nose') return { kind: 'top' };
+    if (kind === 'chute' || kind === 'sensor') return { kind: 'top' };
+    return { kind: 'bottom' };
   }
+// ---------------- layout ----------------
 
-  private rebuildStack(): void {
-    for (const pp of this.placed) pp.go?.destroy();
-    this.placed.forEach((p, i) => { p.index = i; });
+  /** Where every part sits right now. The spine stacks down the centre line;
+   *  each booster column hangs off its host and stacks down from the host's
+   *  top edge, so a strap-on tank sits beside the tank it is bolted to. */
+  private layout(): Layout {
+    const pos = new Map<number, Rect>();
+    const spine: { node: Node; rect: Rect }[] = [];
     let y = this.stackTopY;
-    for (const pp of this.placed) {
-      const m = partMetrics(this, pp.id);
-      const go = addPart(this, pp.id, 0, y + m.h / 2);
-      makePartInteractive(go, m.w, m.h);
-      go.on('pointerdown', () => this.select(pp));
-      this.workspace.add(go);
-      pp.go = go;
+    let widest = PART_W;
+
+    for (const node of this.asm.spine) {
+      const m = partMetrics(this, node.id);
+      const rect: Rect = { x: 0, y: y + m.h / 2, w: m.w, h: m.h };
+      pos.set(node.uid, rect);
+      spine.push({ node, rect });
+      widest = Math.max(widest, m.w);
       y += m.h;
     }
-    this.snapTopY = this.placed.length ? this.stackTopY - 22 : this.stackTopY + 10;
-    this.snapBottomY = y + 22;
+
+    let deepest = y;
+    let minX = -widest / 2;
+    let maxX = widest / 2;
+
+    for (const col of this.asm.sides) {
+      const host = pos.get(col.hostUid);
+      if (!host || col.nodes.length === 0) continue;
+      const metrics = col.nodes.map((n) => partMetrics(this, n.id));
+      const colW = metrics.reduce((mx, m) => Math.max(mx, m.w), PART_W);
+      const x = (col.side === 'left' ? -1 : 1) * (host.w / 2 + colW / 2 - SIDE_OVERLAP);
+      let cy = host.y - host.h / 2;
+      col.nodes.forEach((node, i) => {
+        const m = metrics[i];
+        const rect: Rect = { x, y: cy + m.h / 2, w: m.w, h: m.h };
+        pos.set(node.uid, rect);
+        // an engine's bell hangs past its own box, and the drop zones are
+        // measured off the real silhouette
+        cy += m.h;
+        deepest = Math.max(deepest, rect.y + m.h / 2 + bellDrop(this, node.id, m.w));
+        minX = Math.min(minX, x - m.w / 2);
+        maxX = Math.max(maxX, x + m.w / 2);
+      });
+    }
+
+    return { pos, spine, top: this.stackTopY, deepest, minX, maxX };
   }
 
-  private snapTarget(wp: { x: number; y: number }): 'top' | 'bottom' | null {
-    if (Math.abs(wp.x) > 100) return null;
-    const dTop = Math.abs(wp.y - this.snapTopY);
-    const dBot = Math.abs(wp.y - this.snapBottomY);
-    const lim = 80;
-    if (dTop < lim && dTop <= dBot) return 'top';
-    if (dBot < lim) return 'bottom';
-    return null;
+  /** Which spine part a free-floating y coordinate is level with. */
+  private spineHostAt(L: Layout, y: number): { node: Node; rect: Rect } | null {
+    let best: { node: Node; rect: Rect } | null = null;
+    let bestDist = Infinity;
+    for (const entry of L.spine) {
+      const top = entry.rect.y - entry.rect.h / 2;
+      const bottom = entry.rect.y + entry.rect.h / 2;
+      const dist = y < top ? top - y : y > bottom ? y - bottom : 0;
+      if (dist < bestDist) { bestDist = dist; best = entry; }
+    }
+    return bestDist <= 90 ? best : null;
   }
 
-  private highlightSnap(wp: { x: number; y: number }, id: string): void {
-    this.unhighlightSnap();
-    const tgt = this.snapTarget(wp);
-    if (!tgt) return;
-    const err = this.validatePlace(id, tgt);
+  /**
+   * Turn a drop point into an intent.
+   *
+   * Near the centre line means "extend the core stack" (top or bottom). Out to
+   * the side means "bolt a booster onto whichever part you are level with" —
+   * that is what makes three columns abreast possible.
+   */
+  private targetAt(wp: { x: number; y: number }): Target | null {
+    const L = this.layout();
+    if (L.spine.length === 0) return { kind: 'bottom' };
+
+    if (Math.abs(wp.x) <= CENTRE_TOL) {
+      const dTop = Math.abs(wp.y - (L.top - SNAP_OFFSET));
+      const dBottom = Math.abs(wp.y - (L.deepest + SNAP_OFFSET));
+      if (dTop <= SNAP_DIST && dTop <= dBottom) return { kind: 'top' };
+      if (dBottom <= SNAP_DIST) return { kind: 'bottom' };
+      return dTop <= dBottom ? { kind: 'top' } : { kind: 'bottom' };
+    }
+
+    const host = this.spineHostAt(L, wp.y);
+    if (!host) return null;
+    return { kind: 'side', hostUid: host.node.uid, side: wp.x < 0 ? 'left' : 'right' };
+  }
+
+  private highlightTarget(wp: { x: number; y: number }, id: string): void {
+    this.unhighlightTarget();
+    const target = this.targetAt(wp);
+    if (!target) return;
+    const err = this.validatePlace(id, target);
+    const L = this.layout();
+
     const g = this.add.graphics();
     g.lineStyle(3, err ? 0xff6b6b : 0x7ac74f, 1);
-    const y = tgt === 'top' ? this.snapTopY - 18 : this.snapBottomY - 18;
-    g.strokeRoundedRect(-PART_HALF_W, y, PART_HALF_W * 2, 36, 8);
+    if (target.kind === 'side') {
+      const host = L.pos.get(target.hostUid);
+      if (!host) { g.destroy(); return; }
+      const w = Math.max(56, host.w * 0.7);
+      const x = target.side === 'left' ? host.x - host.w / 2 - w / 2 - 4 : host.x + host.w / 2 + w / 2 + 4;
+      g.strokeRoundedRect(x - w / 2, host.y - 24, w, 48, 8);
+    } else {
+      const y = target.kind === 'top' ? L.top - 18 : L.deepest + 18;
+      const w = 110;
+      g.strokeRoundedRect(-w / 2, y - 18, w, 36, 8);
+    }
     this.snapHi = g;
     this.workspace.add(g);
   }
 
-  private unhighlightSnap(): void {
+  private unhighlightTarget(): void {
     this.snapHi?.destroy();
     this.snapHi = undefined;
   }
 
-  private validatePlace(id: string, where: 'top' | 'bottom'): string | null {
-    if (this.placed.length >= MAX_PARTS) return 'warn.max_parts';
-    const d = partDef(id);
-    if (d.kind === 'nose' && where !== 'top') return 'warn.nose_top';
-    if (d.kind === 'engine') {
-      if (where !== 'bottom') return 'warn.engine_attach';
-      if (this.placed.length === 0) return 'warn.engine_attach';
-      const above = partDef(this.placed[this.placed.length - 1].id).kind;
-      if (above !== 'tank' && above !== 'decoupler') return 'warn.engine_attach';
+  // ---------------- placement rules ----------------
+
+  /** Why this part cannot go there, or null when it can. Every rejection names
+   *  a message the player can read; nothing fails silently. */
+  private validatePlace(id: string, target: Target): string | null {
+    if (assemblyCount(this.asm) >= MAX_PARTS) return 'warn.max_parts';
+    const kind = partDef(id).kind;
+
+    if (target.kind === 'side') {
+      if (kind === 'nose') return 'warn.nose_side';
+      if (!SIDE_OK.has(kind)) return 'warn.side_boosters_only';
+      const column = columnAt(this.asm, target.hostUid, target.side);
+      const last = column?.nodes[column.nodes.length - 1];
+      if (!last) {
+        // an engine needs something to hang from
+        return kind === 'engine' ? 'warn.engine_attach' : null;
+      }
+      const lastKind = partDef(last.id).kind;
+      if (lastKind === 'engine' && kind !== 'decoupler') return 'warn.engine_bottom';
+      if (kind === 'engine' && lastKind !== 'tank' && lastKind !== 'decoupler') return 'warn.engine_attach';
+      return null;
     }
-    if (where === 'top' && this.placed.length > 0 && partDef(this.placed[0].id).kind === 'nose') {
-      return 'warn.nose_top';
+
+    if (kind === 'nose') {
+      // the fairing belongs on the tip and nowhere else; dropping it on a stack
+      // that already has one swaps that one out rather than refusing the drop
+      return target.kind === 'top' ? null : 'warn.nose_top';
     }
+
+    if (kind === 'engine') {
+      if (target.kind !== 'bottom') return 'warn.engine_attach';
+      const last = this.asm.spine[this.asm.spine.length - 1];
+      if (!last) return 'warn.engine_attach';
+      const lastKind = partDef(last.id).kind;
+      // two engines on top of each other: the upper one would be buried
+      if (lastKind === 'engine') return 'warn.engine_bottom';
+      if (lastKind !== 'tank' && lastKind !== 'decoupler') return 'warn.engine_attach';
+    }
+
     return null;
   }
 
-  private tryPlace(id: string, wp: { x: number; y: number }): boolean {
-    const tgt = this.snapTarget(wp);
-    if (!tgt) return false;
-    return this.tryPlaceAt(id, tgt);
-  }
-
-  private tryPlaceAt(id: string, tgt: 'top' | 'bottom'): boolean {
-    const err = this.validatePlace(id, tgt);
+  private place(id: string, target: Target): boolean {
+    const err = this.validatePlace(id, target);
     if (err) { this.flashWarn(err); return false; }
-    const pp: PlacedPart = { id, go: null, index: 0 };
-    if (tgt === 'top') this.placed.unshift(pp); else this.placed.push(pp);
-    this.rebuildStack();
+
+    const node = makeNode(id);
+    const kind = partDef(id).kind;
+
+    if (target.kind === 'top') {
+      const tip = this.asm.spine[0];
+      if (kind === 'nose' && tip && partDef(tip.id).kind === 'nose') {
+        removeNode(this.asm, tip.uid);
+      }
+      insertAtTop(this.asm, node, (pid) => partDef(pid).kind === 'nose');
+    } else if (target.kind === 'bottom') {
+      insertAtBottom(this.asm, node, (pid) => partDef(pid).kind === 'engine');
+    } else {
+      appendToSide(this.asm, target.hostUid, target.side, node);
+    }
+
+    this.relayout();
     this.refreshStats();
     this.saveDesign();
     return true;
   }
 
-  private select(pp: PlacedPart): void {
-    if (this.selected) this.selected.go?.setAlpha(1);
-    this.selected = pp;
-    pp.go?.setAlpha(0.55);
+  // ---------------- rendering ----------------
+
+  private relayout(): void {
+    for (const go of this.gos.values()) go.destroy();
+    this.gos.clear();
+
+    const L = this.layout();
+    this.layoutCache = L;
+    const nodes = [...this.asm.spine, ...this.asm.sides.flatMap((c) => c.nodes)];
+
+    for (const node of nodes) {
+      const rect = L.pos.get(node.uid);
+      if (!rect) continue;
+      const go = addPart(this, node.id, rect.x, rect.y);
+      makePartInteractive(go, rect.w, rect.h);
+      go.on('pointerdown', () => this.select(node.uid));
+      this.workspace.add(go);
+      this.gos.set(node.uid, go);
+    }
+    this.applySelectionTint();
+    this.updateRemoveBtn();
+  }
+
+  private applySelectionTint(): void {
+    for (const [uid, go] of this.gos) go.setAlpha(uid === this.selectedUid ? 0.55 : 1);
+  }
+
+  private select(uid: number): void {
+    this.selectedUid = this.selectedUid === uid ? null : uid;
+    this.applySelectionTint();
     this.updateRemoveBtn();
   }
 
   private deleteSelected(): void {
-    if (!this.selected) return;
-    this.placed = this.placed.filter((p) => p !== this.selected);
-    this.selected = null;
-    this.updateRemoveBtn();
-    this.rebuildStack();
+    if (this.selectedUid === null) return;
+    removeNode(this.asm, this.selectedUid);
+    this.selectedUid = null;
+    this.relayout();
     this.refreshStats();
     this.saveDesign();
   }
 
   private applyPreset(mission: ReturnType<typeof missionById>): void {
     const parts = mission ? PRESET_BASIC.filter((id) => mission.allowedParts.includes(id)) : PRESET_BASIC;
-    this.placed = parts.map((id, i) => ({ id, go: null, index: i }));
-    this.selected = null;
-    this.updateRemoveBtn();
-    this.rebuildStack();
+    this.asm = assemblyFromIds(parts);
+    this.selectedUid = null;
+    this.relayout();
     this.refreshStats();
     this.saveDesign();
   }
 
   private clear(): void {
-    this.placed = [];
-    this.selected = null;
-    this.updateRemoveBtn();
-    this.rebuildStack();
+    this.asm = emptyAssembly();
+    this.selectedUid = null;
+    this.relayout();
     this.refreshStats();
     this.saveDesign();
   }
-
-  private flashWarn(key: string): void {
-    const { width } = this.scale;
-    const msg = this.add.text(width / 2, 44, t(key), {
-      ...TXT.warn, backgroundColor: '#3a1020', padding: { x: 14, y: 8 },
-    }).setOrigin(0.5, 0).setDepth(200);
-    this.tweens.add({ targets: msg, alpha: 0, delay: 2400, duration: 400, onComplete: () => msg.destroy() });
-  }
-
-  // ---------------- stats ----------------
+// ---------------- stats panel ----------------
 
   private refreshStats(): void {
     this.statsPanel?.destroy();
@@ -419,7 +618,7 @@ export class BuilderScene extends Phaser.Scene {
     this.stagePanel?.destroy();
 
     const { width } = this.scale;
-    const stats = computeStats(this.placed.map((p) => p.id));
+    const stats = computeAssemblyStats(this.asm);
     const mission = missionById(state.missionId);
     const px = width - STATS_W - 16;
 
@@ -497,14 +696,16 @@ export class BuilderScene extends Phaser.Scene {
     }
   }
 
-  private saveDesign(): void {
-    state.design.parts = this.placed.map((p) => p.id);
-    state.designs[state.designKey()] = { parts: state.design.parts };
-    saveGame();
+  private flashWarn(key: string): void {
+    const { width } = this.scale;
+    const msg = this.add.text(width / 2, 44, t(key), {
+      ...TXT.warn, backgroundColor: '#3a1020', padding: { x: 14, y: 8 },
+    }).setOrigin(0.5, 0).setDepth(200);
+    this.tweens.add({ targets: msg, alpha: 0, delay: 2400, duration: 400, onComplete: () => msg.destroy() });
   }
 
   private next(): void {
-    const stats = computeStats(this.placed.map((p) => p.id));
+    const stats = computeAssemblyStats(this.asm);
     if (stats.blocking) {
       this.flashWarn(stats.warnings[0]?.key ?? 'warn.no_engine');
       return;
@@ -513,5 +714,3 @@ export class BuilderScene extends Phaser.Scene {
     this.scene.start('code');
   }
 }
-
-const PART_HALF_W = 46;

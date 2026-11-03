@@ -1,4 +1,4 @@
-import { state } from './state';
+import { state, type RocketDesign } from './state';
 
 const KEY = 'starchasers.save.v1';
 
@@ -8,7 +8,9 @@ interface SaveData {
   music: boolean;
   astronaut: 'female' | 'male';
   progress: typeof state.progress;
-  designs: Record<string, { parts: string[] }>;
+  /** `slots` is optional: saves written before sideways building reopen as the
+   *  plain top-to-bottom stack they already were. */
+  designs: Record<string, RocketDesign>;
   programs: Record<string, unknown>;
 }
 
