@@ -137,3 +137,27 @@ describe('physics of a side booster', () => {
     expect(stats.warnings.some((w) => w.key === 'warn.engine_bottom')).toBe(true);
   });
 });
+
+describe('fins are a seam, not a piece of hull', () => {
+  it('lets an engine sit below a fin, which is where fins actually go', () => {
+    // nose → tank → fins → engine: the classic tail. The fin is bolted to the
+    // hull, so the engine's support is the tank above the fin.
+    const stats = computeStats(['nose_cone', 'tank_l', 'fins', 'engine_bull']);
+    expect(stats.warnings.some((w) => w.key === 'warn.engine_attach')).toBe(false);
+    expect(stats.blocking).toBe(false);
+    expect(stats.stable).toBe(true);
+  });
+
+  it('still refuses an engine with nothing but a fairing above it', () => {
+    const stats = computeStats(['fins', 'engine_bull']);
+    expect(stats.warnings.some((w) => w.key === 'warn.engine_attach')).toBe(true);
+  });
+
+  it('counts the fin as stability without counting it as stage structure', () => {
+    const withFins = computeStats(['nose_cone', 'tank_l', 'fins', 'engine_bull']);
+    const without = computeStats(['nose_cone', 'tank_l', 'engine_bull']);
+    expect(withFins.stages[0].thrustVac).toBe(without.stages[0].thrustVac);
+    // the fin adds dry mass and nothing else
+    expect(withFins.mass).toBeGreaterThan(without.mass);
+  });
+});

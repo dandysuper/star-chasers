@@ -260,10 +260,10 @@ const FIN_FRAME: Record<string, string> = {
 };
 /** Fin height as a multiple of the hull width. Big enough that the pair reads
  *  as two control surfaces framing the tail, not as stray triangles. */
-const FIN_HEIGHT_RATIO = 3.0;
+const FIN_HEIGHT_RATIO = 1.7;
 /** How far the fin's inner edge bites into the hull, so it reads as bolted on
  *  rather than floating beside it. */
-const FIN_INSET = 16;
+const FIN_INSET = 6;
 /** Height of the fins' slot in the stack. Small on purpose — see finGeometry. */
 const FIN_ROW_H = 4;
 

@@ -154,21 +154,32 @@ export function computeStats(partIds: string[], columns?: number[]): RocketStats
   });
 
   /**
-   * The part directly above `i` *in its own column*.
+   * The part directly above `i`, in the sense that matters for an engine.
    *
-   * A plain stack is just i-1, but `flatten` interleaves a booster column
-   * between a spine part and the next one, so the flat predecessor of a spine
-   * engine can be a side engine. Judging adjacency from the flat list would
-   * then reject a perfectly good rocket.
+   * Two corrections to "the previous entry in the list". A plain stack is just
+   * i-1, but `flatten` interleaves a booster column between a spine part and
+   * the next one, so the flat predecessor of a spine engine can be a side
+   * engine. And fins are bolted *onto* the hull rather than stacked into it —
+   * they occupy a seam, not a slot — so a fin is never the thing above
+   * anything. Skipping both is what lets a rocket be tank → fins → engine,
+   * which is how every real rocket with fins at the tail is built.
    */
+  const isSeam = (index: number): boolean => partDef(partIds[index]).kind === 'fins';
+
   const aboveIndex = (i: number): number => {
-    if (!columns) return i - 1;
+    if (!columns) {
+      let j = i - 1;
+      while (j >= 0 && isSeam(j)) j -= 1;
+      return j;
+    }
     const col = columns[i];
-    for (let j = i - 1; j >= 0; j -= 1) if (columns[j] === col) return j;
+    for (let j = i - 1; j >= 0; j -= 1) {
+      if (columns[j] === col && !isSeam(j)) return j;
+    }
     // first part of a booster column: its support is the spine part it is
     // bolted to, which flatten emitted immediately before the column
     if (col !== 0) {
-      for (let j = i - 1; j >= 0; j -= 1) if (columns[j] === 0) return j;
+      for (let j = i - 1; j >= 0; j -= 1) if (columns[j] === 0 && !isSeam(j)) return j;
     }
     return -1;
   };
