@@ -566,7 +566,9 @@ export class BuilderScene extends Phaser.Scene {
       const rect = L.pos.get(node.uid);
       if (!rect) continue;
       const go = addPart(this, node.id, rect.x, rect.y);
-      makePartInteractive(go, rect.w, rect.h);
+      // fins occupy a seam rather than a slot, so their layout height is a few
+      // pixels; give every part a hit box tall enough to actually click
+      makePartInteractive(go, rect.w, Math.max(rect.h, 44));
       go.on('pointerdown', () => this.select(node.uid));
       this.workspace.add(go);
       this.gos.set(node.uid, go);

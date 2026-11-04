@@ -10,7 +10,7 @@ import { makeButton, makeIconButton, makePanel, ensureMusic, TXT, type LabelButt
 import { InGameMenu } from '../ui/ingameMenu';
 import { V2, BASE_ART, GROUND_ART, UI_V2_ART, hasV2, addStarRow } from '../ui/theme';
 import { CrewMember, type CrewWho } from '../core/crew';
-import { playAnyMinionVoice, playMinionSfx, stopMinionSound } from '../core/minionAudio';
+import { playMinionSfx, stopMinionSound } from '../core/minionAudio';
 
 const TILE = 64;
 const MAP_W = 52;
@@ -25,8 +25,10 @@ const PAD = { x: 2360, y: 1210 };
 const FUEL = { x: PAD.x - 380, y: PAD.y + 80 };
 /** How close the player has to be before Fizz starts talking to herself. */
 const FUEL_EARSHOT = 280;
-/** Gap between one Fizz line and the next while the player loiters. */
-const CHEMIST_CHATTER_MS = 13000;
+/** How close the player has to be for a minion to look up and say hello. */
+const GREET_RADIUS = 150;
+/** Beyond this a minion forgets it greeted you, so it can greet you again. */
+const GREET_FORGET = 320;
 /** Standing-still greeting: how long before the wave, and the pose frame. */
 const WAVE_AFTER_MS = 4500;
 const WAVE_FRAME = 'astro_wave';
@@ -61,8 +63,8 @@ export class HubScene extends Phaser.Scene {
   private waving = false;
   /** The chemist's bubbling flask, while the player is near the fuel tanks. */
   private fizzLoop?: Phaser.Sound.BaseSound;
-  /** Milliseconds until Fizz says something else. */
-  private chemistQuietFor = 0;
+  /** Who has already said hello on this approach to them. */
+  private greeted = new Set<string>();
 
   constructor() { super('hub'); }
 
@@ -399,13 +401,36 @@ export class HubScene extends Phaser.Scene {
 
     this.drawGuide();
     this.updateFuelFarmAudio(delta);
+    this.updateCrewGreetings();
   }
 
   /**
-   * Fizz works the fuel tanks. Standing near her should sound like standing
-   * near a chemist: a flask bubbling continuously, and the occasional line in
-   * Fizzle. Both are silent until the recordings are imported, so the base is
-   * unchanged for a player without the audio.
+   * Walk up to a minion and it looks up and mumbles at you, in its own
+   * language. Only once per approach — a crew that says hello on a loop is
+   * worse than a silent one — and the record clears when you wander off.
+   */
+  private updateCrewGreetings(): void {
+    for (const member of this.crew) {
+      const d = Phaser.Math.Distance.Between(
+        this.player.x, this.player.y, member.sprite.x, member.sprite.y,
+      );
+      const key = `${member.sprite.texture.key}:${this.crew.indexOf(member)}`;
+      if (d <= GREET_RADIUS && !this.greeted.has(key)) {
+        this.greeted.add(key);
+        member.speak(true);
+      } else if (d > GREET_FORGET && this.greeted.has(key)) {
+        this.greeted.delete(key);
+      }
+    }
+  }
+
+  /**
+   * The fuel tanks bubble while the player is near them. This is machine
+   * ambience, not a voice — the chemist's own mumbling comes from the chemist
+   * herself, through CrewMember.speak, so it follows her around the base
+   * instead of being pinned to a spot on the ground.
+   *
+   * Silent until a recording is imported; nothing else depends on it.
    */
   private updateFuelFarmAudio(delta: number): void {
     const near = Phaser.Math.Distance.Between(this.player.x, this.player.y, FUEL.x, FUEL.y) < FUEL_EARSHOT;
@@ -415,22 +440,12 @@ export class HubScene extends Phaser.Scene {
         stopMinionSound(this.fizzLoop);
         this.fizzLoop = undefined;
       }
-      this.chemistQuietFor = 0;
       return;
     }
 
     if (!this.fizzLoop) {
       this.fizzLoop = playMinionSfx(this, 'chemist_fx02', { loop: true, volume: 0.3 });
-      // arriving is worth a greeting straight away, not after the first gap
-      this.chemistQuietFor = 0;
     }
-
-    this.chemistQuietFor -= delta;
-    if (this.chemistQuietFor > 0) return;
-    this.chemistQuietFor = CHEMIST_CHATTER_MS + Phaser.Math.Between(0, 5000);
-    playAnyMinionVoice(this, [
-      'chemist_v01', 'chemist_v05', 'chemist_v07', 'chemist_v10', 'chemist_v06',
-    ]);
   }
 
   /** After a few seconds standing still the astronaut turns to the camera and

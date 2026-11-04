@@ -12,6 +12,7 @@
 import Phaser from 'phaser';
 import { V2 } from '../ui/theme';
 import { MINION_HEIGHT, attachMinionFit, fitMinion } from './minionArt';
+import { mumble } from './minionVoice';
 
 export type CrewWho = 'mechanic' | 'driller' | 'radio' | 'chemist';
 
@@ -123,7 +124,15 @@ export class CrewMember {
     // the idle pose is cut taller than any walk frame — re-fit or the minion
     // visibly grows the moment it stops walking
     fitMinion(this.sprite, this.height);
+    // stopping for breath is when a minion talks to itself, so the voice comes
+    // from the character standing there rather than from a point in the world
+    this.speak();
     return true;
+  }
+
+  /** Say something. `force` is for a line the player caused — a greeting. */
+  speak(force = false): void {
+    mumble(this.scene, this.who, { force });
   }
 
   private resume(): void {

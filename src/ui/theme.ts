@@ -240,12 +240,53 @@ const PART_FRAME: Record<string, string> = {
   // whose wide solar panels wreck the stacked silhouette
 };
 
-/** Per-kind width multiplier: bells flare, fins stick out past the hull. */
+/** Per-kind width multiplier: bells flare, parachute canopies are wide. */
 const KIND_WIDTH: Record<string, number> = {
   engine: 1.2,
-  fins: 2.0,
   chute: 1.6,
 };
+
+/**
+ * Fins are the one part that is not a single centred sprite.
+ *
+ * The pack holds one *tall* fin per colour (159×320), not a left/right pair, so
+ * drawing it centred and stretched turned it into a red spike through the
+ * middle of the tank. A rocket carries a mirrored pair bolted to its lower
+ * flanks instead: same art, same size, same baseline, one of them flipped — and
+ * that is what both the builder and the flight scene render.
+ */
+const FIN_FRAME: Record<string, string> = {
+  fins: 'fins_red',
+};
+/** Fin height as a multiple of the hull width. Big enough that the pair reads
+ *  as two control surfaces framing the tail, not as stray triangles. */
+const FIN_HEIGHT_RATIO = 3.0;
+/** How far the fin's inner edge bites into the hull, so it reads as bolted on
+ *  rather than floating beside it. */
+const FIN_INSET = 16;
+/** Height of the fins' slot in the stack. Small on purpose — see finGeometry. */
+const FIN_ROW_H = 4;
+
+/**
+ * Fin box for the pair.
+ *
+ * `rowH` is deliberately almost nothing: fins are not a piece of hull, they are
+ * bolted *onto* it. Giving them a full slot punched a gap straight through the
+ * rocket — a tank, then thin air with two fins either side, then the engine —
+ * so the row is reduced to a seam and the art straddles it, reaching up over
+ * the tank and down past the engine bay the way real fins do.
+ */
+function finGeometry(
+  scene: Phaser.Scene, id: string,
+): { frame: string; finH: number; finW: number; rowH: number; w: number } | null {
+  const frame = FIN_FRAME[id];
+  if (!frame || !hasFrame(scene, frame)) return null;
+  const f = scene.textures.getFrame(UI, frame);
+  if (!f || f.width <= 0 || f.height <= 0) return null;
+  const finH = Math.round(PART_W * FIN_HEIGHT_RATIO);
+  const finW = Math.round(finH * (f.width / f.height));
+  return { frame, finH, finW, rowH: FIN_ROW_H, w: PART_W + (finW - FIN_INSET) * 2 };
+}
 
 export interface PartMetrics {
   /** Layout width in px. */
@@ -268,6 +309,11 @@ export function hasFrame(scene: Phaser.Scene, frame: string): boolean {
 /** Layout box for a part, derived from the sprite's own aspect ratio so a
  *  stacked rocket keeps the art's proportions instead of stretching. */
 export function partMetrics(scene: Phaser.Scene, id: string): PartMetrics {
+  // fins are a mirrored pair, so their layout box spans both of them; the slot
+  // itself is a seam, not a body (see finGeometry)
+  const fins = finGeometry(scene, id);
+  if (fins) return { w: fins.w, h: fins.rowH, frame: fins.frame };
+
   const frame = PART_FRAME[id] ?? null;
   if (frame && hasFrame(scene, frame)) {
     const f = scene.textures.getFrame(UI, frame);
@@ -289,6 +335,27 @@ export function addPart(
   scene: Phaser.Scene, id: string, x: number, y: number,
 ): Phaser.GameObjects.Image | Phaser.GameObjects.Container {
   const m = partMetrics(scene, id);
+
+  // Fins: two copies of the one fin in the pack, hugging the hull. The right
+  // one is flipped so the pair is a mirror image; both share a baseline so the
+  // trailing edges line up exactly, whichever rocket they are bolted to.
+  const fins = finGeometry(scene, id);
+  if (fins) {
+    const inner = PART_W / 2 - FIN_INSET;
+    const cx = inner + fins.finW / 2;
+    // centred on the seam, so the pair reaches over the part above and down
+    // past the engine bay instead of hanging in a slot of its own
+    const left = scene.add.image(-cx, 0, UI, fins.frame)
+      .setOrigin(0.5, 0.5).setDisplaySize(fins.finW, fins.finH);
+    const right = scene.add.image(cx, 0, UI, fins.frame)
+      .setOrigin(0.5, 0.5).setDisplaySize(fins.finW, fins.finH).setFlipX(true);
+    const pair = scene.add.container(x, y, [left, right]);
+    // the *hit* box is the whole fin pair even though the slot is a seam,
+    // otherwise selecting a fin means clicking a four-pixel line
+    pair.setSize(m.w, fins.finH);
+    return pair;
+  }
+
   if (m.frame) {
     const body = scene.add.image(0, 0, UI, m.frame).setDisplaySize(m.w, m.h);
 
