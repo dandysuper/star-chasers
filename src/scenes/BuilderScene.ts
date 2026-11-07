@@ -54,7 +54,7 @@ const SNAP_OFFSET = 26;
 const SIDE_OVERLAP = 8;
 
 /** Parts that make sense strapped to the side as a booster or an instrument. */
-const SIDE_OK = new Set(['tank', 'engine', 'fins', 'sensor', 'decoupler', 'chute']);
+const SIDE_OK = new Set(['tank', 'engine', 'fins', 'decoupler', 'chute']);
 
 export class BuilderScene extends Phaser.Scene {
   /** The rocket being built: a core stack plus optional left/right columns. */
@@ -369,7 +369,7 @@ export class BuilderScene extends Phaser.Scene {
   private autoTarget(id: string): Target {
     const kind = partDef(id).kind;
     if (kind === 'nose') return { kind: 'top' };
-    if (kind === 'chute' || kind === 'sensor') return { kind: 'top' };
+    if (kind === 'chute') return { kind: 'top' };
     return { kind: 'bottom' };
   }
 // ---------------- layout ----------------
@@ -713,6 +713,6 @@ export class BuilderScene extends Phaser.Scene {
       return;
     }
     this.saveDesign();
-    this.scene.start('code');
+    this.scene.start('flight');
   }
 }

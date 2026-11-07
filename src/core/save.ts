@@ -1,4 +1,5 @@
 import { state, type RocketDesign } from './state';
+import { isKnownPart } from '../data/parts';
 
 const KEY = 'starchasers.save.v1';
 
@@ -11,7 +12,21 @@ interface SaveData {
   /** `slots` is optional: saves written before sideways building reopen as the
    *  plain top-to-bottom stack they already were. */
   designs: Record<string, RocketDesign>;
-  programs: Record<string, unknown>;
+  /** Sample id → count. Absent on saves from before the sample collection. */
+  collection?: Record<string, number>;
+}
+
+/** Saves from the coding era can hold parts that no longer exist (the sensor
+ *  parts). Drop them; the slot layout no longer lines up, so such a design
+ *  reopens as a plain stack. */
+function cleanDesigns(raw: Record<string, RocketDesign>): Record<string, RocketDesign> {
+  const out: Record<string, RocketDesign> = {};
+  for (const [key, d] of Object.entries(raw)) {
+    if (!d || !Array.isArray(d.parts)) continue;
+    const parts = d.parts.filter(isKnownPart);
+    out[key] = parts.length === d.parts.length ? d : { parts };
+  }
+  return out;
 }
 
 export function loadSave(): boolean {
@@ -24,8 +39,8 @@ export function loadSave(): boolean {
     state.music = data.music !== false;
     state.astronaut = data.astronaut === 'male' ? 'male' : 'female';
     state.progress = data.progress ?? {};
-    state.designs = (data.designs ?? {}) as typeof state.designs;
-    state.programs = data.programs ?? {};
+    state.designs = cleanDesigns((data.designs ?? {}) as typeof state.designs);
+    state.collection = data.collection ?? {};
     return true;
   } catch {
     return false;
@@ -41,7 +56,7 @@ export function saveGame(): void {
       astronaut: state.astronaut,
       progress: state.progress,
       designs: state.designs,
-      programs: state.programs,
+      collection: state.collection,
     };
     localStorage.setItem(KEY, JSON.stringify(data));
   } catch {

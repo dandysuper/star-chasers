@@ -3,7 +3,9 @@ import { state } from '../core/state';
 import { saveGame } from '../core/save';
 import { t } from '../core/i18n';
 import { Walker } from '../core/walker';
-import { MISSIONS, MISSION_ORDER } from '../data/missions';
+import { MISSIONS, MISSION_ORDER, isExploreMission } from '../data/missions';
+import { PLANETS, PLANET_ORDER } from '../data/planets';
+import { addSampleIcon } from '../ui/sampleArt';
 import { devSpawnOverride } from '../core/devtools';
 import { isTouchMode, onInputModeChange } from '../core/device';
 import { makeButton, makeIconButton, makePanel, ensureMusic, TXT, type LabelButton } from '../ui/widgets';
@@ -11,6 +13,7 @@ import { InGameMenu } from '../ui/ingameMenu';
 import { V2, BASE_ART, GROUND_ART, UI_V2_ART, hasV2, addStarRow } from '../ui/theme';
 import { CrewMember, type CrewWho } from '../core/crew';
 import { playMinionSfx, stopMinionSound } from '../core/minionAudio';
+import { resetVoiceGate } from '../core/minionVoice';
 
 const TILE = 64;
 const MAP_W = 52;
@@ -71,6 +74,9 @@ export class HubScene extends Phaser.Scene {
   create(): void {
     ensureMusic(this, state.music);
     this.leaving = false;
+    this.greeted.clear();
+    this.fizzLoop = undefined;
+    resetVoiceGate();
     this.stations = [];
     this.hudObjects = [];
     this.cameras.main.setBackgroundColor(0x141428);
@@ -246,7 +252,8 @@ export class HubScene extends Phaser.Scene {
     this.place(V2, BASE_ART.board, board.x, board.y, 240, 'hub.sign_board');
     this.stations.push({ id: 'board', x: board.x, y: board.y + 110, promptKey: 'hub.prompt_board' });
 
-    // --- flight computer: the control shack with its roof dish ---
+    // --- sample lab: the control shack with its roof dish, where every
+    //     sample brought home from the Moon and Mars is catalogued ---
     const lab = { x: 700, y: 1010 };
     this.place(V2, BASE_ART.control, lab.x, lab.y, 260, 'hub.sign_lab');
     this.stations.push({ id: 'lab', x: lab.x, y: lab.y + 100, promptKey: 'hub.prompt_lab' });
@@ -391,7 +398,11 @@ export class HubScene extends Phaser.Scene {
     const actionLabel = t('touch.action');
     const near = this.nearestStation();
     if (near) {
-      this.promptText.setText(`${t(near.promptKey)}${key}`);
+      // the pad flies you out to the surface on an explore mission
+      const promptKey = near.id === 'pad' && isExploreMission(state.missionId)
+        ? `hub.prompt_pad_${MISSIONS[state.missionId!].planet}`
+        : near.promptKey;
+      this.promptText.setText(`${t(promptKey)}${key}`);
       this.walker.touch.setActionState(true, actionLabel);
       if (this.walker.interactJustPressed) this.useStation(near.id);
     } else {
@@ -416,8 +427,8 @@ export class HubScene extends Phaser.Scene {
       );
       const key = `${member.sprite.texture.key}:${this.crew.indexOf(member)}`;
       if (d <= GREET_RADIUS && !this.greeted.has(key)) {
-        this.greeted.add(key);
-        member.speak(true);
+        // A locked browser or muted game has not delivered a greeting yet.
+        if (member.speak(true)) this.greeted.add(key);
       } else if (d > GREET_FORGET && this.greeted.has(key)) {
         this.greeted.delete(key);
       }
@@ -524,16 +535,68 @@ export class HubScene extends Phaser.Scene {
 
   private useStation(id: Station['id']): void {
     if (id === 'pad') {
-      // the Moon mission starts on foot, everything else starts in the builder
-      this.leave(state.missionId === 'moon' ? 'explore' : 'builder');
+      // the planet walks start on the surface, everything else in the builder
+      this.leave(isExploreMission(state.missionId) ? 'explore' : 'builder');
       return;
     }
     if (id === 'lab') {
-      if (!state.design.parts.length) { this.showToast(t('hub.need_rocket')); return; }
-      this.leave('code');
+      this.openCollection();
       return;
     }
     this.openMissionPicker();
+  }
+
+  /** The sample lab: every sample type on every planet, with how many the
+   *  player has brought home. Unfound ones show as a dark silhouette. */
+  private openCollection(): void {
+    if (this.overlay) return;
+    const { width, height } = this.scale;
+    const rows = Math.max(...PLANET_ORDER.map((p) => PLANETS[p].samples.length));
+    const panelW = 860;
+    const panelH = 290 + rows * 62;
+    const c = this.add.container(width / 2, height / 2).setScrollFactor(0).setDepth(100);
+    this.overlay = c;
+    this.cameras.main.ignore(c);
+
+    c.add(makePanel(this, -panelW / 2, -panelH / 2, panelW, panelH, 0.98));
+    const top = -panelH / 2 + 80;
+    c.add(this.add.text(0, top, t('lab.title'), TXT.h2).setOrigin(0.5));
+
+    let found = 0;
+    let total = 0;
+    PLANET_ORDER.forEach((pid, col) => {
+      const planet = PLANETS[pid];
+      const cx = (col - (PLANET_ORDER.length - 1) / 2) * 380;
+      c.add(this.add.text(cx, top + 42, t(planet.nameKey), {
+        ...TXT.h2, fontSize: '20px', color: '#ffe8a3',
+      }).setOrigin(0.5));
+      planet.samples.forEach((def, i) => {
+        const y = top + 92 + i * 62;
+        const n = state.collection[def.id] ?? 0;
+        total++;
+        if (n > 0) found++;
+        const icon = addSampleIcon(this, cx - 140, y, def, 48);
+        if (n === 0) icon.setTintFill(0x14142a).setAlpha(0.7);
+        c.add(icon);
+        c.add(this.add.text(cx - 104, y, n > 0 ? t(`sample.${def.id}`) : '???', {
+          ...TXT.body, fontSize: '16px', color: n > 0 ? '#ffffff' : '#8a8ab0',
+        }).setOrigin(0, 0.5));
+        c.add(this.add.text(cx + 160, y, n > 0 ? `×${n}` : '—', {
+          ...TXT.body, fontSize: '16px', color: '#ffd23f',
+        }).setOrigin(1, 0.5));
+      });
+    });
+    c.add(this.add.text(0, top + 92 + rows * 62 - 22, t('lab.progress', { n: found, total }), {
+      ...TXT.small, fontSize: '15px', color: '#cfd2ee',
+    }).setOrigin(0.5));
+
+    const close = makeButton(this, width / 2, height / 2 + top + 92 + rows * 62 + 30, t('hub.close'), {
+      w: 200, h: 46, fontSize: 16, variant: 'red', onClick: () => this.closeOverlay(),
+    });
+    close.setDepth(101);
+    this.cameras.main.ignore(close);
+    if (close.hitZone) this.cameras.main.ignore(close.hitZone);
+    this.overlayButtons.push(close);
   }
 
   private openMissionPicker(): void {

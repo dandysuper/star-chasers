@@ -6,9 +6,13 @@ import { UI, V2, BG_FILES } from '../ui/theme';
 import { devSceneOverride, devMissionOverride, devLangOverride } from '../core/devtools';
 import { state } from '../core/state';
 import { PRESET_BASIC } from '../data/parts';
-import { STARTER_PROGRAM, MISSIONS } from '../data/missions';
+import { MISSIONS } from '../data/missions';
 import { musicAssetFiles } from '../core/themeTracks';
 import { preloadMinionAudio } from '../core/minionAudio';
+
+interface PlanetManifest {
+  images?: { key: string; file: string }[];
+}
 
 export class BootScene extends Phaser.Scene {
   constructor() { super('boot'); }
@@ -50,6 +54,16 @@ export class BootScene extends Phaser.Scene {
     // v2 wishlist art: base buildings, ground tiles, crew walks, exhaust plumes
     this.load.atlas(V2, 'assets/v2/v2.png', 'assets/v2/v2.json');
     this.load.json('anims_crew', 'assets/anims/crew_walk_anims.json');
+
+    // Optional planet art (reqassets.md). The manifest lists only the files
+    // that actually exist, so a missing drop costs nothing and logs no 404s;
+    // every lookup falls back to the tinted atlas art.
+    this.load.on('filecomplete-json-planet_manifest', (_key: string, _type: string, data: PlanetManifest) => {
+      for (const img of data?.images ?? []) {
+        if (img?.key && img?.file) this.load.image(img.key, `assets/planets/${img.file}`);
+      }
+    });
+    this.load.json('planet_manifest', 'assets/planets/manifest.json');
   }
 
   create(): void {
@@ -102,9 +116,6 @@ export class BootScene extends Phaser.Scene {
       state.missionId = null;
       state.design = { parts: [...PRESET_BASIC] };
       state.designs[state.designKey()] = { parts: [...PRESET_BASIC] };
-    }
-    if (target === 'flight' && !state.program) {
-      state.program = mission?.starterProgram ?? STARTER_PROGRAM;
     }
     this.scene.start(target);
   }

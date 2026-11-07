@@ -9,21 +9,19 @@ import { splitStages, computeStats } from './rocket';
 export const DT = 1 / 60;
 const TURN_RATE = (30 * Math.PI) / 180; // 30°/s max steering rate
 
-/** Commands the RocketScript interpreter writes each tick. */
+/** What the pilot's controls ask of the rocket, read every tick. */
 export interface RocketControl {
   engineOn: boolean;
   throttle: number;        // 0..1
   targetAngle: number;     // radians, 0 = up, + = east
   stageRequest: boolean;
   parachute: boolean;
-  /** set when the program ran "engine off" at least once (M2 check) */
-  engineOffByProgram: boolean;
 }
 
 export function defaultControl(): RocketControl {
   return {
     engineOn: false, throttle: 1, targetAngle: 0,
-    stageRequest: false, parachute: false, engineOffByProgram: false,
+    stageRequest: false, parachute: false,
   };
 }
 
@@ -81,7 +79,6 @@ export class FlightSim {
   fuelTotalStart = 0;
   maxAltitude = 0;
   parachuteDeployed = false;
-  engineOffByProgram = false;
 
   /** stages bottom-first */
   readonly stages: StageState[];
@@ -160,10 +157,6 @@ export class FlightSim {
         this.parachuteDeployed = true;
         events.push({ type: 'parachute' });
       }
-    }
-
-    if (control.engineOn === false && !this.engineOffByProgram && this.launched) {
-      this.engineOffByProgram = true;
     }
 
     // --- dominant body + gravity ---

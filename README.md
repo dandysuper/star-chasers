@@ -1,17 +1,17 @@
 # Star Chasers · «Звёздные гонщики»
 
-A browser game for **NASA Space Apps 2026**: build a rocket, program its flight with
-Blockly blocks, then fly it — and walk the Moon to collect samples. No install, no
+A browser game for **NASA Space Apps 2026**: build a rocket, pilot it yourself, then
+walk the Moon and Mars to finish sample-collection tasks. No install, no
 account, no server: everything runs client-side, in Russian and English.
 
-Phaser 3 · TypeScript · Vite · Blockly. Targets a 1280×720 canvas, scaled to fit.
+Phaser 3 · TypeScript · Vite. Targets a 1280×720 canvas, scaled to fit.
 
 ## Quick start
 
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # 32 unit tests (physics, interpreter, rocket math, audio state)
+npm test           # unit tests (physics, rocket math, assembly, audio state, minions)
 npm run build      # dist/ — a static bundle, deployable anywhere
 npm run typecheck  # tsc --noEmit
 ```
@@ -21,15 +21,21 @@ npm run typecheck  # tsc --noEmit
 | Scene | What happens |
 |---|---|
 | **Menu** | switch language / sound, choose the astronaut, jump into the game |
-| **Hub** | walk the base on foot, use the mission board, the flight computer and the pad |
+| **Hub** | walk the base on foot, use the mission board, the sample lab and the pad |
 | **Builder** | drag parts onto the stack, watch mass / Δv / TWR / stability update live |
-| **Code** | a Blockly workspace with ~20 blocks; the right panel restates the goal |
-| **Flight** | the program runs against a real 2-D physics sim — throttle, staging, parachute |
-| **Explore** | walk the Moon, drill samples, beam the data home |
+| **Flight** | you pilot the rocket in a real 2-D physics sim: engine, throttle, tilt, staging, parachute |
+| **Explore** | walk the Moon or Mars, drill samples to finish the task list, beam the data home |
 | **Result** | stars, telemetry, a fun fact, and the next step |
 
-Three missions (`m1` reach 10 km, `m2` reach 70 km and cut the engine, `moon` walk and
-sample) plus a Sandbox that starts from the working preset rocket.
+Four missions (`m1` reach 10 km, `m2` reach 70 km and cut the engine, `moon` and `mars`
+sample walks) plus a Sandbox that starts from the working preset rocket.
+
+**Sample tasks.** Each planet (`src/data/planets.ts`) scatters ten samples and sets a
+checklist: required tasks (e.g. *2 × ice*, *1 × mudstone*) unlock the transmit at the
+lander, and a bonus task (*find all 5 types*) is worth a star; the third star is for
+finishing under the planet's time limit. Gold rings mark samples a task still needs.
+Everything brought home is added to the persistent collection shown at the hub's
+**Sample Lab**.
 
 **Controls.** The scheme is detected, not assumed: a phone or tablet gets the
 on-screen pads and touch wording, a desktop gets the keyboard and no pads, and a
@@ -37,7 +43,7 @@ hybrid device switches to whichever was used last without a reload.
 
 - **Hub & Explore**: WASD / arrows or the bottom-left **virtual thumbstick** to walk; `E`, the bottom-right **action button**, or tapping a nearby station/sample/lander directly to interact/drill/transmit.
 - **Builder**: drag or tap palette cards to attach parts; wheel or on-screen `+` / `−` / reset buttons to zoom; right-drag or 1-finger grid drag to pan; `Delete` or the on-screen **✕ Remove part** button to remove the selected part.
-- **Flight**: `Space` or pause icon to pause, `[` / `]` or warp icon (cycles 1× → 2× → 5× → 10× → 1×) to warp, `R` or reset icon to restart, `Esc` or back icon to return to code.
+- **Flight**: `Space` engine on/off, `W`/`S` throttle, `A`/`D` tilt, `Q` drop stage, `C` parachute (all also on the bottom button row); `P` or pause icon to pause, `[` / `]` or warp icon (cycles 1× → 2× → 5× → 10× → 1×) to warp, `R` or reset icon to restart, `Esc` for the menu, back icon to return to the builder. Steering needs a flight computer or crew pod.
 
 ## Layout
 
@@ -46,16 +52,17 @@ src/
   core/       state, save, i18n, devtools, walker (player), crew (patrols),
               device (input-mode detection), minionArt (one size for every
               minion), audioState + audioSignals (is sound actually audible)
-  data/       parts, bodies, mission definitions and their win/lose checks
+  data/       parts, bodies, mission definitions and their win/lose checks,
+              planets (surface look, samples, sample tasks)
   physics/    the flight sim + rocket stat maths (pure, unit-tested)
-  rocketscript/ Blockly block definitions, JSON → AST compiler, interpreter
-  scenes/     boot, menu, hub, builder, code, flight, explore, result
+  scenes/     boot, menu, hub, builder, flight, explore, result
   ui/         theme (atlas wiring), widgets, touch (mobile joystick/action), drawn part fallbacks
   i18n/       en.json, ru.json — every string in the game lives here
 public/assets/
   ui/ui.png|json   packed atlas: parts, buttons, panels, icons, effects, logo
   v2/v2.png|json   packed atlas: base buildings, ground tiles, crew walks/idles, bells, fx, plumes, UI v2
-  bg/*.webp        nine painted backdrops
+  bg/*.webp        painted backdrops
+  planets/         optional Moon/Mars art listed in manifest.json (see reqassets.md)
   anims/           walk-cycle JSON for the astronauts and the base crew
   atlases/         handoff art (astronauts, minions, terrain, machines, tools)
 v2_src/            raw wishlist drop the v2 atlas is cut from (never shipped)
@@ -155,8 +162,8 @@ Add these to the URL:
 | Query | Effect |
 |---|---|
 | `?dev=1` | unlock all missions, show the DEV banner |
-| `?scene=code` | boot straight into a scene (`menu`, `hub`, `builder`, `code`, `flight`, `explore`) |
-| `?mission=m2` | boot a real mission (pairs with `?scene=`) |
+| `?scene=builder` | boot straight into a scene (`menu`, `hub`, `builder`, `flight`, `explore`) |
+| `?mission=m2` | boot a real mission (pairs with `?scene=`; `moon` / `mars` with `?scene=explore`) |
 | `?lang=en` | pin the language for this run |
 | `?spawn=pad` | hub only: start next to a station (`board`, `lab`, `pad`) |
 
@@ -166,8 +173,7 @@ Combining them makes screenshots and manual checks one URL, e.g.
 ## Tests
 
 `tests/` covers the parts that must not drift: the flight integrator (staging, drag,
-landing), the rocket stat calculator (Δv, TWR, stability warnings), the Blockly
-interpreter (loops, waits, sensors, error reporting), and the audio-state classifier
+landing), the rocket stat calculator (Δv, TWR, stability warnings), and the audio-state classifier
 (which platform signals count as "the sound is off"). Scene code is verified by hand in
 the browser.
 

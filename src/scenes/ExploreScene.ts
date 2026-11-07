@@ -1,11 +1,17 @@
 import Phaser from 'phaser';
 import { state } from '../core/state';
-import { t, fmtTime } from '../core/i18n';
-import { missionById } from '../data/missions';
+import { saveGame } from '../core/save';
+import { t } from '../core/i18n';
+import { MISSIONS, missionById, type MissionDef } from '../data/missions';
+import {
+  planetById, sampleDef, taskProgress, taskDone, requiredTasksDone, bonusTasksDone,
+  sampleAdvancesTask, type PlanetDef, type SampleDef, type TaskDef, type TileArt,
+} from '../data/planets';
 import { makeIconButton, makePanel, ensureMusic, TXT } from '../ui/widgets';
 import { InGameMenu } from '../ui/ingameMenu';
 import { V2, FX_ART, UI_V2_ART, hasV2, makeSpeechBubble } from '../ui/theme';
 import { TouchControls } from '../ui/touch';
+import { addSampleIcon } from '../ui/sampleArt';
 import { isTouchMode, onInputModeChange } from '../core/device';
 import { MINION_HEIGHT, attachMinionFit } from '../core/minionArt';
 import {
@@ -15,21 +21,18 @@ import {
 const TILE = 64;
 const MAP_W = 40;
 const MAP_H = 30;
-const SAMPLE_IDS = ['purple_crystal', 'iron_ore', 'ice_cube_bug', 'magma_rock', 'gold_nugget'] as const;
-const SAMPLE_FRAMES: Record<string, string> = {
-  purple_crystal: 'resources_purple_crystal',
-  iron_ore: 'resources_iron_ore',
-  ice_cube_bug: 'resources_ice_cube_bug',
-  magma_rock: 'resources_magma_rock',
-  gold_nugget: 'resources_gold_nugget',
-};
+const SPAWN = { x: 400, y: 400 };
+/** Longest edge of a sample icon on the ground, px. */
+const SAMPLE_SIZE = 60;
 
 interface Sample {
-  id: string;
+  def: SampleDef;
   go: Phaser.GameObjects.Image;
   ring: Phaser.GameObjects.Graphics;
   x: number; y: number;
   collected: boolean;
+  /** Ring colour last drawn, so it is only redrawn when the role changes. */
+  wanted?: boolean;
 }
 
 interface Helper {
@@ -39,8 +42,12 @@ interface Helper {
   kind: string;
 }
 
+interface Speck { x: number; y: number; vx: number; vy: number; r: number; a: number }
+
 const MINIMAP_SIZE = 156;
 const MINIMAP_RAD = 58;
+const RING_WANTED = 0xffd23f;   // a sample one of the tasks still needs
+const RING_SPARE = 0x59f7ff;    // any other sample
 
 export class ExploreScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
@@ -52,9 +59,8 @@ export class ExploreScene extends Phaser.Scene {
   private samples: Sample[] = [];
   private helpers: Helper[] = [];
   private inventory: string[] = [];
-  private collected = 0;
+  private taskText!: Phaser.GameObjects.Text;
   private invText!: Phaser.GameObjects.Text;
-  private goalText!: Phaser.GameObjects.Text;
   private promptText!: Phaser.GameObjects.Text;
   private factBox?: Phaser.GameObjects.Container;
   private drill?: { sample: Sample; bar: Phaser.GameObjects.Graphics; timer: Phaser.Time.TimerEvent };
@@ -62,7 +68,8 @@ export class ExploreScene extends Phaser.Scene {
   /** The drill's own engine loop, stopped when the sample breaks free. */
   private drillLoop?: Phaser.Sound.BaseSound;
   private rockGroup!: Phaser.Physics.Arcade.StaticGroup;
-  private mission = null as ReturnType<typeof missionById>;
+  private mission!: MissionDef;
+  private planet!: PlanetDef;
   private startT = 0;
   private hintTimer = 0;
   private idleT = 0;
@@ -70,6 +77,8 @@ export class ExploreScene extends Phaser.Scene {
   private scoutArrow?: Phaser.GameObjects.Image | Phaser.GameObjects.Graphics;
   private minimapContainer?: Phaser.GameObjects.Container;
   private minimapDots?: Phaser.GameObjects.Graphics;
+  private dustGfx?: Phaser.GameObjects.Graphics;
+  private dust: Speck[] = [];
   private hudCam!: Phaser.Cameras.Scene2D.Camera;
   private hudObjects: Phaser.GameObjects.GameObject[] = [];
   private inGameMenu!: InGameMenu;
@@ -79,125 +88,66 @@ export class ExploreScene extends Phaser.Scene {
 
   create(): void {
     ensureMusic(this, state.music);
-    const { height } = this.scale;
-    this.mission = missionById('moon');
+    const { width, height } = this.scale;
+    // a dev jump straight into the scene has no explore mission picked yet
+    const picked = missionById(state.missionId);
+    this.mission = picked?.kind === 'explore' ? picked : MISSIONS.moon;
+    if (state.missionId !== this.mission.id) {
+      state.mode = 'mission';
+      state.missionId = this.mission.id;
+    }
+    this.planet = planetById(this.mission.planet);
     this.ended = false;
-    this.inventory = []; this.collected = 0;
-    this.cameras.main.setBackgroundColor(0x1a1a2e);
+    this.drilling = false;
+    this.drill = undefined;
+    this.factBox = undefined;
+    this.scoutArrow = undefined;
+    this.inventory = [];
+    this.samples = [];
+    this.helpers = [];
+    this.dust = [];
+    this.hintTimer = 0;
+    this.idleT = 0;
+    this.cameras.main.setBackgroundColor(this.planet.sky);
     this.startT = this.time.now;
 
-    // --- terrain ---
-    // solid ground under the tiles: any seam, gap or map edge then reads as
-    // lunar soil instead of the camera's background colour
-    this.add.rectangle(MAP_W * TILE / 2, MAP_H * TILE / 2, MAP_W * TILE, MAP_H * TILE, 0x3a3040).setDepth(-20);
     const rng = new Phaser.Math.RandomDataGenerator([`${Date.now() % 9973}`]);
-    for (let ty = 0; ty < MAP_H; ty++) {
-      for (let tx = 0; tx < MAP_W; tx++) {
-        const ice = rng.frac() < 0.12;
-        const frame = ice ? 'terrain_ice_64' : 'terrain_crater_64';
-        this.add.image(tx * TILE + TILE / 2, ty * TILE + TILE / 2, 'terrain_v2', frame);
-      }
-    }
-    // scatter rocks (obstacles) & decor
-    this.rockGroup = this.physics.add.staticGroup();
-    const rockFrames = ['terrain_crater_rock', 'terrain_crystal_rock', 'terrain_fossil_rock'];
-    for (let i = 0; i < 45; i++) {
-      const x = rng.between(100, MAP_W * TILE - 100);
-      const y = rng.between(100, MAP_H * TILE - 100);
-      // keep the spawn area & lander clear
-      if (Math.hypot(x - 400, y - 400) < 240) continue;
-      const f = rng.pick(rockFrames);
-      const rock = this.rockGroup.create(x, y, 'terrain', f) as Phaser.Physics.Arcade.Sprite;
-      rock.setScale(0.8).refreshBody();
-    }
-    const decor = ['terrain_crater_dirt', 'terrain_ice_cracked', 'terrain_alien_grass_eyes', 'terrain_crater_rock'];
-    for (let i = 0; i < 80; i++) {
-      const x = rng.between(0, MAP_W * TILE);
-      const y = rng.between(0, MAP_H * TILE);
-      this.add.image(x, y, 'terrain', rng.pick(decor)).setScale(0.6).setAlpha(0.8).setDepth(-1);
-    }
-
-    // --- lander (spawn point) ---
-    const spawn = { x: 400, y: 400 };
-    this.lander = this.add.image(spawn.x, spawn.y, 'machines', 'machines_rocket_launchpad').setScale(0.8);
-    // Tap lander directly on smartphones to transmit once 3+ samples are collected
-    this.lander.setInteractive();
-    if (this.lander.input) this.lander.input.cursor = 'pointer';
-    this.lander.on('pointerup', () => {
-      if (this.inGameMenu?.isOpen || this.drilling || this.ended) return;
-      if (Math.hypot(this.player.x - this.lander.x, this.player.y - this.lander.y) < 110 && this.collected >= 3) {
-        this.transmit();
-      }
-    });
+    this.buildTerrain(rng);
+    this.buildLander();
 
     // --- player astronaut ---
     const g = state.astronaut;
-    this.player = this.physics.add.sprite(spawn.x + 90, spawn.y + 40, `astro_${g}_walk`, `astro_${g}_walk_front_0`);
+    this.player = this.physics.add.sprite(SPAWN.x + 90, SPAWN.y + 40, `astro_${g}_walk`, `astro_${g}_walk_front_0`);
     this.player.setCollideWorldBounds(true);
     this.player.setSize(50, 60);
     this.physics.world.setBounds(0, 0, MAP_W * TILE, MAP_H * TILE);
     this.physics.add.collider(this.player, this.rockGroup);
 
-    // camera follows
     this.cameras.main.startFollow(this.player, true, 0.15, 0.15);
     this.cameras.main.setBounds(0, 0, MAP_W * TILE, MAP_H * TILE);
     this.cameras.main.setZoom(1.4);
 
-    // --- samples ---
-    for (let i = 0; i < 5; i++) {
-      const id = SAMPLE_IDS[i];
-      let x = 0, y = 0, tries = 0;
-      do {
-        x = rng.between(160, MAP_W * TILE - 160);
-        y = rng.between(160, MAP_H * TILE - 160);
-        tries++;
-      } while (Math.hypot(x - spawn.x, y - spawn.y) < 400 && tries < 30);
-      // ring is drawn at its own origin and positioned — so scaling it pulses
-      // around the sample instead of drifting (see PLAN §2.9)
-      const ring = this.add.graphics().setPosition(x, y);
-      ring.lineStyle(3, 0x59f7ff, 1);
-      ring.strokeCircle(0, 0, 30);
-      ring.strokeCircle(0, 0, 22);
-      const go = this.add.image(x, y, 'resources', SAMPLE_FRAMES[id]);
-      const sample: Sample = { id, go, ring, x, y, collected: false };
-      // Tap sample directly on touch screens when within reach
-      go.setInteractive();
-      if (go.input) go.input.cursor = 'pointer';
-      go.on('pointerup', () => {
-        if (this.inGameMenu?.isOpen || this.drilling || this.ended || sample.collected) return;
-        if (Math.hypot(sample.x - this.player.x, sample.y - this.player.y) < 84) {
-          this.startDrill(sample);
-        }
-      });
-      this.samples.push(sample);
-    }
+    this.buildSamples(rng);
+    this.buildHelpers();
 
-    // --- helpers (minions follow the player) ---
-    const helperFrames = ['minions_mechanic', 'minions_miner_driller', 'minions_radio_scout', 'minions_chemist'];
-    for (let i = 0; i < 4; i++) {
-      const go = this.add.image(spawn.x + 140 + i * 30, spawn.y + 80 + i * 25, 'minions', helperFrames[i]);
-      // same rendered height as the hub crew, so the helpers do not change
-      // size between the base and the Moon
-      attachMinionFit(go, MINION_HEIGHT);
-      // a 2×2 escort behind the astronaut: the old 30 px diagonal packed four
-      // full-size minions on top of each other and on top of the player
-      this.helpers.push({
-        go,
-        offset: { x: -70 - (i % 2) * 84, y: 36 + Math.floor(i / 2) * 58 },
-        kind: helperFrames[i],
-      });
-    }
-
-    // --- HUD ---
-    this.goalText = this.add.text(12, 12, '', { ...TXT.small, fontSize: '15px', backgroundColor: '#1d1d3acc', padding: { x: 10, y: 6 } }).setScrollFactor(0).setDepth(50);
-    this.invText = this.add.text(12, 56, '', { ...TXT.small, fontSize: '15px' }).setScrollFactor(0).setDepth(50);
-    this.promptText = this.add.text(this.scale.width / 2, height - 90, '', { ...TXT.h2, fontSize: '20px', backgroundColor: '#1d1d3acc', padding: { x: 12, y: 6 } }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(50);
+    // --- HUD: task checklist top-left, inventory under it ---
+    this.taskText = this.add.text(12, 12, '', {
+      ...TXT.small, fontSize: '15px', lineSpacing: 5,
+      backgroundColor: '#1d1d3acc', padding: { x: 12, y: 8 },
+    }).setScrollFactor(0).setDepth(50);
+    this.invText = this.add.text(12, 0, '', {
+      ...TXT.small, fontSize: '14px', backgroundColor: '#1d1d3a99', padding: { x: 10, y: 5 },
+      wordWrap: { width: 420 },
+    }).setScrollFactor(0).setDepth(50);
+    this.promptText = this.add.text(width / 2, height - 90, '', {
+      ...TXT.h2, fontSize: '20px', backgroundColor: '#1d1d3acc', padding: { x: 12, y: 6 },
+    }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(50);
     this.refreshHUD();
 
-    // --- radar minimap (top-right, framed by ui_minimap_frame) ---
     this.buildMinimap();
+    if (this.planet.dust) this.buildDust();
 
-    const menuBtn = makeIconButton(this, this.scale.width - MINIMAP_SIZE - 44, 36, 'ico_gear', () => this.inGameMenu.toggle(), 44);
+    const menuBtn = makeIconButton(this, width - MINIMAP_SIZE - 44, 36, 'ico_gear', () => this.inGameMenu.toggle(), 44);
     menuBtn.setScrollFactor(0).setDepth(65);
 
     // --- on-screen touch controls (bottom-left thumbstick + bottom-right action) ---
@@ -210,11 +160,12 @@ export class ExploreScene extends Phaser.Scene {
 
     // The world camera is zoomed 1.4, which scales and shifts any
     // scroll-factor-0 text off screen. The overlay gets its own camera.
-    this.hudCam = this.cameras.add(0, 0, this.scale.width, height);
+    this.hudCam = this.cameras.add(0, 0, width, height);
     this.hudCam.setName('hud');
     this.hudCam.transparent = true;
-    this.hudObjects = [this.goalText, this.invText, this.promptText, menuBtn, ...this.touch.objects];
+    this.hudObjects = [this.taskText, this.invText, this.promptText, menuBtn, ...this.touch.objects];
     if (this.minimapContainer) this.hudObjects.push(this.minimapContainer);
+    if (this.dustGfx) this.hudObjects.push(this.dustGfx);
     const hudSet = new Set<Phaser.GameObjects.GameObject>(this.hudObjects);
     this.hudCam.ignore(this.children.list.filter((o) => !hudSet.has(o)));
     this.cameras.main.ignore(this.hudObjects);
@@ -247,7 +198,178 @@ export class ExploreScene extends Phaser.Scene {
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.keyWASD = this.input.keyboard!.addKeys('W,A,S,D') as Record<string, Phaser.Input.Keyboard.Key>;
     this.keyE = this.input.keyboard!.addKey('E');
+
+    // the first line of the walk says where you are and what the job is
+    this.time.delayedCall(600, () => {
+      const radio = this.helpers.find((h) => h.kind === 'minions_radio_scout') ?? this.helpers[0];
+      if (radio && !this.ended) this.bubble(radio, t(`explore.arrive.${this.planet.id}`));
+    });
   }
+
+  // ------------------------------------------------------------- terrain ---
+
+  /** A tile image: the dedicated planet art when it is loaded, otherwise the
+   *  atlas frame under the planet's tint. */
+  private tile(x: number, y: number, art: TileArt): Phaser.GameObjects.Image {
+    if (art.art && this.textures.exists(art.art)) {
+      return this.add.image(x, y, art.art).setDisplaySize(TILE + 1, TILE + 1);
+    }
+    const img = this.add.image(x, y, 'terrain_v2', art.frame);
+    if (art.tint !== undefined) img.setTint(art.tint);
+    return img;
+  }
+
+  private buildTerrain(rng: Phaser.Math.RandomDataGenerator): void {
+    const p = this.planet;
+    // solid ground under the tiles: any seam, gap or map edge then reads as
+    // soil instead of the camera's background colour
+    this.add.rectangle(MAP_W * TILE / 2, MAP_H * TILE / 2, MAP_W * TILE, MAP_H * TILE, p.soil).setDepth(-20);
+    // Painted ground is drawn on its own: any second 64 px tile mixed in (even
+    // the painted bedrock) shows as a hard square, and the decor frames are
+    // opaque squares too.
+    const painted = (t: TileArt) => !!t.art && this.textures.exists(t.art);
+    const groundPainted = painted(p.ground);
+    const patchChance = groundPainted ? 0 : p.patchChance;
+    for (let ty = 0; ty < MAP_H; ty++) {
+      for (let tx = 0; tx < MAP_W; tx++) {
+        const art = rng.frac() < patchChance ? p.patch : p.ground;
+        this.tile(tx * TILE + TILE / 2, ty * TILE + TILE / 2, art);
+      }
+    }
+    // scatter rocks (obstacles) & decor
+    this.rockGroup = this.physics.add.staticGroup();
+    for (let i = 0; i < 45; i++) {
+      const x = rng.between(100, MAP_W * TILE - 100);
+      const y = rng.between(100, MAP_H * TILE - 100);
+      // keep the spawn area & lander clear
+      if (Math.hypot(x - SPAWN.x, y - SPAWN.y) < 240) continue;
+      if (groundPainted) {
+        this.addBoulder(x, y, rng);
+        continue;
+      }
+      const rock = this.rockGroup.create(x, y, 'terrain', rng.pick(p.rocks)) as Phaser.Physics.Arcade.Sprite;
+      rock.setScale(0.8).refreshBody();
+      if (p.rockTint !== undefined) rock.setTint(p.rockTint);
+    }
+    for (let i = 0; i < (groundPainted ? 0 : 80); i++) {
+      const x = rng.between(0, MAP_W * TILE);
+      const y = rng.between(0, MAP_H * TILE);
+      const d = this.add.image(x, y, 'terrain', rng.pick(p.decor)).setScale(0.6).setAlpha(0.8).setDepth(-1);
+      if (p.decorTint !== undefined) d.setTint(p.decorTint);
+    }
+  }
+
+  /** A drawn cartoon boulder with a solid foot. The terrain atlas rocks are
+   *  opaque squares, which read as holes on the painted ground. */
+  private addBoulder(x: number, y: number, rng: Phaser.Math.RandomDataGenerator): void {
+    const mars = this.planet.id === 'mars';
+    const body = mars ? 0x8a4128 : 0x7d7f86;
+    const light = mars ? 0xb8613f : 0xa9abb2;
+    const dark = mars ? 0x5e2a1a : 0x55575e;
+    const w = rng.between(38, 64);
+    const h = Math.round(w * rng.realInRange(0.6, 0.8));
+    const g = this.add.graphics().setPosition(x, y);
+    g.fillStyle(0x000000, 0.22).fillEllipse(4, h * 0.42, w * 1.05, h * 0.42);
+    g.fillStyle(body, 1).fillEllipse(0, 0, w, h);
+    g.fillStyle(light, 1).fillEllipse(-w * 0.14, -h * 0.18, w * 0.5, h * 0.36);
+    g.fillStyle(dark, 1).fillEllipse(w * 0.2, h * 0.16, w * 0.22, h * 0.18);
+    g.lineStyle(3, 0x1d1b2e, 1).strokeEllipse(0, 0, w, h);
+    const foot = this.add.zone(x, y + h * 0.1, w * 0.8, h * 0.6);
+    this.physics.add.existing(foot, true);
+    this.rockGroup.add(foot);
+  }
+
+  private buildLander(): void {
+    const p = this.planet;
+    if (p.landerArt && this.textures.exists(p.landerArt)) {
+      this.lander = this.add.image(SPAWN.x, SPAWN.y, p.landerArt);
+      const s = 200 / Math.max(this.lander.width, this.lander.height);
+      this.lander.setScale(s);
+    } else {
+      this.lander = this.add.image(SPAWN.x, SPAWN.y, 'machines', 'machines_rocket_launchpad').setScale(0.8);
+    }
+    // Mars has company: a parked rover beside the lander, a nod to the real
+    // rovers that do this job there today
+    if (p.id === 'mars') {
+      this.add.image(SPAWN.x - 170, SPAWN.y + 70, 'machines', 'machines_rover').setScale(0.5).setTint(0xf0c8b0);
+    }
+    // Tap the lander directly on smartphones to transmit once the tasks are done
+    this.lander.setInteractive();
+    if (this.lander.input) this.lander.input.cursor = 'pointer';
+    this.lander.on('pointerup', () => {
+      if (this.inGameMenu?.isOpen || this.drilling || this.ended) return;
+      const near = Math.hypot(this.player.x - this.lander.x, this.player.y - this.lander.y) < 110;
+      if (near && requiredTasksDone(this.planet, this.inventory)) this.transmit();
+    });
+  }
+
+  // ------------------------------------------------------------- samples ---
+
+  private buildSamples(rng: Phaser.Math.RandomDataGenerator): void {
+    const placed: { x: number; y: number }[] = [];
+    for (const [id, count] of Object.entries(this.planet.spawns)) {
+      const def = sampleDef(this.planet, id);
+      if (!def) continue;
+      for (let i = 0; i < count; i++) {
+        let x = 0, y = 0, tries = 0;
+        do {
+          x = rng.between(160, MAP_W * TILE - 160);
+          y = rng.between(160, MAP_H * TILE - 160);
+          tries++;
+        } while (tries < 40 && (
+          Math.hypot(x - SPAWN.x, y - SPAWN.y) < 380
+          || placed.some((q) => Math.hypot(q.x - x, q.y - y) < 180)
+        ));
+        placed.push({ x, y });
+        // ring is drawn at its own origin and positioned — so scaling it pulses
+        // around the sample instead of drifting (see PLAN §2.9)
+        const ring = this.add.graphics().setPosition(x, y);
+        const go = addSampleIcon(this, x, y, def, SAMPLE_SIZE);
+        const sample: Sample = { def, go, ring, x, y, collected: false };
+        // Tap a sample directly on touch screens when within reach
+        go.setInteractive();
+        if (go.input) go.input.cursor = 'pointer';
+        go.on('pointerup', () => {
+          if (this.inGameMenu?.isOpen || this.drilling || this.ended || sample.collected) return;
+          if (Math.hypot(sample.x - this.player.x, sample.y - this.player.y) < 84) this.startDrill(sample);
+        });
+        this.samples.push(sample);
+      }
+    }
+    this.refreshRings();
+  }
+
+  /** Gold rings mark what the tasks still need; the rest stay cyan. */
+  private refreshRings(): void {
+    for (const s of this.samples) {
+      if (s.collected) continue;
+      const wanted = sampleAdvancesTask(this.planet, this.inventory, s.def.id);
+      if (s.wanted === wanted) continue;
+      s.wanted = wanted;
+      s.ring.clear();
+      s.ring.lineStyle(3, wanted ? RING_WANTED : RING_SPARE, 1);
+      s.ring.strokeCircle(0, 0, 30);
+      s.ring.strokeCircle(0, 0, 22);
+    }
+  }
+
+  private buildHelpers(): void {
+    const helperFrames = ['minions_mechanic', 'minions_miner_driller', 'minions_radio_scout', 'minions_chemist'];
+    for (let i = 0; i < 4; i++) {
+      const go = this.add.image(SPAWN.x + 140 + i * 30, SPAWN.y + 80 + i * 25, 'minions', helperFrames[i]);
+      // same rendered height as the hub crew, so the helpers do not change
+      // size between the base and the planet
+      attachMinionFit(go, MINION_HEIGHT);
+      // a 2×2 escort behind the astronaut
+      this.helpers.push({
+        go,
+        offset: { x: -70 - (i % 2) * 84, y: 36 + Math.floor(i / 2) * 58 },
+        kind: helperFrames[i],
+      });
+    }
+  }
+
+  // ----------------------------------------------------------------- hud ---
 
   private buildMinimap(): void {
     const mx = this.scale.width - MINIMAP_SIZE / 2 - 14;
@@ -277,6 +399,12 @@ export class ExploreScene extends Phaser.Scene {
       c.add(rim);
     }
 
+    // planet name + gravity under the radar
+    c.add(this.add.text(0, MINIMAP_SIZE / 2 + 4, `${t(this.planet.nameKey)} · ${t('explore.gravity', { g: this.planet.gravity })}`, {
+      ...TXT.small, fontSize: '12px', color: '#ffe8a3',
+      backgroundColor: '#1d1d3acc', padding: { x: 6, y: 3 },
+    }).setOrigin(0.5, 0));
+
     this.minimapContainer = c;
   }
 
@@ -296,38 +424,89 @@ export class ExploreScene extends Phaser.Scene {
     g.fillStyle(0x7ac74f, 1);
     g.fillRect(l.rx - 4, l.ry - 4, 8, 8);
 
-    // uncollected samples (cyan blips)
+    // uncollected samples: gold if a task needs it, cyan otherwise
     for (const s of this.samples) {
       if (s.collected) continue;
       const p = toRadar(s.x, s.y);
-      g.fillStyle(0x59f7ff, 1);
+      g.fillStyle(s.wanted ? RING_WANTED : RING_SPARE, 1);
       g.fillCircle(p.rx, p.ry, 3.5);
     }
 
-    // player (gold dot)
+    // player (white dot)
     const pl = toRadar(this.player.x, this.player.y);
-    g.fillStyle(0xffd23f, 1);
+    g.fillStyle(0xffffff, 1);
     g.fillCircle(pl.rx, pl.ry, 4.5);
   }
 
-  private refreshHUD(): void {
-    this.goalText.setText(t('explore.goal', { n: Math.min(this.collected, 3) }));
-    this.invText.setText(`${t('explore.inventory')}: ${this.inventory.length ? this.inventory.map((s) => t(`sample.${s}`)).join(', ') : '—'}`);
+  /** Screen-space dust drifting across the view (Mars). */
+  private buildDust(): void {
+    const { width, height } = this.scale;
+    const rng = new Phaser.Math.RandomDataGenerator(['dust']);
+    for (let i = 0; i < 70; i++) {
+      this.dust.push({
+        x: rng.between(0, width), y: rng.between(0, height),
+        vx: -rng.realInRange(20, 60), vy: rng.realInRange(-6, 6),
+        r: rng.realInRange(1, 2.6), a: rng.realInRange(0.15, 0.45),
+      });
+    }
+    this.dustGfx = this.add.graphics().setScrollFactor(0).setDepth(40);
   }
 
+  private updateDust(delta: number): void {
+    const g = this.dustGfx;
+    if (!g) return;
+    const { width, height } = this.scale;
+    const dt = delta / 1000;
+    g.clear();
+    // a faint haze keeps the whole frame a little dusty
+    g.fillStyle(0xd2875a, 0.07).fillRect(0, 0, width, height);
+    for (const s of this.dust) {
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      if (s.x < -4) { s.x = width + 4; s.y = Phaser.Math.Between(0, height); }
+      if (s.y < -4) s.y = height + 4; else if (s.y > height + 4) s.y = -4;
+      g.fillStyle(0xf0b088, s.a).fillCircle(s.x, s.y, s.r);
+    }
+  }
+
+  private taskLine(task: TaskDef): string {
+    const done = taskDone(task, this.inventory);
+    const sample = task.sample ? t(`sample.${task.sample}`) : '';
+    const label = t(task.labelKey, { n: task.count, sample });
+    const mark = done ? '✔' : '◻';
+    const bonus = task.required ? '' : ` (${t('explore.bonus')})`;
+    return `${mark} ${label}${bonus}  ${taskProgress(task, this.inventory)}/${task.count}`;
+  }
+
+  private refreshHUD(): void {
+    const lines = [t('explore.tasks_title', { planet: t(this.planet.nameKey) })];
+    for (const task of this.planet.tasks) lines.push(this.taskLine(task));
+    lines.push(requiredTasksDone(this.planet, this.inventory) ? `➜ ${t('explore.return')}` : '');
+    this.taskText.setText(lines.filter(Boolean).join('\n'));
+    this.invText.setY(this.taskText.y + this.taskText.height + 8);
+    const counts = new Map<string, number>();
+    for (const id of this.inventory) counts.set(id, (counts.get(id) ?? 0) + 1);
+    const list = [...counts].map(([id, n]) => `${t(`sample.${id}`)}${n > 1 ? ` ×${n}` : ''}`).join(', ');
+    this.invText.setText(`${t('explore.inventory')}: ${list || '—'}`);
+  }
+
+  // -------------------------------------------------------------- update ---
+
   override update(_t: number, delta: number): void {
+    this.updateDust(delta);
     if (this.ended) return;
     if (this.inGameMenu?.isOpen) {
       this.player.setVelocity(0, 0);
       return;
     }
-    const speed = 160;
+    const speed = this.planet.walkSpeed;
     let vx = (this.cursors.left.isDown || this.keyWASD.A.isDown ? -speed : 0) + (this.cursors.right.isDown || this.keyWASD.D.isDown ? speed : 0);
     let vy = (this.cursors.up.isDown || this.keyWASD.W.isDown ? -speed : 0) + (this.cursors.down.isDown || this.keyWASD.S.isDown ? speed : 0);
     if (vx === 0 && vy === 0 && (this.touch.dx !== 0 || this.touch.dy !== 0)) {
       vx = this.touch.dx * speed;
       vy = this.touch.dy * speed;
     }
+    if (this.drilling) { vx = 0; vy = 0; }
     this.player.setVelocity(vx, vy);
 
     const g = state.astronaut;
@@ -343,7 +522,7 @@ export class ExploreScene extends Phaser.Scene {
       this.player.play(`astro_${g}_idle_${dir}`, true);
     }
 
-    // helpers follow with lag + wander
+    // helpers follow with lag
     for (const h of this.helpers) {
       const tx = this.player.x + h.offset.x;
       const ty = this.player.y + h.offset.y;
@@ -352,36 +531,7 @@ export class ExploreScene extends Phaser.Scene {
       h.go.setFlipX(this.player.x < h.go.x);
     }
 
-    // radio scout points to nearest uncollected sample
-    const scout = this.helpers.find((h) => h.kind === 'minions_radio_scout');
-    const nearest = this.nearestSample(this.player.x, this.player.y);
-    if (scout && nearest) {
-      const a = Math.atan2(nearest.y - scout.go.y, nearest.x - scout.go.x);
-      // the sprite stays upright (it is a front-facing character); it leans a
-      // little and turns to face the sample, while an arrow shows the bearing
-      scout.go.setFlipX(nearest.x < scout.go.x);
-      scout.go.setRotation(Math.sin(a) * 0.12);
-      if (!this.scoutArrow) {
-        if (hasV2(this, UI_V2_ART.arrow)) {
-          const img = this.add.image(0, 0, V2, UI_V2_ART.arrow)
-            .setDisplaySize(32, 32).setDepth(58);
-          this.hudCam.ignore(img);
-          this.scoutArrow = img;
-        } else {
-          const g = this.add.graphics().setDepth(58);
-          g.fillStyle(0x59f7ff, 1).lineStyle(2, 0x1d1b2e);
-          g.fillTriangle(0, -13, -9, 7, 9, 7);
-          g.strokeTriangle(0, -13, -9, 7, 9, 7);
-          this.hudCam.ignore(g);     // world-anchored
-          this.scoutArrow = g;
-        }
-      }
-      this.scoutArrow.setVisible(true);
-      this.scoutArrow.setPosition(scout.go.x, scout.go.y - 56);
-      this.scoutArrow.setRotation(this.scoutArrow instanceof Phaser.GameObjects.Image ? a : a + Math.PI / 2);
-    } else if (this.scoutArrow) {
-      this.scoutArrow.setVisible(false);
-    }
+    this.updateScout();
 
     // pulsing rings
     const phase = Math.sin(this.time.now / 200);
@@ -399,15 +549,54 @@ export class ExploreScene extends Phaser.Scene {
     }
 
     this.updateMinimap();
-    // interact
     this.updateInteract();
+    // an empty prompt would still draw its background box
+    this.promptText.setVisible(this.promptText.text !== '');
   }
 
-  private nearestSample(x: number, y: number): Sample | null {
+  /** The radio scout points at the nearest sample a task still needs — or,
+   *  once the tasks are done, back at the lander. */
+  private updateScout(): void {
+    const scout = this.helpers.find((h) => h.kind === 'minions_radio_scout');
+    const tasksDone = requiredTasksDone(this.planet, this.inventory) && bonusTasksDone(this.planet, this.inventory);
+    const target = tasksDone
+      ? { x: this.lander.x, y: this.lander.y }
+      : this.nearestSample(this.player.x, this.player.y, true) ?? this.nearestSample(this.player.x, this.player.y, false);
+    if (!scout || !target) {
+      this.scoutArrow?.setVisible(false);
+      return;
+    }
+    const a = Math.atan2(target.y - scout.go.y, target.x - scout.go.x);
+    // the sprite stays upright (it is a front-facing character); it leans a
+    // little and turns to face the target, while an arrow shows the bearing
+    scout.go.setFlipX(target.x < scout.go.x);
+    scout.go.setRotation(Math.sin(a) * 0.12);
+    if (!this.scoutArrow) {
+      if (hasV2(this, UI_V2_ART.arrow)) {
+        const img = this.add.image(0, 0, V2, UI_V2_ART.arrow).setDisplaySize(32, 32).setDepth(58);
+        this.hudCam.ignore(img);
+        this.scoutArrow = img;
+      } else {
+        const gfx = this.add.graphics().setDepth(58);
+        gfx.fillStyle(0x59f7ff, 1).lineStyle(2, 0x1d1b2e);
+        gfx.fillTriangle(0, -13, -9, 7, 9, 7);
+        gfx.strokeTriangle(0, -13, -9, 7, 9, 7);
+        this.hudCam.ignore(gfx);     // world-anchored
+        this.scoutArrow = gfx;
+      }
+    }
+    this.scoutArrow.setVisible(true);
+    this.scoutArrow.setPosition(scout.go.x, scout.go.y - 56);
+    this.scoutArrow.setRotation(this.scoutArrow instanceof Phaser.GameObjects.Image ? a : a + Math.PI / 2);
+  }
+
+  /** Nearest uncollected sample; `wantedOnly` limits it to ones a task needs. */
+  private nearestSample(x: number, y: number, wantedOnly = false): Sample | null {
     let best: Sample | null = null;
     let bd = Infinity;
     for (const s of this.samples) {
       if (s.collected) continue;
+      if (wantedOnly && !s.wanted) continue;
       const d = Math.hypot(s.x - x, s.y - y);
       if (d < bd) { bd = d; best = s; }
     }
@@ -416,7 +605,7 @@ export class ExploreScene extends Phaser.Scene {
 
   private showHint(): void {
     const h = this.helpers[Math.floor(Math.random() * this.helpers.length)];
-    const hints = this.mission?.hintKeys ?? ['hint.explore.1'];
+    const hints = this.planet.hintKeys;
     const key = hints[Math.floor(Math.random() * hints.length)];
     this.bubble(h, t(key, { act: this.actionLabel() }));
   }
@@ -448,17 +637,18 @@ export class ExploreScene extends Phaser.Scene {
       this.touch.setActionState(false, '…');
       return;
     }
-    if (nearSample) {
-      this.promptText.setText(t('explore.prompt_drill', { act }));
+    if (nearSample && s) {
+      this.promptText.setText(t('explore.prompt_drill', { act, sample: t(`sample.${s.def.id}`) }));
       this.touch.setActionState(true, this.touchLabel());
       if (pressed) this.startDrill(s);
     } else if (nearLander) {
-      if (this.collected >= 3) {
+      if (requiredTasksDone(this.planet, this.inventory)) {
         this.promptText.setText(t('explore.prompt_transmit', { act }));
         this.touch.setActionState(true, this.touchLabel());
         if (pressed) this.transmit();
       } else {
-        this.promptText.setText(t('explore.need_more', { n: 3 - this.collected }));
+        const left = this.planet.tasks.filter((task) => task.required && !taskDone(task, this.inventory)).length;
+        this.promptText.setText(t('explore.need_tasks', { n: left }));
         this.touch.setActionState(false, this.touchLabel());
       }
     } else {
@@ -477,6 +667,8 @@ export class ExploreScene extends Phaser.Scene {
     return t('touch.action');
   }
 
+  // ---------------------------------------------------------------- drill ---
+
   private startDrill(s: Sample): void {
     this.drilling = true;
     this.player.setVelocity(0, 0);
@@ -488,9 +680,10 @@ export class ExploreScene extends Phaser.Scene {
     const icon = this.add.image(s.x, s.y - 60, 'tools_v2', 'tools_v2_power_drill').setScale(0.8).setDepth(70);
     this.hudCam.ignore([bar, icon]);   // world-anchored
     const w = 80;
-    this.drill = { sample: s, bar, timer: this.time.addEvent({ delay: 1500, callback: () => this.finishDrill(s) }) };
+    const ms = s.def.drillMs;
+    this.drill = { sample: s, bar, timer: this.time.addEvent({ delay: ms, callback: () => this.finishDrill(s) }) };
     this.tweens.addCounter({
-      from: 0, to: 1, duration: 1500,
+      from: 0, to: 1, duration: ms,
       onUpdate: (tw) => {
         const v = tw.getValue() as number;
         bar.clear();
@@ -510,14 +703,16 @@ export class ExploreScene extends Phaser.Scene {
     // the rock breaks, then Grubb celebrates in Dug-Tongue
     playMinionSfx(this, 'driller_fx03');
     playAnyMinionVoice(this, ['driller_v04', 'driller_v08', 'driller_v01']);
+    const before = this.planet.tasks.filter((task) => taskDone(task, this.inventory)).length;
     s.collected = true;
     s.go.setVisible(false);
     s.ring.setVisible(false);
     this.sparkleBurst(s.x, s.y);
-    this.inventory.push(s.id);
-    this.collected++;
+    this.inventory.push(s.def.id);
+    const after = this.planet.tasks.filter((task) => taskDone(task, this.inventory)).length;
+    this.refreshRings();
     this.refreshHUD();
-    this.fact(s.id);
+    this.fact(s.def, after > before);
   }
 
   /** Gold sparkle where the sample was: the reward needs a beat, otherwise the
@@ -545,43 +740,59 @@ export class ExploreScene extends Phaser.Scene {
     }
   }
 
-  private fact(sampleId: string): void {
+  private fact(def: SampleDef, taskFinished: boolean): void {
     this.factBox?.destroy();
     const { width, height } = this.scale;
     const c = this.add.container(width / 2, height / 2).setScrollFactor(0).setDepth(100);
     c.add(makePanel(this, -260, -110, 520, 220, 0.98));
-    c.add(this.add.image(-190, -40, 'resources', SAMPLE_FRAMES[sampleId]).setScale(1.2));
+    c.add(addSampleIcon(this, -190, -40, def, SAMPLE_SIZE * 1.3));
     if (hasV2(this, UI_V2_ART.portraitChemist)) {
       c.add(this.add.image(-190, 38, V2, UI_V2_ART.portraitChemist).setDisplaySize(54, 54));
     }
-    c.add(this.add.text(10, -80, t(`sample.${sampleId}`), { ...TXT.h2, fontSize: '22px' }).setOrigin(0, 0.5));
-    c.add(this.add.text(10, -30, t(`fact.${sampleId}`), { ...TXT.body, fontSize: '16px', wordWrap: { width: 300 } }).setOrigin(0, 0.5));
-    c.add(this.add.text(0, 78, t('explore.collected'), { ...TXT.h2, color: '#7ac74f' }).setOrigin(0.5));
-    c.add(this.add.text(0, 96, 'E', { ...TXT.small, color: '#ffd23f' }).setOrigin(0.5));
+    c.add(this.add.text(-120, -80, t(`sample.${def.id}`), { ...TXT.h2, fontSize: '22px' }).setOrigin(0, 0.5));
+    c.add(this.add.text(-120, -58, t(`fact.${def.id}`), {
+      ...TXT.body, fontSize: '15px', wordWrap: { width: 360 },
+    }).setOrigin(0, 0));
+    const headline = taskFinished ? t('explore.task_done') : t('explore.collected');
+    c.add(this.add.text(0, 72, headline, { ...TXT.h2, color: taskFinished ? '#ffd23f' : '#7ac74f' }).setOrigin(0.5));
     this.factBox = c;
     this.cameras.main.ignore(c);     // screen-anchored → HUD camera only
-    const close = () => { this.factBox?.destroy(); this.factBox = undefined; this.input.keyboard?.off('keydown-E', close); this.input.off('pointerdown', close); };
-    this.input.keyboard?.once('keydown-E', close);
-    this.input.once('pointerdown', close);
+    const close = () => {
+      if (this.factBox !== c) return;
+      c.destroy();
+      this.factBox = undefined;
+      this.input.keyboard?.off('keydown-E', close);
+      this.input.off('pointerdown', close);
+    };
+    // the E that finished the drill must not also close the card
+    this.time.delayedCall(250, () => {
+      this.input.keyboard?.once('keydown-E', close);
+      this.input.once('pointerdown', close);
+    });
     this.time.delayedCall(4000, close);
   }
 
   private transmit(): void {
     if (this.ended) return;
     this.ended = true;
+    this.player.setVelocity(0, 0);
     this.promptText.setText(t('explore.transmitting'));
-    const underTime = (this.time.now - this.startT) / 1000 < 120;
-    const allSamples = this.inventory.length >= 5;
+    const time = (this.time.now - this.startT) / 1000;
+    const underTime = time < this.planet.timeLimit;
+    const bonusDone = bonusTasksDone(this.planet, this.inventory);
     const result = {
       success: true,
       maxAltitude: 0,
       fuelPercent: 0,
-      time: (this.time.now - this.startT) / 1000,
-      blocks: 0,
+      time,
       samples: this.inventory.length,
+      tasksDone: this.planet.tasks.filter((task) => taskDone(task, this.inventory)).length,
+      tasksTotal: this.planet.tasks.length,
     };
-    const stars = this.mission!.stars(result, { underTime, allSamples });
-    state.recordResult('moon', stars, result.time);
+    const stars = this.mission.stars(result, { underTime, bonusDone });
+    state.recordResult(this.mission.id, stars, result.time);
+    state.addToCollection(this.inventory);
+    saveGame();
     this.time.delayedCall(1400, () => {
       this.scene.start('result', { result, stars });
     });

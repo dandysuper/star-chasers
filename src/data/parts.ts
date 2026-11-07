@@ -17,7 +17,7 @@ export interface PartDef {
   chuteArea?: number; // m²
   /** draw height in "units" (1 unit ≈ 1.25 m) for the side-view stub */
   h: number;
-  kind: 'nose' | 'control' | 'tank' | 'engine' | 'decoupler' | 'fins' | 'chute' | 'sensor';
+  kind: 'nose' | 'control' | 'tank' | 'engine' | 'decoupler' | 'fins' | 'chute';
 }
 
 export const PARTS: Record<string, PartDef> = {
@@ -33,16 +33,19 @@ export const PARTS: Record<string, PartDef> = {
   decoupler:      { id: 'decoupler',      massDry: 50,   h: 0.3, kind: 'decoupler' },
   fins:           { id: 'fins',           massDry: 100,  stability: 1, h: 0.5, kind: 'fins' },
   parachute:      { id: 'parachute',      massDry: 80,   cdChute: 1.5, chuteArea: 30, h: 0.5, kind: 'chute' },
-  sensor_alt:     { id: 'sensor_alt',     massDry: 20,   h: 0.4, kind: 'sensor' },
-  sensor_speed:   { id: 'sensor_speed',   massDry: 20,   h: 0.4, kind: 'sensor' },
 };
 
 export const PART_IDS = Object.keys(PARTS);
 
-/** The "Basic rocket" preset (spec §3): m0 = 1770 kg, TWR ≈ 3.0, Δv ≈ 2.6 km/s. */
+/** The "Basic rocket" preset (spec §3): m0 = 1750 kg, TWR ≈ 3.1, Δv ≈ 2.7 km/s. */
 export const PRESET_BASIC: string[] = [
-  'nose_cone', 'probe_core', 'sensor_alt', 'tank_m', 'engine_spark',
+  'nose_cone', 'probe_core', 'tank_m', 'engine_spark',
 ];
+
+/** False for ids from an older save (the retired sensor parts, for one). */
+export function isKnownPart(id: string): boolean {
+  return id in PARTS;
+}
 
 export function partDef(id: string): PartDef {
   const d = PARTS[id];

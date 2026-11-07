@@ -11,7 +11,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "blockly": "^11.2.0",
     "phaser": "^3.88.0"
   },
   "devDependencies": {

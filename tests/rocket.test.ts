@@ -4,14 +4,14 @@ import { PRESET_BASIC } from '../src/data/parts';
 import { G0 } from '../src/data/bodies';
 
 describe('rocket stats (spec §3)', () => {
-  it('default rocket ≈ 1770 kg, TWR ≈ 3.0, Δv ≈ 2.6 km/s', () => {
+  it('default rocket ≈ 1750 kg, TWR ≈ 3.1, Δv ≈ 2.7 km/s', () => {
     const s = computeStats(PRESET_BASIC);
-    expect(Math.round(s.mass)).toBe(1770);
+    expect(Math.round(s.mass)).toBe(1750);
     // TWR = F1(asl)/(m0·g0); spark asl = 60000·280/320 = 52500 N
-    expect(s.twr).toBeCloseTo(52500 / (1770 * G0), 2);
+    expect(s.twr).toBeCloseTo(52500 / (1750 * G0), 2);
     expect(s.twr).toBeGreaterThan(2.9);
-    // Δv = isp·g0·ln(m0/m1) = 320·9.80665·ln(1770/770)
-    const dv = 320 * G0 * Math.log(1770 / 770);
+    // Δv = isp·g0·ln(m0/m1) = 320·9.80665·ln(1750/750)
+    const dv = 320 * G0 * Math.log(1750 / 750);
     expect(s.dvTotal).toBeCloseTo(dv, 1);
     expect(s.dvTotal).toBeGreaterThan(2500);
     expect(s.dvTotal).toBeLessThan(2800);

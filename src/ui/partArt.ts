@@ -101,18 +101,6 @@ export function drawPart(scene: Phaser.Scene, id: string): Phaser.GameObjects.Co
       g.fillRect(-hw * 0.7, 0, hw * 1.4, hh * 0.8);
       break;
     }
-    case 'sensor': {
-      box(0x9aa0a8);
-      g.fillRoundedRect(-hw * 0.8, -hh * 0.6, w * 0.8, h * 0.7, 4);
-      g.strokeRoundedRect(-hw * 0.8, -hh * 0.6, w * 0.8, h * 0.7, 4);
-      g.lineStyle(2, OUTLINE);
-      g.beginPath();
-      g.moveTo(0, -hh * 0.6); g.lineTo(hw * 0.5, -hh * 1.3);
-      g.strokePath();
-      g.fillStyle(0x59f7ff, 1);
-      g.fillCircle(hw * 0.5, -hh * 1.3, 3);
-      break;
-    }
   }
 
   c.add(g);

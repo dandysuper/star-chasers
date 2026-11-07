@@ -50,6 +50,8 @@ export class CrewMember {
   private dir: Dir = 'front';
   /** Milliseconds left of the current breather (0 = walking). */
   private idleLeft = 0;
+  /** Chatter must not depend on reaching a distant patrol waypoint. */
+  private chatterLeft = Phaser.Math.Between(4500, 8500);
 
   constructor(scene: Phaser.Scene, spec: CrewSpec) {
     this.scene = scene;
@@ -75,6 +77,11 @@ export class CrewMember {
 
   /** Advance one frame. `delta` is Phaser's frame delta in ms. */
   update(delta: number): void {
+    this.chatterLeft -= delta;
+    if (this.chatterLeft <= 0) {
+      // Retry briefly if audio is locked or another crew member just spoke.
+      this.chatterLeft = this.speak() ? Phaser.Math.Between(7000, 12000) : 1000;
+    }
     if (this.idleLeft > 0) {
       this.idleLeft -= delta;
       if (this.idleLeft <= 0) {
@@ -131,8 +138,8 @@ export class CrewMember {
   }
 
   /** Say something. `force` is for a line the player caused — a greeting. */
-  speak(force = false): void {
-    mumble(this.scene, this.who, { force });
+  speak(force = false): boolean {
+    return mumble(this.scene, this.who, { force });
   }
 
   private resume(): void {

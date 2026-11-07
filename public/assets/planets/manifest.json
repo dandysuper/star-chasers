@@ -1,0 +1,64 @@
+{
+  "images": [
+    {
+      "key": "sample_moon_ice",
+      "file": "sample_moon_ice.png"
+    },
+    {
+      "key": "sample_moon_basalt",
+      "file": "sample_moon_basalt.png"
+    },
+    {
+      "key": "sample_moon_crystal",
+      "file": "sample_moon_crystal.png"
+    },
+    {
+      "key": "sample_moon_iron",
+      "file": "sample_moon_iron.png"
+    },
+    {
+      "key": "sample_moon_gold",
+      "file": "sample_moon_gold.png"
+    },
+    {
+      "key": "sample_mars_hematite",
+      "file": "sample_mars_hematite.png"
+    },
+    {
+      "key": "sample_mars_mudstone",
+      "file": "sample_mars_mudstone.png"
+    },
+    {
+      "key": "sample_mars_ice",
+      "file": "sample_mars_ice.png"
+    },
+    {
+      "key": "sample_mars_basalt",
+      "file": "sample_mars_basalt.png"
+    },
+    {
+      "key": "sample_mars_salt",
+      "file": "sample_mars_salt.png"
+    },
+    {
+      "key": "ground_moon",
+      "file": "ground_moon.png"
+    },
+    {
+      "key": "ground_mars",
+      "file": "ground_mars.png"
+    },
+    {
+      "key": "ground_mars_rock",
+      "file": "ground_mars_rock.png"
+    },
+    {
+      "key": "lander_moon",
+      "file": "lander_moon.png"
+    },
+    {
+      "key": "lander_mars",
+      "file": "lander_mars.png"
+    }
+  ]
+}

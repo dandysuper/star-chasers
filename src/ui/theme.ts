@@ -201,7 +201,6 @@ export const BG = {
   splash: 'bg_splash',
   menu: 'bg_menu',
   builder: 'bg_builder',
-  code: 'bg_code',
   flightEarth: 'bg_flight_earth',
   flightSpace: 'bg_flight_space',
   flightMoon: 'bg_flight_moon',
@@ -214,7 +213,6 @@ export const BG_FILES: Record<string, string> = {
   bg_splash: 'splash',
   bg_menu: 'menu',
   bg_builder: 'builder',
-  bg_code: 'code',
   bg_flight_earth: 'flight_earth',
   bg_flight_space: 'flight_space',
   bg_flight_moon: 'flight_moon',
@@ -236,8 +234,6 @@ const PART_FRAME: Record<string, string> = {
   decoupler: 'decoupler',
   fins: 'fins_red',
   parachute: 'fx_chute',
-  // sensors keep the drawn stub: the only spare art is the big satellite,
-  // whose wide solar panels wreck the stacked silhouette
 };
 
 /** Per-kind width multiplier: bells flare, parachute canopies are wide. */

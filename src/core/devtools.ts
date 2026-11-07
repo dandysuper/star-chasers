@@ -1,6 +1,6 @@
 /** Dev-only conveniences, all inert unless the query string asks for them. */
 
-const DEV_SCENES = ['menu', 'hub', 'builder', 'code', 'flight', 'explore'] as const;
+const DEV_SCENES = ['menu', 'hub', 'builder', 'flight', 'explore'] as const;
 export type DevScene = typeof DEV_SCENES[number];
 
 function query(key: string): string | null {
@@ -8,7 +8,7 @@ function query(key: string): string | null {
   return new URLSearchParams(location.search).get(key);
 }
 
-/** `?scene=code` boots straight into a scene instead of the menu. */
+/** `?scene=builder` boots straight into a scene instead of the menu. */
 export function devSceneOverride(): DevScene | null {
   const value = query('scene');
   if (!value) return null;

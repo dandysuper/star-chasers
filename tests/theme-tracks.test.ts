@@ -17,7 +17,6 @@ describe('theme track routing', () => {
     expect(trackForScene('hub')).toBe('menu');
     expect(trackForScene('result')).toBe('menu');
     expect(trackForScene('builder')).toBe('builder');
-    expect(trackForScene('code')).toBe('builder');
     expect(trackForScene('explore')).toBe('builder');
     expect(trackForScene('flight')).toBe('flight');
   });
@@ -28,7 +27,7 @@ describe('theme track routing', () => {
 
   it('only ducks the flight screen', () => {
     expect(isDuckedScene('flight')).toBe(true);
-    for (const key of ['menu', 'hub', 'builder', 'code', 'explore', 'result']) {
+    for (const key of ['menu', 'hub', 'builder', 'explore', 'result']) {
       expect(isDuckedScene(key)).toBe(false);
     }
   });

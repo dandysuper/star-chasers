@@ -63,7 +63,11 @@ export function playMinion(
       loop: options.loop ?? false,
       volume: options.volume ?? (isSfx ? SFX_VOLUME : VOICE_VOLUME),
     });
-    sound.play();
+    if (!sound.play()) {
+      sound.destroy();
+      return undefined;
+    }
+    if (!options.loop) sound.once('complete', () => sound.destroy());
     return sound;
   } catch {
     // a browser that refuses to start a sound must not break a drill

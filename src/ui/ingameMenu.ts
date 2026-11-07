@@ -18,7 +18,7 @@ export interface InGameMenuOpts {
   onQuit: () => void;
   /** Optional action to return to the Hub base from Builder/Code/Flight/Explore. */
   onHub?: () => void;
-  /** Optional extra scene-specific button (e.g. Edit Code in FlightScene). */
+  /** Optional extra scene-specific button (e.g. Rebuild Rocket in FlightScene). */
   extraAction?: InGameMenuExtraAction;
   /** True when the scene plays music at ducked volume (FlightScene). */
   musicDucked?: boolean;

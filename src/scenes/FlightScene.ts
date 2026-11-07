@@ -6,9 +6,7 @@ import { missionById } from '../data/missions';
 import { FlightSim, defaultControl, DT, type RocketControl, type SimEvent, type Telemetry } from '../physics/sim';
 import { computeStats } from '../physics/rocket';
 import { assemblyFromDesign } from '../data/assembly';
-import { compileBlocklyJSON } from '../rocketscript/compile';
-import { Interpreter, type InterpEvent } from '../rocketscript/interp';
-import { makeButton, makeIconButton, makePanel, ensureMusic, TXT } from '../ui/widgets';
+import { makeButton, makeIconButton, makePanel, ensureMusic, TXT, type LabelButton } from '../ui/widgets';
 import { InGameMenu } from '../ui/ingameMenu';
 import { isTouchMode, onInputModeChange } from '../core/device';
 import { addPart, partMetrics, UI, V2, FLAME_ART, FX_ART, UI_V2_ART, BG, hasFrame, hasV2, bellDrop, makeSpeechBubble } from '../ui/theme';
@@ -17,10 +15,22 @@ const M2PX_MIN = 1;        // px per metre near the ground
 const M2PX_MAX = 0.0016;   // px per metre in space
 const ZOOM_FLOOR = 0.02;   // the rocket never shrinks past this
 
+const TILT_RATE = (45 * Math.PI) / 180;   // how fast the pilot swings the target, rad/s
+const TILT_MAX = (100 * Math.PI) / 180;   // past horizontal is a crash, not a manoeuvre
+const THROTTLE_RATE = 0.7;                // throttle travel per second while held
+const SPACE_ALT = 70000;
+
 export class FlightScene extends Phaser.Scene {
   private sim!: FlightSim;
   private control!: RocketControl;
-  private interp?: Interpreter;
+  /** Pad buttons held right now: -1, 0 or +1 for tilt and throttle. */
+  private touchTilt = 0;
+  private touchThrottle = 0;
+  private hasControl = true;
+  private engineBtn?: LabelButton;
+  private keys?: Record<string, Phaser.Input.Keyboard.Key>;
+  /** One-shot pilot tips already shown on this flight. */
+  private tipsShown = new Set<string>();
   private mission = null as ReturnType<typeof missionById>;
 
   private rocket!: Phaser.GameObjects.Container;
@@ -44,7 +54,6 @@ export class FlightScene extends Phaser.Scene {
 
   private hudText!: Phaser.GameObjects.Text;
   private logText!: Phaser.GameObjects.Text;
-  private watchText!: Phaser.GameObjects.Text;
   private statusText!: Phaser.GameObjects.Text;
   private fuelBar!: Phaser.GameObjects.Graphics;
   private pauseIcon!: Phaser.GameObjects.Image | Phaser.GameObjects.Container;
@@ -56,7 +65,6 @@ export class FlightScene extends Phaser.Scene {
   private inGameMenu!: InGameMenu;
   private simAcc = 0;
   private logLines: string[] = [];
-  private engineOffByProgram = false;
   private ended = false;
   private sayQueue: { text: string; until: number }[] = [];
   private sayBubble?: Phaser.GameObjects.Container;
@@ -77,20 +85,9 @@ export class FlightScene extends Phaser.Scene {
     this.sim = new FlightSim(state.design.parts);
     const stats = computeStats(state.design.parts);
     this.control = defaultControl();
-    const programJson = state.program ?? (this.mission?.starterProgram);
-    const compiled = compileBlocklyJSON(programJson ?? {});
-    // a run started by the dev shortcut never visited the Code scene, so take
-    // the count from what we just compiled
-    state.blockCount = compiled.blockCount;
-    this.interp = new Interpreter(compiled, {
-      hasAltSensor: stats.hasAltSensor,
-      hasSpeedSensor: stats.hasSpeedSensor,
-      hasParachute: stats.hasParachute,
-      hasControl: stats.hasControl,
-      debug: state.dev,
-    });
-
-    this.spawnProgramButtons();
+    // steering needs a flight computer or a crew pod; without one the rocket
+    // still flies, straight up
+    this.hasControl = stats.hasControl;
 
     // ---- HUD camera: fixed, never zooms, transparent so the world shows ----
     this.uiCam = this.cameras.add(0, 0, width, height);
@@ -149,28 +146,34 @@ export class FlightScene extends Phaser.Scene {
     this.cameras.main.ignore(this.uiObjects);
 
     // ---- controls ----
-    this.input.keyboard?.on('keydown-SPACE', () => { if (!this.inGameMenu?.isOpen) this.togglePause(); });
+    // Space lights or cuts the engine, Q drops a stage, C pops the chute; the
+    // held keys (W/S throttle, A/D tilt) are read every sim step.
+    this.keys = this.input.keyboard?.addKeys('W,S,A,D,UP,DOWN,LEFT,RIGHT') as Record<string, Phaser.Input.Keyboard.Key> | undefined;
+    this.input.keyboard?.on('keydown-SPACE', () => { if (!this.inGameMenu?.isOpen) this.toggleEngine(); });
+    this.input.keyboard?.on('keydown-Q', () => { if (!this.inGameMenu?.isOpen) this.requestStage(); });
+    this.input.keyboard?.on('keydown-C', () => { if (!this.inGameMenu?.isOpen) this.requestChute(); });
+    this.input.keyboard?.on('keydown-P', () => { if (!this.inGameMenu?.isOpen) this.togglePause(); });
     this.input.keyboard?.on('keydown-OPEN_BRACKET', () => { if (!this.inGameMenu?.isOpen) this.setWarp(-1); });
     this.input.keyboard?.on('keydown-CLOSE_BRACKET', () => { if (!this.inGameMenu?.isOpen) this.setWarp(1); });
     this.input.keyboard?.on('keydown-R', () => { if (!this.inGameMenu?.isOpen) this.restart(); });
     this.inGameMenu = new InGameMenu(this, {
       musicDucked: true,
-      extraAction: { labelKey: 'result.edit', variant: 'blue', onClick: () => this.leave('code') },
+      extraAction: { labelKey: 'result.rebuild', variant: 'blue', onClick: () => this.leave('builder') },
       onHub: () => this.leave('hub'),
       onQuit: () => this.leave('menu'),
       onOpen: () => {
         this.wasPausedBeforeMenu = this.paused;
         this.paused = true;
-        this.setOverlayVisible(false);
       },
       onClose: () => {
         this.paused = this.wasPausedBeforeMenu;
-        this.setOverlayVisible(true);
       },
     });
 
     this.cameras.main.startFollow(this.rocket, true, 0.12, 0.12);
     this.cameras.main.setZoom(M2PX_MIN);
+
+    this.tip('flight.tip_start');
   }
 
   private resetState(): void {
@@ -182,7 +185,10 @@ export class FlightScene extends Phaser.Scene {
     this.sayQueue = [];
     this.sayBubble = undefined;
     this.saySetter = undefined;
-    this.engineOffByProgram = false;
+    this.touchTilt = 0;
+    this.touchThrottle = 0;
+    this.engineBtn = undefined;
+    this.tipsShown = new Set();
     this.previewTimer = 0;
     this.previewPts = [];
     this.worldObjects = [];
@@ -196,12 +202,8 @@ export class FlightScene extends Phaser.Scene {
     const panel = makePanel(this, 8, 8, 300, 236, 0.82);
     this.uiObjects.push(panel);
 
-    this.hudText = this.add.text(20, 18, '', { ...TXT.small, fontSize: '14px', lineSpacing: 4 })
+    this.hudText = this.add.text(20, 18, '', { ...TXT.small, fontSize: '14px', lineSpacing: 2 })
       .setDepth(50);
-    this.watchText = this.add.text(width - 320, 12, '', {
-      ...TXT.small, fontSize: '14px', lineSpacing: 4, align: 'right',
-      backgroundColor: '#0b0b2acc', padding: { x: 8, y: 6 },
-    }).setDepth(50);
     this.logText = this.add.text(12, height - 150, '', {
       ...TXT.small, fontSize: '14px', lineSpacing: 4,
       backgroundColor: '#0b0b2acc', padding: { x: 8, y: 6 },
@@ -210,7 +212,7 @@ export class FlightScene extends Phaser.Scene {
       ...TXT.h2, color: '#ffd23f', stroke: '#1d1b2e', strokeThickness: 6,
     }).setOrigin(0.5, 0).setDepth(50);
     this.fuelBar = this.add.graphics().setDepth(50);
-    this.uiObjects.push(this.hudText, this.watchText, this.logText, this.statusText, this.fuelBar);
+    this.uiObjects.push(this.hudText, this.logText, this.statusText, this.fuelBar);
     if (hasV2(this, UI_V2_ART.iconFuel)) {
       const fuelIcon = this.add.image(28, 204, V2, UI_V2_ART.iconFuel)
         .setDisplaySize(22, 26).setDepth(51);
@@ -221,20 +223,140 @@ export class FlightScene extends Phaser.Scene {
     this.pauseIcon = makeIconButton(this, width - 250, height - 40, 'ico_pause', () => this.togglePause(), 46);
     const warpIcon = makeIconButton(this, width - 190, height - 40, 'ico_x2', () => this.setWarp(1), 46);
     const restartIcon = makeIconButton(this, width - 130, height - 40, 'ico_reset', () => this.restart(), 46);
-    const backIcon = makeIconButton(this, width - 70, height - 40, 'ico_back', () => this.leave('code'), 46);
+    const backIcon = makeIconButton(this, width - 70, height - 40, 'ico_back', () => this.leave('builder'), 46);
     this.uiObjects.push(this.pauseIcon, warpIcon, restartIcon, backIcon);
 
-    const giveUp = makeButton(this, width / 2 + 250, height - 40, t('flight.give_up'), {
+    const giveUp = makeButton(this, width - 90, 34, t('flight.give_up'), {
       w: 150, h: 44, variant: 'red', onClick: () => this.finish('fail.give_up'),
     });
     this.uiObjects.push(giveUp);
+    if (giveUp.hitZone) this.uiObjects.push(giveUp.hitZone);
 
-    this.hintText = this.add.text(14, height - 26, '', {
-      ...TXT.small, fontSize: '12px', color: '#9a9ad0',
+    this.buildPilotPad(height - 44);
+
+    this.hintText = this.add.text(14, 256, '', {
+      ...TXT.small, fontSize: '12px', color: '#b9bde0', lineSpacing: 2,
       backgroundColor: '#0b0b2acc', padding: { x: 8, y: 4 },
-    }).setOrigin(0, 0.5).setDepth(50);
+      wordWrap: { width: 290 },
+    }).setOrigin(0, 0).setDepth(50);
     this.uiObjects.push(this.hintText);
     this.refreshHintText();
+  }
+
+  /**
+   * The pilot's buttons along the bottom edge. They work with a mouse as well
+   * as a finger, so they stay up on every device; the keyboard does the same
+   * things. Tilt and throttle act while held, the rest on a tap.
+   */
+  private buildPilotPad(y: number): void {
+    const hold = (b: LabelButton, set: (v: number) => void, v: number) => {
+      const z = b.hitZone;
+      if (!z) return;
+      z.on('pointerdown', () => set(v));
+      z.on('pointerup', () => set(0));
+      z.on('pointerout', () => set(0));
+    };
+    const add = (b: LabelButton) => {
+      this.uiObjects.push(b);
+      if (b.hitZone) this.uiObjects.push(b.hitZone);
+      return b;
+    };
+    const noop = () => undefined;
+    const small = { w: 58, h: 50, fontSize: 22, onClick: noop };
+
+    const tiltL = add(makeButton(this, 400, y, '⟲', { ...small, variant: 'purple' }));
+    const tiltR = add(makeButton(this, 462, y, '⟳', { ...small, variant: 'purple' }));
+    hold(tiltL, (v) => { this.touchTilt = v; }, -1);
+    hold(tiltR, (v) => { this.touchTilt = v; }, 1);
+
+    const thrDown = add(makeButton(this, 540, y, '−', { ...small, variant: 'blue' }));
+    const thrUp = add(makeButton(this, 602, y, '+', { ...small, variant: 'blue' }));
+    hold(thrDown, (v) => { this.touchThrottle = v; }, -1);
+    hold(thrUp, (v) => { this.touchThrottle = v; }, 1);
+
+    this.engineBtn = add(makeButton(this, 704, y, t('flight.btn.engine_on'), {
+      w: 130, h: 50, fontSize: 16, variant: 'orange', onClick: () => this.toggleEngine(),
+    }));
+    add(makeButton(this, 832, y, t('flight.btn.stage'), {
+      w: 110, h: 50, fontSize: 16, variant: 'yellow', onClick: () => this.requestStage(),
+    }));
+    add(makeButton(this, 950, y, t('flight.btn.chute'), {
+      w: 110, h: 50, fontSize: 16, variant: 'green', onClick: () => this.requestChute(),
+    }));
+  }
+
+  // ---------------- pilot input ----------------
+
+  private toggleEngine(): void {
+    if (this.ended || this.sim.phase === 'crashed' || this.sim.phase === 'landed') return;
+    this.control.engineOn = !this.control.engineOn;
+    // the "light the engine" coaching is done once the player has done it
+    if (this.control.engineOn) this.sayQueue = [];
+    if (this.control.engineOn && this.control.throttle <= 0) this.control.throttle = 1;
+    this.pushLog(t(this.control.engineOn ? 'flight.engine_lit' : 'flight.engine_cut'));
+    this.engineBtn?.setLabel?.(t(this.control.engineOn ? 'flight.btn.engine_off' : 'flight.btn.engine_on'));
+  }
+
+  private requestStage(): void {
+    if (this.ended || !this.sim.launched) return;
+    if (this.sim.stageIndex >= this.sim.stages.length - 1) {
+      this.pushLog(`⚠ ${t('warn.no_more_stages')}`);
+      return;
+    }
+    this.control.stageRequest = true;
+  }
+
+  private requestChute(): void {
+    if (this.ended || this.sim.parachuteDeployed) return;
+    if (!this.sim.stats.hasParachute) {
+      this.pushLog(`⚠ ${t('warn.no_parachute')}`);
+      return;
+    }
+    this.control.parachute = true;
+  }
+
+  /** Fold the held keys and pad buttons into the control block, once per sim step. */
+  private applyPilot(dt: number): void {
+    const k = this.keys;
+    const kb = (a?: Phaser.Input.Keyboard.Key, b?: Phaser.Input.Keyboard.Key) => !!(a?.isDown || b?.isDown);
+    const menuOpen = !!this.inGameMenu?.isOpen;
+    const tilt = menuOpen ? 0
+      : (kb(k?.A, k?.LEFT) ? -1 : 0) + (kb(k?.D, k?.RIGHT) ? 1 : 0) || this.touchTilt;
+    const thr = menuOpen ? 0
+      : (kb(k?.W, k?.UP) ? 1 : 0) + (kb(k?.S, k?.DOWN) ? -1 : 0) || this.touchThrottle;
+
+    if (thr !== 0) {
+      this.control.throttle = Phaser.Math.Clamp(this.control.throttle + thr * THROTTLE_RATE * dt, 0, 1);
+    }
+    if (tilt !== 0) {
+      if (!this.hasControl) {
+        this.tip('flight.tip_no_control');
+        return;
+      }
+      this.control.targetAngle = Phaser.Math.Clamp(
+        this.control.targetAngle + tilt * TILT_RATE * dt, -TILT_MAX, TILT_MAX,
+      );
+    }
+  }
+
+  /** Mid-flight coaching, each line at most once per flight. */
+  private updateTips(tel: Telemetry): void {
+    if (!this.sim.launched) return;
+    const st = this.sim.stage;
+    const moreStages = this.sim.stageIndex < this.sim.stages.length - 1;
+    if (st && st.fuel <= 0 && moreStages) this.tip('flight.tip_stage');
+    if (this.mission?.id === 'm2' && tel.altitude >= SPACE_ALT && this.control.engineOn) this.tip('flight.tip_cutoff');
+    if (this.mission?.id === 'm2' && tel.altitude > 15000 && tel.altitude < 25000 && this.hasControl) this.tip('flight.tip_tilt');
+    const falling = tel.vspeed < -20 && tel.altitude < 8000;
+    if (falling && this.sim.stats.hasParachute && !this.sim.parachuteDeployed) this.tip('flight.tip_chute');
+  }
+
+  private tip(key: string): void {
+    if (this.tipsShown.has(key)) return;
+    this.tipsShown.add(key);
+    const text = t(key);
+    this.pushLog(`💡 ${text}`);
+    this.sayQueue.push({ text, until: this.sim.t + 5 });
   }
 
   /** Name the controls the player actually has in front of them. */
@@ -264,27 +386,6 @@ export class FlightScene extends Phaser.Scene {
       return;
     }
     this.warp = want;
-  }
-
-  // ---------------- program buttons (DOM) ----------------
-
-  private spawnProgramButtons(): void {
-    const container = document.getElementById('ui-overlay');
-    if (!container || !this.interp) return;
-    container.innerHTML = '';
-    const game = this.game as Phaser.Game & { __programButtons?: HTMLButtonElement[] };
-    game.__programButtons = [];
-    for (const btn of this.interp.buttons) {
-      const el = document.createElement('button');
-      el.className = 'rs-button';
-      el.textContent = btn.name;
-      el.style.position = 'absolute';
-      el.style.right = '24px';
-      el.style.top = `${90 + this.interp.buttons.indexOf(btn) * 60}px`;
-      el.onclick = () => this.interp?.pressButton(btn.name);
-      container.appendChild(el);
-      game.__programButtons.push(el);
-    }
   }
 
   // ---------------- rocket art ----------------
@@ -363,9 +464,7 @@ export class FlightScene extends Phaser.Scene {
         this.simAcc -= DT;
         steps++;
         const events: SimEvent[] = [];
-        const uiEvents: InterpEvent[] = [];
-        this.interp?.tick(this.control, this.sim.telemetry(this.control), uiEvents);
-        for (const e of uiEvents) this.onInterpEvent(e);
+        this.applyPilot(DT);
         this.sim.step(this.control, events);
         for (const e of events) this.onSimEvent(e);
       }
@@ -404,10 +503,11 @@ export class FlightScene extends Phaser.Scene {
     this.drawTrajectory(zoom);
 
     this.updateHUD(tel);
+    this.updateTips(tel);
     this.updateSay();
 
     if (this.mission) {
-      const res = this.mission.check(this.sim, { engineOffByProgram: this.engineOffByProgram });
+      const res = this.mission.check(this.sim, { engineOn: this.control.engineOn });
       if (res === 'success') this.finish('success');
       else if (res !== 'running') this.finish(res.fail, res.vars);
     } else if (this.sim.phase === 'crashed') {
@@ -629,7 +729,8 @@ export class FlightScene extends Phaser.Scene {
       `${t('flight.hud.alt')}: ${fmtDist(tel.altitude)}`,
       `${t('flight.hud.speed')}: ${fmtSpeed(tel.speed)}`,
       `${t('flight.hud.vspeed')}: ${fmtSpeed(tel.vspeed)}`,
-      `${t('flight.hud.throttle')}: ${Math.round(tel.throttle * 100)}%`,
+      `${t('flight.hud.engine')}: ${t(tel.engineOn ? 'common.on' : 'common.off')} · ${t('flight.hud.throttle')} ${Math.round(tel.throttle * 100)}%`,
+      `${t('flight.hud.pitch')}: ${Math.round(tel.targetAngle)}°`,
       `${t('flight.hud.stage')}: ${tel.stage}`,
       `${t('flight.hud.apo')}: ${tel.apoapsis === Infinity ? t('flight.escape') : fmtDist(tel.apoapsis)}`,
       `${t('flight.hud.time')}: ${fmtTime(tel.time)}`,
@@ -648,17 +749,6 @@ export class FlightScene extends Phaser.Scene {
     if (frac > 0) {
       g.fillStyle(frac > 0.3 ? 0xffd23f : 0xff6b6b, 1)
         .fillRoundedRect(barX, 196, Math.max(16, barW * frac), 16, 8);
-    }
-    g.fillStyle(0xffffff, 0.85);
-
-    // variable watch
-    const vars = this.interp?.variables();
-    if (vars && vars.size) {
-      const wl = [t('flight.hud.watch') + ':'];
-      vars.forEach((v, k) => wl.push(`${k} = ${typeof v === 'number' ? Math.round(v * 100) / 100 : v}`));
-      this.watchText.setText(wl.join('\n'));
-    } else {
-      this.watchText.setText('');
     }
 
     this.logText.setText(this.logLines.slice(-5).join('\n'));
@@ -700,28 +790,6 @@ export class FlightScene extends Phaser.Scene {
     }
   }
 
-  private onInterpEvent(e: InterpEvent): void {
-    switch (e.type) {
-      case 'say':
-        this.pushLog(String(e.text));
-        this.sayQueue.push({ text: String(e.text), until: this.sim.t + 3 });
-        break;
-      case 'warn':
-        this.pushLog(`⚠ ${t(e.key!, e.vars)}`);
-        break;
-      case 'error':
-        this.pushLog(`✖ ${t(e.key!, e.vars)}`);
-        this.paused = true;
-        this.statusText.setText(t(e.key!, e.vars));
-        if (e.blockId) state.errorBlockId = e.blockId;
-        break;
-      case 'engine_off':
-        this.engineOffByProgram = true;
-        break;
-      case 'button': break;
-    }
-  }
-
   private pushLog(s: string): void {
     this.logLines.push(s);
     if (this.logLines.length > 8) this.logLines.shift();
@@ -742,7 +810,6 @@ export class FlightScene extends Phaser.Scene {
       maxAltitude: tel.maxAltitude,
       fuelPercent: tel.fuelPercent,
       time: tel.time,
-      blocks: state.blockCount,
     };
     const stars = this.mission
       ? this.mission.stars(result, { landedSoftly: this.sim.phase === 'landed', mass })
@@ -755,27 +822,10 @@ export class FlightScene extends Phaser.Scene {
   }
 
   private restart(): void {
-    this.cleanupOverlay();
     this.scene.restart();
   }
 
   private leave(scene: string, data?: object): void {
-    this.cleanupOverlay();
     this.scene.start(scene, data);
-  }
-
-  private setOverlayVisible(visible: boolean): void {
-    const container = document.getElementById('ui-overlay');
-    if (container) container.style.display = visible ? 'block' : 'none';
-  }
-
-  private cleanupOverlay(): void {
-    const container = document.getElementById('ui-overlay');
-    if (container) {
-      container.innerHTML = '';
-      container.style.display = 'block';
-    }
-    const game = this.game as Phaser.Game & { __programButtons?: HTMLButtonElement[] };
-    game.__programButtons = [];
   }
 }

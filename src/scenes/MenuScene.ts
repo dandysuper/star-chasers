@@ -195,7 +195,8 @@ export class MenuScene extends Phaser.Scene {
 
     // the painted panel's rim eats ~70 px at the bottom, and each row carries a
     // two-line brief, so the panel gets extra room beyond the row stack
-    const listH = MISSION_ORDER.length * 112 + 150;
+    const ROW = 98;
+    const listH = MISSION_ORDER.length * ROW + 144;
     c.add(makePanel(this, -260, -16, 520, listH, 0.97));
     c.add(this.add.text(0, 4, t('menu.missions'), TXT.h2).setOrigin(0.5, 0));
 
@@ -203,10 +204,10 @@ export class MenuScene extends Phaser.Scene {
       const m = MISSIONS[id];
       const unlocked = state.missionUnlocked(id, MISSION_ORDER);
       const prog = state.progress[id];
-      const y = 62 + i * 112;
+      const y = 74 + i * ROW;
 
       const b = makeButton(this, listX, listY + y, t(m.titleKey), {
-        w: 470, h: 66, fontSize: 21,
+        w: 470, h: 60, fontSize: 20,
         variant: unlocked ? 'blue' : 'purple',
         onClick: () => {
           if (!unlocked) { this.toast(t('menu.locked')); return; }
@@ -235,7 +236,7 @@ export class MenuScene extends Phaser.Scene {
         }
       }
 
-      c.add(this.add.text(0, y + 38, t(m.briefKey), { ...TXT.small, fontSize: '13px', wordWrap: { width: 440 }, align: 'center' })
+      c.add(this.add.text(0, y + 35, t(m.briefKey), { ...TXT.small, fontSize: '13px', wordWrap: { width: 440 }, align: 'center' })
         .setOrigin(0.5, 0));
     });
   }

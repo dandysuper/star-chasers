@@ -5,7 +5,6 @@ import { BootScene } from './scenes/BootScene';
 import { MenuScene } from './scenes/MenuScene';
 import { HubScene } from './scenes/HubScene';
 import { BuilderScene } from './scenes/BuilderScene';
-import { CodeScene } from './scenes/CodeScene';
 import { FlightScene } from './scenes/FlightScene';
 import { ExploreScene } from './scenes/ExploreScene';
 import { ResultScene } from './scenes/ResultScene';
@@ -34,7 +33,7 @@ const game = new Phaser.Game({
     default: 'arcade',
     arcade: { debug: false },
   },
-  scene: [BootScene, MenuScene, HubScene, BuilderScene, CodeScene, FlightScene, ExploreScene, ResultScene],
+  scene: [BootScene, MenuScene, HubScene, BuilderScene, FlightScene, ExploreScene, ResultScene],
 });
 
 // Uncaught errors inside a Phaser frame arrive as a bare message, which made a

@@ -45,8 +45,6 @@ export interface RocketStats {
   cd: number;
   hasControl: boolean;
   hasParachute: boolean;
-  hasAltSensor: boolean;
-  hasSpeedSensor: boolean;
   warnings: Warn[];
   /** fatal problems — the rocket can't fly */
   blocking: boolean;
@@ -141,8 +139,6 @@ export function computeStats(partIds: string[], columns?: number[]): RocketStats
   let hasNose = false;
   let hasFins = false;
   let hasParachute = false;
-  let hasAlt = false;
-  let hasSpeed = false;
 
   // map flat part index → its group (top→bottom index) and group's flat end
   const partIndexToGroup = new Map<number, number>();
@@ -230,8 +226,6 @@ export function computeStats(partIds: string[], columns?: number[]): RocketStats
       }
     }
     if (d.kind === 'chute') hasParachute = true;
-    if (id === 'sensor_alt') hasAlt = true;
-    if (id === 'sensor_speed') hasSpeed = true;
   });
 
   if (!hasControl && partIds.length > 0) warnings.push({ key: 'warn.no_control' });
@@ -249,7 +243,7 @@ export function computeStats(partIds: string[], columns?: number[]): RocketStats
 
   return {
     stages, mass, fuelTotal, dvTotal, twr, stable, cd,
-    hasControl, hasParachute, hasAltSensor: hasAlt, hasSpeedSensor: hasSpeed,
+    hasControl, hasParachute,
     warnings, blocking,
   };
 }

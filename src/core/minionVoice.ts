@@ -61,31 +61,37 @@ export interface MumbleOptions {
  */
 export function mumble(
   scene: Phaser.Scene, who: VoiceWho, options: MumbleOptions = {},
-): void {
-  if (!state.music) { voiceStats.blocked += 1; return; }   // the sound toggle wins
+): boolean {
+  // Never consume a greeting (or schedule synth nodes) before audio can run.
+  if (!state.music || !canSpeak(scene)) { voiceStats.blocked += 1; return false; }
   const now = nowMs();
-  if (!options.force && now - lastSpokeAt < MIN_GAP_MS) { voiceStats.blocked += 1; return; }
+  if (!options.force && now - lastSpokeAt < MIN_GAP_MS) { voiceStats.blocked += 1; return false; }
 
   const available = (RECORDED[who] ?? []).filter((id) => hasMinionClip(scene, id));
   if (available.length > 0) {
     const id = available[Math.floor(Math.random() * available.length)];
-    playMinionVoice(scene, id, { volume: options.volume ?? 0.9 });
-    lastSpokeAt = now;
-    voiceStats.spoken += 1;
-    voiceStats.recorded += 1;
-    return;
+    if (playMinionVoice(scene, id, { volume: options.volume ?? 0.9 })) {
+      lastSpokeAt = now;
+      voiceStats.spoken += 1;
+      voiceStats.recorded += 1;
+      return true;
+    }
   }
 
   if (synthesize(scene, who, options.volume)) {
     lastSpokeAt = now;
     voiceStats.spoken += 1;
     voiceStats.synthesized += 1;
+    return true;
   }
+  return false;
 }
 
-/** True when this scene can actually make a sound of its own. */
+/** True only when playback is allowed, not merely when a context exists. */
 export function canSpeak(scene: Phaser.Scene): boolean {
-  return !!contextOf(scene);
+  if (scene.sound.locked || scene.sound.mute) return false;
+  const ctx = contextOf(scene);
+  return !ctx || ctx.state === 'running'; // HTML5 audio can still play recordings
 }
 
 function contextOf(scene: Phaser.Scene): AudioContext | null {
@@ -118,16 +124,23 @@ function noiseBuffer(ctx: AudioContext): AudioBuffer {
  */
 function synthesize(scene: Phaser.Scene, who: VoiceWho, volume?: number): boolean {
   const ctx = contextOf(scene);
-  if (!ctx) return false;                       // HTML5-audio fallback: no synth
-  if (ctx.state === 'suspended') void ctx.resume().catch(() => undefined);
+  if (!ctx || ctx.state !== 'running') return false;
 
   const profile = VOICE_PROFILES[who];
   const plan = planMumble(who);
   if (plan.length === 0) return false;
 
   const master = ctx.createGain();
-  master.gain.value = (volume ?? 1) * profile.gain;
-  master.connect(ctx.destination);
+  master.gain.value = (volume ?? 1) * profile.gain * 1.8;
+  // Use Phaser's master bus so mute/volume changes also affect a playing mumble.
+  const manager = scene.sound as Phaser.Sound.WebAudioSoundManager;
+  master.connect(manager.destination ?? ctx.destination);
+
+  // Keep the fundamental audible. A band-pass alone nearly removes the radio's
+  // sine and the chemist's triangle, leaving their voices buried under music.
+  const body = ctx.createGain();
+  body.gain.value = 0.5;
+  body.connect(master);
 
   const formant = ctx.createBiquadFilter();
   formant.type = 'bandpass';
@@ -155,6 +168,7 @@ function synthesize(scene: Phaser.Scene, who: VoiceWho, volume?: number): boolea
     env.gain.exponentialRampToValueAtTime(0.0001, end);
     osc.connect(env);
     env.connect(formant);
+    env.connect(body);
     osc.start(at);
     osc.stop(end + 0.02);
 
@@ -184,6 +198,7 @@ function synthesize(scene: Phaser.Scene, who: VoiceWho, volume?: number): boolea
   setTimeout(() => {
     try {
       formant.disconnect();
+      body.disconnect();
       master.disconnect();
     } catch {
       // the context may have been closed underneath us

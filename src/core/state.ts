@@ -27,21 +27,16 @@ class GameState {
   music = true;
   astronaut: Astronaut = 'female';
 
-  /** Current mission id ('m1' | 'm2' | 'moon') or null in sandbox. */
+  /** Current mission id ('m1' | 'm2' | 'moon' | 'mars') or null in sandbox. */
   missionId: string | null = null;
   mode: Mode = 'mission';
 
   design: RocketDesign = { parts: [] };
-  /** Blockly serialization JSON for the current program. */
-  program: unknown = null;
-  /** Last compile stats for result screen. */
-  blockCount = 0;
-  /** Last compile errors → highlight in Code scene. */
-  errorBlockId: string | null = null;
 
   progress: Record<string, MissionProgress> = {};
   designs: Record<string, RocketDesign> = {};
-  programs: Record<string, unknown> = {};
+  /** Sample id → how many the player has ever brought home, across all walks. */
+  collection: Record<string, number> = {};
 
   readonly dev: boolean;
 
@@ -49,7 +44,7 @@ class GameState {
     this.dev = typeof location !== 'undefined' && /[?&]dev=1/.test(location.search);
   }
 
-  /** Storage key under which designs/programs are kept for the current context. */
+  /** Storage key under which designs are kept for the current context. */
   designKey(): string {
     return this.mode === 'sandbox' ? 'sandbox' : (this.missionId ?? 'sandbox');
   }
@@ -63,6 +58,11 @@ class GameState {
     const idx = order.indexOf(id);
     if (idx <= 0) return true;
     return this.missionDone(order[idx - 1]);
+  }
+
+  /** Add one walk's haul to the permanent sample collection. */
+  addToCollection(samples: readonly string[]): void {
+    for (const id of samples) this.collection[id] = (this.collection[id] ?? 0) + 1;
   }
 
   recordResult(missionId: string, stars: number, time: number): void {

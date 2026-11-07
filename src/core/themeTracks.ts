@@ -72,7 +72,6 @@ const SCENE_TRACKS: Record<string, TrackId> = {
   hub: 'menu',
   result: 'menu',
   builder: 'builder',
-  code: 'builder',
   explore: 'builder',
   flight: 'flight',
 };

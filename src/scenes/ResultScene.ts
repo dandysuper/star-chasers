@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { state } from '../core/state';
 import { saveGame } from '../core/save';
 import { t, fmtDist, fmtTime } from '../core/i18n';
-import { missionById, MISSION_ORDER } from '../data/missions';
+import { missionById, isExploreMission, MISSION_ORDER } from '../data/missions';
 import { makeButton, makePanel, ensureMusic, TXT, type ButtonVariant } from '../ui/widgets';
 import { playVictoryJingle } from '../ui/music';
 import { UI, BG, hasFrame, starFrame } from '../ui/theme';
@@ -15,8 +15,9 @@ interface ResultData {
     maxAltitude: number;
     fuelPercent: number;
     time: number;
-    blocks: number;
     samples?: number;
+    tasksDone?: number;
+    tasksTotal?: number;
   };
   stars: number;
 }
@@ -112,12 +113,14 @@ export class ResultScene extends Phaser.Scene {
     const stats: [string, string][] = r.samples !== undefined
       ? [
           [t('result.stats.samples'), `${r.samples}`],
+          ...(r.tasksTotal !== undefined
+            ? [[t('result.stats.tasks'), `${r.tasksDone ?? 0}/${r.tasksTotal}`] as [string, string]]
+            : []),
           [t('result.stats.time'), fmtTime(r.time)],
         ]
       : [
           [t('result.stats.max_alt'), fmtDist(r.maxAltitude)],
           [t('result.stats.fuel'), `${Math.round(r.fuelPercent * 100)}%`],
-          [t('result.stats.blocks'), `${r.blocks}`],
           [t('result.stats.time'), fmtTime(r.time)],
         ];
     const ROW_H = 34;
@@ -140,7 +143,7 @@ export class ResultScene extends Phaser.Scene {
     // the button to a container moves the art but leaves the hit area behind in
     // scene space — the buttons drew in the right place and were unclickable.
     // bx/by are panel-local, so they are offset by the panel's own position.
-    const isMoon = state.missionId === 'moon';
+    const isExplore = isExploreMission(state.missionId);
     const panelX = width / 2;
     const panelY = height / 2 - 2;
     const mk = (label: string, variant: ButtonVariant, cb: () => void, bx: number, by: number, w = 250) => {
@@ -149,29 +152,26 @@ export class ResultScene extends Phaser.Scene {
     const rowTwo = innerBottom - 34;
     const rowOne = rowTwo - 66;
 
-    if (isMoon) {
-      mk(t('result.retry'), 'orange', () => this.scene.start('explore'), -150, rowTwo);
-      mk(t('result.menu'), 'green', () => this.scene.start('menu'), 150, rowTwo);
-      return;
-    }
+    const next = r.success ? MISSION_ORDER[MISSION_ORDER.indexOf(state.missionId ?? '') + 1] : undefined;
+    const goNext = () => {
+      if (!next) return;
+      state.missionId = next;
+      state.mode = 'mission';
+      this.scene.start(isExploreMission(next) ? 'explore' : 'builder');
+    };
 
-    mk(t('result.retry'), 'orange', () => this.scene.start('flight'), -150, rowOne);
-    mk(t('result.edit'), 'blue', () => this.scene.start('code'), 150, rowOne);
-    mk(t('result.rebuild'), 'purple', () => this.scene.start('builder'), -150, rowTwo);
+    mk(t('result.retry'), 'orange', () => this.scene.start(isExplore ? 'explore' : 'flight'), -150, rowOne);
+    if (isExplore) mk(t('result.base'), 'blue', () => this.scene.start('hub'), 150, rowOne);
+    else mk(t('result.rebuild'), 'blue', () => this.scene.start('builder'), 150, rowOne);
 
-    if (r.success) {
-      const next = MISSION_ORDER[MISSION_ORDER.indexOf(state.missionId ?? 'm1') + 1];
-      if (next) {
-        mk(t('result.next'), 'green', () => {
-          state.missionId = next;
-          state.mode = 'mission';
-          this.scene.start(next === 'moon' ? 'explore' : 'builder');
-        }, 150, rowTwo);
-      } else {
-        mk(t('result.menu'), 'green', () => this.scene.start('menu'), 150, rowTwo);
-      }
+    if (next) {
+      mk(t('result.menu'), 'purple', () => this.scene.start('menu'), -150, rowTwo);
+      mk(t('result.next'), 'green', goNext, 150, rowTwo);
+    } else if (isExplore) {
+      mk(t('result.menu'), 'green', () => this.scene.start('menu'), 0, rowTwo);
     } else {
-      mk(t('result.menu'), 'green', () => this.scene.start('menu'), 150, rowTwo);
+      mk(t('result.menu'), 'purple', () => this.scene.start('menu'), -150, rowTwo);
+      mk(t('result.base'), 'green', () => this.scene.start('hub'), 150, rowTwo);
     }
   }
 }
