@@ -71,6 +71,30 @@ const TRACK_W = 14;
 /** A jump longer than this in one frame is a reposition, not driving, px. */
 const TELEPORT = 120;
 
+/** Astronaut frames for the driver's seat, one per facing. */
+export interface DriverArt {
+  texture: string;
+  front: string;
+  back: string;
+  right: string;
+  left: string;
+}
+
+/** Driver height on screen, px (the whole frame; only the top part shows). */
+const DRIVER_H = 50;
+/** Share of the astronaut frame drawn in the seat: helmet and chest. */
+const DRIVER_CROP = 0.62;
+/** Where the driver's waist sits in each east-side picture, in art pixels
+ *  from its centre (the art is 512 px square), and which way they face.
+ *  The west side mirrors x, and a right-facing driver turns left. */
+const SEATS: Record<keyof typeof ROVER_DIR_ART, { x: number; y: number; face: 'front' | 'back' | 'right' }> = {
+  s: { x: -4, y: 4, face: 'front' },
+  se: { x: 18, y: -22, face: 'front' },
+  e: { x: 22, y: -16, face: 'right' },
+  ne: { x: 16, y: -40, face: 'back' },
+  n: { x: 0, y: -30, face: 'back' },
+};
+
 /** Octant index → [art key, mirrored]. 0 = east, counting clockwise (y down). */
 const OCTANTS: [keyof typeof ROVER_DIR_ART, boolean][] = [
   ['e', false], ['se', false], ['s', false], ['se', true],
@@ -85,6 +109,9 @@ export class Rover {
   private readonly dust?: Phaser.GameObjects.Particles.ParticleEmitter;
   private readonly tracks: DecalTrail;
   private readonly directional: boolean;
+  /** The astronaut in the seat, shown while occupied (directional art only). */
+  private readonly driver?: Phaser.GameObjects.Image;
+  private driverFrame = '';
   private motor?: Phaser.Sound.BaseSound;
 
   /** Radians, 0 = east, y down. Starts facing the way the fallback art does. */
@@ -106,6 +133,7 @@ export class Rover {
     x: number,
     y: number,
     private readonly cfg: RoverConfig,
+    private readonly driverArt?: DriverArt,
   ) {
     this.directional = Object.values(ROVER_DIR_ART).every((k) => scene.textures.exists(k));
 
@@ -125,6 +153,11 @@ export class Rover {
       : scene.add.image(x, y, 'machines', 'machines_rover');
     this.view.setScale(DISPLAY_W / Math.max(1, this.view.width));
     if (!this.directional && cfg.tint !== undefined) this.view.setTint(cfg.tint);
+    // the seat positions are measured on the directional art; the fallback
+    // sprite keeps the driver hidden, as before
+    if (this.directional && driverArt && scene.textures.exists(driverArt.texture)) {
+      this.driver = scene.add.image(x, y, driverArt.texture, driverArt.front).setVisible(false);
+    }
 
     if (hasV2(scene, FX_ART.cloudS)) {
       // tuned on today's puff; the overhaul one is drawn at 2x
@@ -161,6 +194,7 @@ export class Rover {
   get objects(): Phaser.GameObjects.GameObject[] {
     const out: Phaser.GameObjects.GameObject[] = [this.shadow, this.view, this.zone, ...this.tracks.objects];
     if (this.dust) out.push(this.dust);
+    if (this.driver) out.push(this.driver);
     return out;
   }
 
@@ -172,6 +206,8 @@ export class Rover {
   setOccupied(on: boolean): void {
     this.occupied = on;
     this.body.setImmovable(!on);
+    this.driver?.setVisible(on);
+    if (on) this.syncView(0);
     if (!on) {
       this.speed = 0;
       this.body.setVelocity(0, 0);
@@ -298,6 +334,7 @@ export class Rover {
       }
       this.view.setFlipX(mirror);
       this.view.setRotation(lean * 0.5);
+      if (this.driver?.visible) this.placeDriver(key, mirror);
     } else {
       // the fallback art faces front-left; mirrored, it faces front-right
       const cx = Math.cos(this.heading);
@@ -312,6 +349,33 @@ export class Rover {
     this.view.setDepth(depth);
     this.shadow.setDepth(depth - 0.0005);
     this.dust?.setDepth(depth + 0.0005);
+    this.driver?.setDepth(depth + 0.0002);
+  }
+
+  /** Sit the astronaut in the seat of the current picture, riding its bounce
+   *  and lean; only the helmet and chest show above the cockpit. */
+  private placeDriver(key: keyof typeof ROVER_DIR_ART, mirror: boolean): void {
+    const d = this.driver!;
+    const art = this.driverArt!;
+    const seat = SEATS[key];
+    const face = seat.face === 'right' && mirror ? 'left' : seat.face;
+    const frame = art[face];
+    if (frame !== this.driverFrame) {
+      this.driverFrame = frame;
+      d.setFrame(frame);
+      d.setCrop(0, 0, d.frame.width, d.frame.height * DRIVER_CROP);
+      d.setOrigin(0.5, DRIVER_CROP);
+      d.setScale(DRIVER_H / d.frame.height);
+    }
+    const k = this.view.scaleX;
+    const ox = seat.x * k * (mirror ? -1 : 1);
+    const oy = seat.y * k;
+    const r = this.view.rotation;
+    d.setPosition(
+      this.view.x + ox * Math.cos(r) - oy * Math.sin(r),
+      this.view.y + ox * Math.sin(r) + oy * Math.cos(r),
+    );
+    d.setRotation(r);
   }
 
   private play(key: string, volume: number): void {

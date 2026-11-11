@@ -34,6 +34,8 @@ const REACH_DRIVE = { sample: 96, lander: 140 };
 const BOARD_DIST = 110;
 const ZOOM_WALK = 1.4;
 const ZOOM_DRIVE = 1.12;
+/** Fastest the helpers move when catching up after a drive, px/s (walking is 150–160). */
+const CREW_JOG = 280;
 /** Stride between boot prints, px. */
 const STRIDE = 24;
 /** Rover badge in the driving HUD box, px, and the left padding it sits in. */
@@ -82,7 +84,8 @@ export class ExploreScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private keyWASD!: Record<string, Phaser.Input.Keyboard.Key>;
-  private keyE!: Phaser.Input.Keyboard.Key;
+  /** E was pressed since the last frame: drill, transmit, or get in. */
+  private actionQueued = false;
   private touch!: TouchControls;
   private lander!: Phaser.GameObjects.Image;
   private samples: Sample[] = [];
@@ -189,7 +192,13 @@ export class ExploreScene extends Phaser.Scene {
     this.lastStep = { x: this.player.x, y: this.player.y };
 
     // --- the rover, parked beside the lander ---
-    this.rover = new Rover(this, ROVER_PARK.x, ROVER_PARK.y, this.planet.rover);
+    this.rover = new Rover(this, ROVER_PARK.x, ROVER_PARK.y, this.planet.rover, {
+      texture: `astro_${g}_walk`,
+      front: `astro_${g}_walk_front_0`,
+      back: `astro_${g}_walk_back_0`,
+      right: `astro_${g}_walk_side_right_0`,
+      left: `astro_${g}_walk_side_left_0`,
+    });
     this.physics.add.collider(this.rover.zone, this.rockGroup, () => this.rover.bump());
     this.physics.add.collider(this.player, this.rover.zone);
 
@@ -292,9 +301,11 @@ export class ExploreScene extends Phaser.Scene {
     // input
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.keyWASD = this.input.keyboard!.addKeys('W,A,S,D') as Record<string, Phaser.Input.Keyboard.Key>;
-    this.keyE = this.input.keyboard!.addKey('E');
-    // F and H are events, not polled: a tap shorter than one frame still counts
+    // E, F and H are events, not polled: a tap shorter than one frame still
+    // counts (a polled key loses it when its up and down land in one frame)
+    this.actionQueued = false;
     this.toggleQueued = false;
+    this.input.keyboard!.on('keydown-E', (e: KeyboardEvent) => { if (!e.repeat) this.actionQueued = true; });
     this.input.keyboard!.on('keydown-F', () => { this.toggleQueued = true; });
     this.input.keyboard!.on('keydown-H', () => {
       if (this.driving && !this.inGameMenu?.isOpen) this.rover.honk();
@@ -857,6 +868,9 @@ export class ExploreScene extends Phaser.Scene {
     if (this.inGameMenu?.isOpen) {
       this.player.setVelocity(0, 0);
       this.rover.halt();
+      // keys pressed in the menu must not act once it closes
+      this.actionQueued = false;
+      this.toggleQueued = false;
       return;
     }
     const input = this.stick();
@@ -901,13 +915,20 @@ export class ExploreScene extends Phaser.Scene {
     this.player.setDepth(depthAt(footY));
     this.playerShadow.setPosition(this.player.x + 3, footY - 2).setDepth(depthAt(footY) - 0.0005);
 
-    // helpers follow with lag; they jog to keep up with the rover
-    const lerp = this.driving ? 0.07 : 0.05;
+    // helpers follow with lag. While the astronaut drives they stay where
+    // they were and watch the rover; afterwards they jog back, never faster
+    // than CREW_JOG, so they run over instead of sliding across the map
     for (const h of this.helpers) {
-      const tx = this.player.x + h.offset.x;
-      const ty = this.player.y + h.offset.y;
-      h.go.x = Phaser.Math.Linear(h.go.x, tx, lerp);
-      h.go.y = Phaser.Math.Linear(h.go.y, ty, lerp);
+      if (!this.driving) {
+        const dx = this.player.x + h.offset.x - h.go.x;
+        const dy = this.player.y + h.offset.y - h.go.y;
+        const d = Math.hypot(dx, dy);
+        const step = Math.min(d * 0.05, CREW_JOG * dt);
+        if (d > 0.01) {
+          h.go.x += (dx / d) * step;
+          h.go.y += (dy / d) * step;
+        }
+      }
       h.go.setFlipX(this.player.x < h.go.x);
       h.go.setDepth(depthAt(h.go.y + h.go.displayHeight * 0.45));
       // the speech bubble rides along, or it would be left behind by the rover
@@ -956,8 +977,9 @@ export class ExploreScene extends Phaser.Scene {
     this.lastStep = { x: this.player.x, y: this.player.y };
   }
 
-  /** Climb into the parked rover: the astronaut disappears into the seat and
-   *  the camera pulls back for the faster view. */
+  /** Climb into the parked rover: the walking astronaut is swapped for the
+   *  rover's seated driver, the crew stays behind, and the camera pulls back
+   *  for the faster view. */
   private boardRover(): void {
     if (this.driving || this.drilling || this.ended) return;
     this.driving = true;
@@ -1057,6 +1079,8 @@ export class ExploreScene extends Phaser.Scene {
   }
 
   private showHint(): void {
+    // the crew waits behind while the astronaut drives, too far to talk
+    if (this.driving) return;
     const h = this.helpers[Math.floor(Math.random() * this.helpers.length)];
     const hints = this.planet.hintKeys;
     const key = hints[Math.floor(Math.random() * hints.length)];
@@ -1087,7 +1111,8 @@ export class ExploreScene extends Phaser.Scene {
     const nearSample = s && Math.hypot(s.x - px, s.y - py) < reach.sample;
     const nearLander = Math.hypot(px - this.lander.x, py - this.lander.y) < reach.lander;
     const nearRover = !this.driving && Math.hypot(px - this.rover.x, py - this.rover.y) < BOARD_DIST;
-    const pressed = Phaser.Input.Keyboard.JustDown(this.keyE) || this.touch.consumeAction();
+    const pressed = this.touch.consumeAction() || this.actionQueued;
+    this.actionQueued = false;
     // F is the keyboard's dedicated in/out of the rover, wherever you are
     const toggle = this.toggleQueued;
     this.toggleQueued = false;
