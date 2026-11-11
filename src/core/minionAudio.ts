@@ -107,5 +107,7 @@ export function playAnyMinionVoice(
 /** Stop a loop started with `playMinionSfx(..., { loop: true })`. */
 export function stopMinionSound(sound?: Phaser.Sound.BaseSound): void {
   if (!sound) return;
-  try { sound.stop(); } catch { /* already gone */ }
+  // every caller drops the loop after stopping it; the sound manager is
+  // global, so a stopped loop left undestroyed stays in it for good
+  try { sound.stop(); sound.destroy(); } catch { /* already gone */ }
 }

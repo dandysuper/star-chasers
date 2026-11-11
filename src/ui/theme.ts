@@ -121,7 +121,7 @@ export function addStarRow(
 export function makeSpeechBubble(
   scene: Phaser.Scene,
   w: number,
-  h: number,
+  minH: number,
   text: string,
   opts: { fontSize?: number; portrait?: string } = {},
 ): { container: Phaser.GameObjects.Container; setText: (s: string) => void } {
@@ -131,19 +131,36 @@ export function makeSpeechBubble(
   const portraitFrame = opts.portrait ? (PORTRAIT_ART[opts.portrait] ?? opts.portrait) : undefined;
   const showPortrait = !!portraitFrame && hasV2(scene, portraitFrame);
 
+  const pSize = Math.round(Math.min(minH * 0.64, 58));
+  const textShiftX = showPortrait ? Math.round(pSize * 0.38) : 0;
+  const wrapW = w - (showPortrait ? pSize + 44 : 44);
+  const txt = scene.add.text(textShiftX, 0, text, {
+    fontFamily: 'system-ui, sans-serif',
+    fontSize: `${fontSize}px`,
+    fontStyle: 'bold',
+    color: '#14233c',
+    wordWrap: { width: Math.max(80, wrapW) },
+    align: 'center',
+  }).setOrigin(0.5);
+
+  // The text sits on the light-cyan screen, which fills the upper 76 % of
+  // ui_dialog (the bottom 24 % is the lower bezel and the tail). A long line
+  // (Russian runs ~30 % longer) makes the bubble taller rather than spilling
+  // out of it.
+  const screenShare = hasDialog ? 0.66 : 0.7;
+  const h = Math.max(minH, Math.ceil(txt.height / screenShare));
+  const textY = hasDialog ? -Math.round(h * 0.1) : -7;
+  txt.setY(textY);
+
   const dialogSlice = hasDialog ? sliceOf(scene, V2, UI_V2_ART.dialog) : null;
   if (dialogSlice) {
     // the overhaul bubble stretches only across its flat middle, so the tail
-    // and the rounded ends keep their shape at any width
-    // corners scaled as if the whole delivered bubble were fitted to h, so
-    // the tail keeps the proportion the text layout below assumes
-    const k = h / dialogSlice.h0;
+    // and the rounded ends keep their shape at any size; corners are scaled
+    // as if the whole delivered bubble were fitted to the minimum height
+    const k = minH / dialogSlice.h0;
     c.add(addSliced(scene, 0, 0, V2, UI_V2_ART.dialog, w, h, dialogSlice, k, true).obj);
   } else if (hasDialog) {
-    // ui_dialog has a bottom-left speech tail, so anchor slightly above centre
-    // so the text box sits cleanly over (0, -h * 0.08)
-    const bg = scene.add.image(0, 0, V2, UI_V2_ART.dialog).setDisplaySize(w, h);
-    c.add(bg);
+    c.add(scene.add.image(0, 0, V2, UI_V2_ART.dialog).setDisplaySize(w, h));
   } else {
     const bg = scene.add.graphics();
     bg.fillStyle(0xffffff, 1).lineStyle(3, 0x1d1b2e);
@@ -153,28 +170,15 @@ export function makeSpeechBubble(
     c.add(bg);
   }
 
-  const pSize = Math.round(Math.min(h * 0.64, 58));
-  const textShiftX = showPortrait ? Math.round(pSize * 0.38) : 0;
-  const wrapW = w - (showPortrait ? pSize + 44 : 44);
-  // The light-cyan screen inside ui_dialog sits in the upper 76% of the sprite
-  // (the bottom 24% is the lower bezel + speech tail).
-  const textY = hasDialog ? -Math.round(h * 0.1) : -7;
-
   if (showPortrait && portraitFrame) {
     const port = scene.add.image(-w / 2 + pSize / 2 + 12, textY, V2, portraitFrame)
       .setDisplaySize(pSize, pSize);
     c.add(port);
   }
-
-  const txt = scene.add.text(textShiftX, textY, text, {
-    fontFamily: 'system-ui, sans-serif',
-    fontSize: `${fontSize}px`,
-    fontStyle: 'bold',
-    color: '#14233c',
-    wordWrap: { width: Math.max(80, wrapW) },
-    align: 'center',
-  }).setOrigin(0.5);
   c.add(txt);
+  // grow upwards: the tail stays where callers placed it, by the speaker
+  const lift = (h - minH) / 2;
+  if (lift > 0) c.each((o: Phaser.GameObjects.Components.Transform) => { o.y -= lift; });
 
   return {
     container: c,

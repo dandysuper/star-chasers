@@ -92,6 +92,38 @@ function cancelFade(scene: Phaser.Scene, b: MusicBucket): void {
   void scene;
 }
 
+/**
+ * Only the menu theme is loaded at boot; the others arrive in the background
+ * (prefetchMusic) or on demand. Returns true when `track` is ready to play;
+ * otherwise starts loading it on this scene and calls `then` once it lands.
+ * A scene that shuts down first drops its load, and the next scene asks again.
+ */
+function trackReady(scene: Phaser.Scene, track: TrackId, then: () => void): boolean {
+  const cache = scene.cache?.audio;
+  const { assetKey, file } = TRACKS[track];
+  if (!cache || cache.exists(assetKey)) return true;
+  const load = scene.load;
+  if (!load) return true;
+  load.once(`filecomplete-audio-${assetKey}`, then);
+  load.audio(assetKey, file);
+  if (!load.isLoading()) load.start();
+  return false;
+}
+
+/** Load the themes the boot left out, after the first screen is up. */
+export function prefetchMusic(scene: Phaser.Scene): void {
+  const cache = scene.cache?.audio;
+  const load = scene.load;
+  if (!cache || !load) return;
+  let queued = false;
+  for (const t of Object.values(TRACKS)) {
+    if (cache.exists(t.assetKey)) continue;
+    load.audio(t.assetKey, t.file);
+    queued = true;
+  }
+  if (queued && !load.isLoading()) load.start();
+}
+
 function bedFor(scene: Phaser.Scene, b: MusicBucket, track: TrackId): Phaser.Sound.BaseSound {
   const existing = b.beds.get(track);
   if (existing) return existing;
@@ -129,6 +161,10 @@ function startBed(scene: Phaser.Scene, sound: Phaser.Sound.BaseSound, volume: nu
  * dipping in the middle the way a fade-out-then-fade-in would.
  */
 function switchTo(scene: Phaser.Scene, b: MusicBucket, next: TrackId): void {
+  // not downloaded yet: keep the current bed and switch once it lands, if the
+  // player still wants this track by then
+  b.wanted = next;
+  if (!trackReady(scene, next, () => { if (b.wanted === next) switchTo(scene, b, next); })) return;
   const target = musicVolume(next, state.music, b.ducked);
 
   if (b.current === next) {
@@ -237,6 +273,8 @@ export function playVictoryJingle(scene: Phaser.Scene): void {
   const bedLevel = b.current ? musicVolume(b.current, true, b.ducked) : 0;
   if (bed) setVolume(bed, bedLevel * 0.35);
 
+  // one sting at a time; each used to stay in the global sound manager forever
+  try { b.jingle?.destroy(); } catch { /* already gone */ }
   const jingle = scene.sound.add(VICTORY_JINGLE.assetKey, { volume: 0, loop: false });
   b.jingle = jingle;
   setVolume(jingle, VICTORY_JINGLE.volume);
@@ -244,7 +282,11 @@ export function playVictoryJingle(scene: Phaser.Scene): void {
   const restore = () => {
     if (bed) setVolume(bed, bedLevel);
   };
-  jingle.once(EVENT_SOUND_COMPLETE, restore);
+  jingle.once(EVENT_SOUND_COMPLETE, () => {
+    restore();
+    if (b.jingle === jingle) b.jingle = undefined;
+    try { jingle.destroy(); } catch { /* already gone */ }
+  });
   jingle.once(EVENT_SOUND_STOP, restore);
 
   try {

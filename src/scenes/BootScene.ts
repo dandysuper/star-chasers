@@ -7,7 +7,7 @@ import { devSceneOverride, devMissionOverride, devLangOverride } from '../core/d
 import { state } from '../core/state';
 import { PRESET_BASIC } from '../data/parts';
 import { MISSIONS } from '../data/missions';
-import { musicAssetFiles } from '../core/themeTracks';
+import { musicAssetFiles, TRACKS, VICTORY_JINGLE } from '../core/themeTracks';
 import { preloadMinionAudio } from '../core/minionAudio';
 import { installOverhaul, queueOverhaul } from '../ui/overhaul';
 
@@ -32,11 +32,14 @@ export class BootScene extends Phaser.Scene {
     this.load.on('progress', (v: number) => { fill.width = 394 * v; });
     void label; void bar;
 
-    this.load.image('world_map', 'assets/maps/world_map.webp');
 
-    // soundtrack: one looping bed per room plus the victory sting. The list
-    // comes from the track registry so a new theme only has to be added there.
-    for (const track of musicAssetFiles()) this.load.audio(track.key, track.file);
+    // soundtrack: only the menu bed and the victory sting block the first
+    // screen; the other themes load in the background (prefetchMusic)
+    for (const track of musicAssetFiles()) {
+      if (track.key === TRACKS.menu.assetKey || track.key === VICTORY_JINGLE.assetKey) {
+        this.load.audio(track.key, track.file);
+      }
+    }
 
     // minion recordings: whatever the importer has actually written into
     // src/data/minionAudio.ts, which is nothing at all until a batch lands

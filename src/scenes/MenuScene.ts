@@ -7,6 +7,7 @@ import { makeButton, makeIconButton, makePanel, ensureMusic, TXT, type ButtonVar
 import { UI, BG, hasFrame, starFrame, addStarRow, UI_V2_ART, hasV2 } from '../ui/theme';
 import { deviceSilenced, onDeviceSilenceChange, resumeAudio, watchAudioOutput } from '../core/audioState';
 import { attachMinionFit } from '../core/minionArt';
+import { prefetchMusic } from '../ui/music';
 
 export class MenuScene extends Phaser.Scene {
   private ui: Phaser.GameObjects.GameObject[] = [];
@@ -49,12 +50,16 @@ export class MenuScene extends Phaser.Scene {
       this.ui.push(bg);
       // even dim so the painted scene keeps its contrast but text stays legible
       this.ui.push(this.add.rectangle(width / 2, height / 2, width, height, 0x120f24, 0.28));
-    } else {
+    } else if (this.textures.exists('world_map')) {
+      // the world map is no longer loaded at boot (588 KB for a fallback)
       const bg = this.add.image(width / 2, height / 2, 'world_map');
       bg.setDisplaySize(width, height).setTint(0x666688);
       this.ui.push(bg);
       this.ui.push(this.add.rectangle(width / 2, height / 2, width, height, 0x0b0b2a, 0.55));
     }
+    // fetch the other themes now the first screen is up, so the builder and
+    // flight music is ready by the time the player gets there
+    prefetchMusic(this);
 
     // ---- logo ----
     // the overhaul adds a Russian logo; today's pack has only the English one

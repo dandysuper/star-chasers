@@ -71,7 +71,7 @@ interface Helper {
   kind: string;
 }
 
-interface Speck { x: number; y: number; vx: number; vy: number; r: number; a: number }
+interface Speck { x: number; y: number; vx: number; vy: number; r: number; a: number; img?: Phaser.GameObjects.Image }
 
 const MINIMAP_SIZE = 156;
 const MINIMAP_RAD = 58;
@@ -107,6 +107,7 @@ export class ExploreScene extends Phaser.Scene {
   private minimapContainer?: Phaser.GameObjects.Container;
   private minimapDots?: Phaser.GameObjects.Graphics;
   private dustGfx?: Phaser.GameObjects.Graphics;
+  private dustBox?: Phaser.GameObjects.Container;
   private dust: Speck[] = [];
   private hudCam!: Phaser.Cameras.Scene2D.Camera;
   private hudObjects: Phaser.GameObjects.GameObject[] = [];
@@ -153,6 +154,12 @@ export class ExploreScene extends Phaser.Scene {
     this.samples = [];
     this.helpers = [];
     this.dust = [];
+    this.dustGfx = undefined;
+    this.dustBox = undefined;
+    this.minimapContainer = undefined;
+    this.minimapDots = undefined;
+    this.roverIcon = undefined;
+    this.hudObjects = [];
     this.hintTimer = 0;
     this.idleT = 0;
     this.driving = false;
@@ -247,6 +254,7 @@ export class ExploreScene extends Phaser.Scene {
     if (this.roverIcon) this.hudObjects.push(this.roverIcon);
     if (this.minimapContainer) this.hudObjects.push(this.minimapContainer);
     if (this.dustGfx) this.hudObjects.push(this.dustGfx);
+    if (this.dustBox) this.hudObjects.push(this.dustBox);
     const hudSet = new Set<Phaser.GameObjects.GameObject>(this.hudObjects);
     this.hudCam.ignore(this.children.list.filter((o) => !hudSet.has(o)));
     this.cameras.main.ignore(this.hudObjects);
@@ -491,21 +499,7 @@ export class ExploreScene extends Phaser.Scene {
     const clearOfBase = (x: number, y: number, r: number) =>
       Math.hypot(x - SPAWN.x, y - SPAWN.y) > 260 + r && Math.hypot(x - ROVER_PARK.x, y - ROVER_PARK.y) > 120 + r;
 
-    for (let i = 0; i < 34; i++) {
-      const x = rng.between(0, W);
-      const y = rng.between(0, H);
-      const w = rng.between(240, 620);
-      const squash = rng.realInRange(0.5, 0.8);
-      const dark = rng.frac() < 0.55;
-      const alpha = dark ? rng.realInRange(0.06, 0.12) : rng.realInRange(0.04, 0.08);
-      // stacked shrinking layers fake a soft radial edge, so a patch reads
-      // as a change in the soil rather than a cut-out disc
-      for (let k = 0; k < 4; k++) {
-        const f = 1 - k * 0.22;
-        g.fillStyle(dark ? s.blotchDark : s.blotchLight, alpha / 2.5);
-        g.fillEllipse(x, y, w * f, w * squash * f);
-      }
-    }
+    this.buildBlotches(rng, W, H);
 
     // the overhaul ground has its wind ripples painted in; drawn ones on top
     // read as scratches
@@ -560,6 +554,46 @@ export class ExploreScene extends Phaser.Scene {
       g.fillStyle(s.craterRim, 0.18).fillEllipse(x + r * 0.3, y + ry * 0.42, r * 1.0, ry * 0.6);
       g.lineStyle(2, s.craterBowl, 0.35).strokeEllipse(x, y, r * 2, ry * 2);
     }
+  }
+
+  /**
+   * Big soft light and dark patches that break up the ground's repeat,
+   * painted once into a quarter-resolution canvas and shown as one image. As
+   * Graphics ellipses they were 14,000 drawing commands that Phaser
+   * re-triangulated every frame.
+   */
+  private buildBlotches(rng: Phaser.Math.RandomDataGenerator, W: number, H: number): void {
+    const s = this.planet.surface;
+    const K = 4;
+    const key = 'explore_blotches';
+    if (this.textures.exists(key)) this.textures.remove(key);
+    const tex = this.textures.createCanvas(key, Math.ceil(W / K), Math.ceil(H / K));
+    if (!tex) return;
+    const ctx = tex.context;
+    const rgba = (c: number, a: number) => `rgba(${(c >> 16) & 255},${(c >> 8) & 255},${c & 255},${a})`;
+    for (let i = 0; i < 34; i++) {
+      const x = rng.between(0, W) / K;
+      const y = rng.between(0, H) / K;
+      const r = rng.between(240, 620) / 2 / K;
+      const squash = rng.realInRange(0.5, 0.8);
+      const dark = rng.frac() < 0.55;
+      const alpha = dark ? rng.realInRange(0.06, 0.12) : rng.realInRange(0.04, 0.08);
+      const color = dark ? s.blotchDark : s.blotchLight;
+      // a soft radial edge, so a patch reads as a change in the soil rather
+      // than a cut-out disc
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(1, squash);
+      const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+      grad.addColorStop(0, rgba(color, alpha * 1.4));
+      grad.addColorStop(0.6, rgba(color, alpha));
+      grad.addColorStop(1, rgba(color, 0));
+      ctx.fillStyle = grad;
+      ctx.fillRect(-r, -r, r * 2, r * 2);
+      ctx.restore();
+    }
+    tex.refresh();
+    this.add.image(0, 0, key).setOrigin(0, 0).setScale(K).setDepth(-9);
   }
 
   private buildLander(): void {
@@ -744,7 +778,23 @@ export class ExploreScene extends Phaser.Scene {
         r: rng.realInRange(1, 2.6), a: rng.realInRange(0.15, 0.45),
       });
     }
+    // The haze is drawn once; the specks are images moved each frame. Redrawn
+    // as Graphics circles, the storm was ~900 commands re-triangulated every
+    // frame.
     this.dustGfx = this.add.graphics().setScrollFactor(0).setDepth(40);
+    this.dustGfx.fillStyle(0xd2875a, 0.07).fillRect(0, 0, width, height);
+    const key = 'explore_speck';
+    if (!this.textures.exists(key)) {
+      const dot = this.make.graphics({ x: 0, y: 0 }, false);
+      dot.fillStyle(0xffffff, 1).fillCircle(8, 8, 8);
+      dot.generateTexture(key, 16, 16);
+      dot.destroy();
+    }
+    this.dustBox = this.add.container(0, 0).setScrollFactor(0).setDepth(40);
+    for (const s of this.dust) {
+      s.img = this.add.image(s.x, s.y, key).setTint(0xf0b088).setAlpha(s.a).setScale(s.r / 8);
+      this.dustBox.add(s.img);
+    }
   }
 
   private updateDust(delta: number): void {
@@ -752,15 +802,12 @@ export class ExploreScene extends Phaser.Scene {
     if (!g) return;
     const { width, height } = this.scale;
     const dt = delta / 1000;
-    g.clear();
-    // a faint haze keeps the whole frame a little dusty
-    g.fillStyle(0xd2875a, 0.07).fillRect(0, 0, width, height);
     for (const s of this.dust) {
       s.x += s.vx * dt;
       s.y += s.vy * dt;
       if (s.x < -4) { s.x = width + 4; s.y = Phaser.Math.Between(0, height); }
       if (s.y < -4) s.y = height + 4; else if (s.y > height + 4) s.y = -4;
-      g.fillStyle(0xf0b088, s.a).fillCircle(s.x, s.y, s.r);
+      s.img?.setPosition(s.x, s.y);
     }
   }
 

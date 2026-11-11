@@ -5,10 +5,13 @@
 > `public/assets/overhaul/` by `work/install-overhaul.py`, which copies the
 > files and resizes the backdrops (to 1280×720, flight ones to 1440×810) and
 > the logos (to 784×396), because the canvas is 1280×720. It also adds
-> `ui/stars_0`, an empty plaque derived from `stars_1`. At boot,
-> `src/ui/overhaul.ts` packs the images into power-of-two pages (for mipmaps)
-> and swaps them in for the atlas frames of the same name. Every file is still
-> **optional**: anything missing falls back to today's art.
+> `ui/stars_0`, an empty plaque derived from `stars_1`. The script also packs
+> the images into power-of-two pages (`pages/*.png|webp`, for mipmaps), trims
+> stretchable UI to its caps plus a 32 px middle, and writes the frame rects
+> and 9-slice insets to `manifest.json`. At boot, `src/ui/overhaul.ts` loads
+> the pages and swaps them in for the atlas frames of the same name. Every
+> file is still **optional**: anything missing falls back to today's art.
+> Re-run the script after changing any source image.
 >
 > Delivered but unused: the `resources_*` map icons (every sample has its own
 > art) and `ui/fx_flame_m`, `ui/fx_smoke`, `ui/fx_explosion`, `ui/fx_blast`,

@@ -48,7 +48,9 @@ export class ResultScene extends Phaser.Scene {
     if (this.textures.exists(bgKey)) {
       this.add.image(width / 2, height / 2, bgKey).setDisplaySize(width, height);
       this.add.rectangle(width / 2, height / 2, width, height, 0x0b0b2a, 0.3);
-    } else {
+    } else if (this.textures.exists('world_map')) {
+      // the world map is no longer loaded at boot (588 KB for a fallback);
+      // without either image the camera's background colour shows
       const bg = this.add.image(width / 2, height / 2, 'world_map');
       bg.setDisplaySize(width, height).setTint(0x444466).setAlpha(0.6);
     }

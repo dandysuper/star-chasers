@@ -114,6 +114,18 @@ export class BuilderScene extends Phaser.Scene {
 
     const mission = missionById(state.missionId);
     const allowed = mission?.allowedParts ?? PART_IDS;
+    // Phaser reuses this scene object on every visit, so references from the
+    // last visit point at destroyed objects. relayout() below runs before the
+    // toolbar builds the new remove button; touching the old one threw, which
+    // left the scene stuck half-created on a second visit (Next mission,
+    // Rebuild rocket) and the game frozen on the result screen.
+    this.removeBtn = undefined;
+    this.selectedUid = null;
+    this.gos = new Map();
+    this.dragGhost = undefined;
+    this.snapHi = undefined;
+    this.layoutCache = null;
+    this.isPanningBg = false;
     this.presetObjs = [];
     this.loadedPreset = null;
     this.camZoom = 1;

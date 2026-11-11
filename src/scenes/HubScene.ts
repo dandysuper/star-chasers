@@ -21,6 +21,8 @@ const MAP_W = 52;
 const MAP_H = 34;
 const WORLD_W = MAP_W * TILE;
 const WORLD_H = MAP_H * TILE;
+/** Regolith tiles per side of the baked ground texture (8 × 64 = 512 px). */
+const REGOLITH_REPS = 8;
 const INTERACT_RADIUS = 150;
 
 const SPAWN = { x: 560, y: 1180 };
@@ -80,6 +82,15 @@ export class HubScene extends Phaser.Scene {
     resetVoiceGate();
     this.stations = [];
     this.hudObjects = [];
+    // the scene object is reused between visits: drop last visit's references
+    this.overlay = undefined;
+    this.overlayButtons = [];
+    this.guide = undefined;
+    this.toastText = undefined;
+    this.controlsText = undefined;
+    this.crew = [];
+    this.waving = false;
+    this.waveTimer = 0;
     this.cameras.main.setBackgroundColor(0x141428);
 
     this.buildGround();
@@ -134,19 +145,16 @@ export class HubScene extends Phaser.Scene {
     this.add.rectangle(WORLD_W / 2, WORLD_H / 2, WORLD_W, WORLD_H, 0x3a3040).setDepth(-30);
 
     const rng = new Phaser.Math.RandomDataGenerator(['star-chasers-base']);
-    // One dominant material keeps the ground readable; the other terrain_v2
-    // materials have their own palettes and mix into an obvious checkerboard.
-    // Ice only appears out in the open, never on the built-up apron.
-    for (let ty = 0; ty < MAP_H; ty++) {
-      for (let tx = 0; tx < MAP_W; tx++) {
-        const x = tx * TILE;
-        const y = ty * TILE;
-        // One material only. The ice frames are a bright blue grid that reads as
-        // a tiled wall beside the paved apron rather than as regolith.
-        // Drawn slightly oversize so neighbours overlap: at exactly 64 px the
-        // frames' own edges line up into a hard lattice of seams.
-        this.add.image(x + TILE / 2, y + TILE / 2, 'terrain_v2', 'terrain_crater_64')
-          .setDisplaySize(TILE + 3, TILE + 3).setDepth(-20);
+    // One material only: the other terrain_v2 materials have their own
+    // palettes and mix into a checkerboard, and the ice frames read as a tiled
+    // wall. The tile is baked 8×8 into one texture and laid as a few big
+    // images: as 1,768 separate images it was most of the hub's objects, and
+    // every frame re-sorted and redrew them all.
+    const regolith = this.regolithTexture();
+    const step = TILE * REGOLITH_REPS;
+    for (let y = 0; y < WORLD_H; y += step) {
+      for (let x = 0; x < WORLD_W; x += step) {
+        this.add.image(x, y, regolith).setOrigin(0, 0).setDepth(-20);
       }
     }
 
@@ -212,6 +220,30 @@ export class HubScene extends Phaser.Scene {
       this.add.image(x, y, 'terrain', rng.pick(['terrain_crater_dirt', 'terrain_alien_grass_eyes']))
         .setScale(0.55).setAlpha(0.7).setDepth(-5);
     }
+  }
+
+  /**
+   * The regolith tile repeated REGOLITH_REPS² times in one canvas texture,
+   * built once per session. Each copy is drawn 1.5 px oversize on every side
+   * so the frame's own edge pixels are covered, as the per-tile images did:
+   * at exactly 64 px those edges line up into a hard lattice of seams.
+   */
+  private regolithTexture(): string {
+    const key = 'hub_regolith';
+    if (this.textures.exists(key)) return key;
+    const f = this.textures.getFrame('terrain_v2', 'terrain_crater_64');
+    const size = TILE * REGOLITH_REPS;
+    const tex = this.textures.createCanvas(key, size, size);
+    if (!tex || !f) return key;
+    const ctx = tex.context;
+    for (let j = 0; j < REGOLITH_REPS; j++) {
+      for (let i = 0; i < REGOLITH_REPS; i++) {
+        ctx.drawImage(f.source.image as CanvasImageSource, f.cutX, f.cutY, f.cutWidth, f.cutHeight,
+          i * TILE - 1.5, j * TILE - 1.5, TILE + 3, TILE + 3);
+      }
+    }
+    tex.refresh();
+    return key;
   }
 
   /** Place a machine scaled to a target world height, register it as solid,

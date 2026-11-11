@@ -1,504 +1,1203 @@
 {
-  "images": [
-    {
-      "key": "parts/nose_cone",
-      "file": "parts/nose_cone.png"
-    },
-    {
-      "key": "parts/probe_core",
-      "file": "parts/probe_core.png"
-    },
-    {
-      "key": "parts/pod",
-      "file": "parts/pod.png"
-    },
-    {
-      "key": "parts/tank_s",
-      "file": "parts/tank_s.png"
-    },
-    {
-      "key": "parts/tank_m",
-      "file": "parts/tank_m.png"
-    },
-    {
-      "key": "parts/tank_l",
-      "file": "parts/tank_l.png"
-    },
-    {
-      "key": "parts/decoupler",
-      "file": "parts/decoupler.png"
-    },
-    {
-      "key": "parts/engine_spark",
-      "file": "parts/engine_spark.png"
-    },
-    {
-      "key": "parts/engine_bull",
-      "file": "parts/engine_bull.png"
-    },
-    {
-      "key": "parts/engine_whisper",
-      "file": "parts/engine_whisper.png"
-    },
-    {
-      "key": "parts/bell_spark",
-      "file": "parts/bell_spark.png"
-    },
-    {
-      "key": "parts/bell_bull",
-      "file": "parts/bell_bull.png"
-    },
-    {
-      "key": "parts/bell_whisper",
-      "file": "parts/bell_whisper.png"
-    },
-    {
-      "key": "parts/fins",
-      "file": "parts/fins.png"
-    },
-    {
-      "key": "parts/parachute",
-      "file": "parts/parachute.png"
-    },
-    {
-      "key": "parts/parachute_packed",
-      "file": "parts/parachute_packed.png"
-    },
-    {
-      "key": "bg/builder",
-      "file": "bg/builder.webp"
-    },
-    {
-      "key": "bg/flight_earth",
-      "file": "bg/flight_earth.webp"
-    },
-    {
-      "key": "bg/flight_space",
-      "file": "bg/flight_space.webp"
-    },
-    {
-      "key": "bg/flight_moon",
-      "file": "bg/flight_moon.webp"
-    },
-    {
-      "key": "bg/menu",
-      "file": "bg/menu.webp"
-    },
-    {
-      "key": "bg/splash",
-      "file": "bg/splash.webp"
-    },
-    {
-      "key": "bg/result_win",
-      "file": "bg/result_win.webp"
-    },
-    {
-      "key": "bg/result_fail",
-      "file": "bg/result_fail.webp"
-    },
-    {
-      "key": "ui/btn_blue",
-      "file": "ui/btn_blue.png"
-    },
-    {
-      "key": "ui/btn_red",
-      "file": "ui/btn_red.png"
-    },
-    {
-      "key": "ui/btn_green",
-      "file": "ui/btn_green.png"
-    },
-    {
-      "key": "ui/btn_orange",
-      "file": "ui/btn_orange.png"
-    },
-    {
-      "key": "ui/btn_yellow",
-      "file": "ui/btn_yellow.png"
-    },
-    {
-      "key": "ui/btn_purple",
-      "file": "ui/btn_purple.png"
-    },
-    {
-      "key": "ui/panel_big",
-      "file": "ui/panel_big.png"
-    },
-    {
-      "key": "ui/ico_gear",
-      "file": "ui/ico_gear.png"
-    },
-    {
-      "key": "ui/ico_play",
-      "file": "ui/ico_play.png"
-    },
-    {
-      "key": "ui/ico_pause",
-      "file": "ui/ico_pause.png"
-    },
-    {
-      "key": "ui/ico_x2",
-      "file": "ui/ico_x2.png"
-    },
-    {
-      "key": "ui/ico_back",
-      "file": "ui/ico_back.png"
-    },
-    {
-      "key": "ui/ico_sound",
-      "file": "ui/ico_sound.png"
-    },
-    {
-      "key": "ui/ico_mute",
-      "file": "ui/ico_mute.png"
-    },
-    {
-      "key": "ui/ico_reset",
-      "file": "ui/ico_reset.png"
-    },
-    {
-      "key": "ui/ico_ru",
-      "file": "ui/ico_ru.png"
-    },
-    {
-      "key": "ui/ico_en",
-      "file": "ui/ico_en.png"
-    },
-    {
-      "key": "ui/stars_1",
-      "file": "ui/stars_1.png"
-    },
-    {
-      "key": "ui/stars_2",
-      "file": "ui/stars_2.png"
-    },
-    {
-      "key": "ui/stars_3",
-      "file": "ui/stars_3.png"
-    },
-    {
-      "key": "v2/ui_star_full",
-      "file": "v2/ui_star_full.png"
-    },
-    {
-      "key": "v2/ui_star_empty",
-      "file": "v2/ui_star_empty.png"
-    },
-    {
-      "key": "v2/ui_dialog",
-      "file": "v2/ui_dialog.png"
-    },
-    {
-      "key": "v2/ui_portrait_astronaut",
-      "file": "v2/ui_portrait_astronaut.png"
-    },
-    {
-      "key": "v2/ui_portrait_mechanic",
-      "file": "v2/ui_portrait_mechanic.png"
-    },
-    {
-      "key": "v2/ui_portrait_driller",
-      "file": "v2/ui_portrait_driller.png"
-    },
-    {
-      "key": "v2/ui_portrait_radio",
-      "file": "v2/ui_portrait_radio.png"
-    },
-    {
-      "key": "v2/ui_portrait_chemist",
-      "file": "v2/ui_portrait_chemist.png"
-    },
-    {
-      "key": "v2/ui_minimap_frame",
-      "file": "v2/ui_minimap_frame.png"
-    },
-    {
-      "key": "v2/ui_icon_wrench",
-      "file": "v2/ui_icon_wrench.png"
-    },
-    {
-      "key": "v2/ui_icon_gear",
-      "file": "v2/ui_icon_gear.png"
-    },
-    {
-      "key": "v2/ui_icon_rocket",
-      "file": "v2/ui_icon_rocket.png"
-    },
-    {
-      "key": "v2/ui_icon_fuel",
-      "file": "v2/ui_icon_fuel.png"
-    },
-    {
-      "key": "v2/ui_arrow",
-      "file": "v2/ui_arrow.png"
-    },
-    {
-      "key": "v2/ui_cursor_hand",
-      "file": "v2/ui_cursor_hand.png"
-    },
-    {
-      "key": "ui/logo_en",
-      "file": "ui/logo_en.png"
-    },
-    {
-      "key": "ui/logo_ru",
-      "file": "ui/logo_ru.png"
-    },
-    {
-      "key": "explore/rock_moon_1",
-      "file": "explore/rock_moon_1.png"
-    },
-    {
-      "key": "explore/rock_moon_2",
-      "file": "explore/rock_moon_2.png"
-    },
-    {
-      "key": "explore/rock_moon_3",
-      "file": "explore/rock_moon_3.png"
-    },
-    {
-      "key": "explore/rock_moon_4",
-      "file": "explore/rock_moon_4.png"
-    },
-    {
-      "key": "explore/rock_mars_1",
-      "file": "explore/rock_mars_1.png"
-    },
-    {
-      "key": "explore/rock_mars_2",
-      "file": "explore/rock_mars_2.png"
-    },
-    {
-      "key": "explore/rock_mars_3",
-      "file": "explore/rock_mars_3.png"
-    },
-    {
-      "key": "explore/rock_mars_4",
-      "file": "explore/rock_mars_4.png"
-    },
-    {
-      "key": "explore/crater_moon_s",
-      "file": "explore/crater_moon_s.png"
-    },
-    {
-      "key": "explore/crater_moon_l",
-      "file": "explore/crater_moon_l.png"
-    },
-    {
-      "key": "explore/crater_mars_s",
-      "file": "explore/crater_mars_s.png"
-    },
-    {
-      "key": "explore/crater_mars_l",
-      "file": "explore/crater_mars_l.png"
-    },
-    {
-      "key": "ground/ground_moon",
-      "file": "ground/ground_moon.png"
-    },
-    {
-      "key": "ground/ground_mars",
-      "file": "ground/ground_mars.png"
-    },
-    {
-      "key": "ground/ground_mars_rock",
-      "file": "ground/ground_mars_rock.png"
-    },
-    {
-      "key": "ground/ground_plate",
-      "file": "ground/ground_plate.png"
-    },
-    {
-      "key": "ground/ground_plate_worn",
-      "file": "ground/ground_plate_worn.png"
-    },
-    {
-      "key": "ground/ground_hazard",
-      "file": "ground/ground_hazard.png"
-    },
-    {
-      "key": "ground/ground_road",
-      "file": "ground/ground_road.png"
-    },
-    {
-      "key": "v2/tower",
-      "file": "v2/tower.png"
-    },
-    {
-      "key": "v2/habitat",
-      "file": "v2/habitat.png"
-    },
-    {
-      "key": "v2/control",
-      "file": "v2/control.png"
-    },
-    {
-      "key": "v2/tanks",
-      "file": "v2/tanks.png"
-    },
-    {
-      "key": "v2/dish",
-      "file": "v2/dish.png"
-    },
-    {
-      "key": "v2/airlock",
-      "file": "v2/airlock.png"
-    },
-    {
-      "key": "v2/board",
-      "file": "v2/board.png"
-    },
-    {
-      "key": "v2/crate_a",
-      "file": "v2/crate_a.png"
-    },
-    {
-      "key": "v2/crate_b",
-      "file": "v2/crate_b.png"
-    },
-    {
-      "key": "v2/crate_c",
-      "file": "v2/crate_c.png"
-    },
-    {
-      "key": "v2/pad_mark",
-      "file": "v2/pad_mark.png"
-    },
-    {
-      "key": "v2/pad_clamp",
-      "file": "v2/pad_clamp.png"
-    },
-    {
-      "key": "atlases/machines_solar_array",
-      "file": "atlases/machines_solar_array.png"
-    },
-    {
-      "key": "atlases/machines_generator",
-      "file": "atlases/machines_generator.png"
-    },
-    {
-      "key": "atlases/machines_rocket_launchpad",
-      "file": "atlases/machines_rocket_launchpad.png"
-    },
-    {
-      "key": "atlases/machines_rover",
-      "file": "atlases/machines_rover.png"
-    },
-    {
-      "key": "v2/flame_small",
-      "file": "v2/flame_small.png"
-    },
-    {
-      "key": "v2/flame_medium",
-      "file": "v2/flame_medium.png"
-    },
-    {
-      "key": "v2/flame_large",
-      "file": "v2/flame_large.png"
-    },
-    {
-      "key": "ui/fx_flame_m",
-      "file": "ui/fx_flame_m.png"
-    },
-    {
-      "key": "v2/fx_cloud_s",
-      "file": "v2/fx_cloud_s.png"
-    },
-    {
-      "key": "v2/fx_cloud_m",
-      "file": "v2/fx_cloud_m.png"
-    },
-    {
-      "key": "v2/fx_cloud_l",
-      "file": "v2/fx_cloud_l.png"
-    },
-    {
-      "key": "v2/fx_cloud_xl",
-      "file": "v2/fx_cloud_xl.png"
-    },
-    {
-      "key": "ui/fx_smoke",
-      "file": "ui/fx_smoke.png"
-    },
-    {
-      "key": "ui/fx_explosion",
-      "file": "ui/fx_explosion.png"
-    },
-    {
-      "key": "ui/fx_blast",
-      "file": "ui/fx_blast.png"
-    },
-    {
-      "key": "v2/fx_blast_burst",
-      "file": "v2/fx_blast_burst.png"
-    },
-    {
-      "key": "v2/fx_blast_hit",
-      "file": "v2/fx_blast_hit.png"
-    },
-    {
-      "key": "v2/fx_blast_ground",
-      "file": "v2/fx_blast_ground.png"
-    },
-    {
-      "key": "v2/fx_sparkle_s",
-      "file": "v2/fx_sparkle_s.png"
-    },
-    {
-      "key": "v2/fx_sparkle_m",
-      "file": "v2/fx_sparkle_m.png"
-    },
-    {
-      "key": "v2/fx_sparkle_l",
-      "file": "v2/fx_sparkle_l.png"
-    },
-    {
-      "key": "atlases/minions_mechanic",
-      "file": "atlases/minions_mechanic.png"
-    },
-    {
-      "key": "atlases/minions_miner_driller",
-      "file": "atlases/minions_miner_driller.png"
-    },
-    {
-      "key": "atlases/minions_radio_scout",
-      "file": "atlases/minions_radio_scout.png"
-    },
-    {
-      "key": "atlases/minions_chemist",
-      "file": "atlases/minions_chemist.png"
-    },
-    {
-      "key": "atlases/resources_iron_ore",
-      "file": "atlases/resources_iron_ore.png"
-    },
-    {
-      "key": "atlases/resources_purple_crystal",
-      "file": "atlases/resources_purple_crystal.png"
-    },
-    {
-      "key": "atlases/resources_ice_cube_bug",
-      "file": "atlases/resources_ice_cube_bug.png"
-    },
-    {
-      "key": "atlases/resources_magma_rock",
-      "file": "atlases/resources_magma_rock.png"
-    },
-    {
-      "key": "atlases/resources_bone_shell",
-      "file": "atlases/resources_bone_shell.png"
-    },
-    {
-      "key": "atlases/resources_gold_nugget",
-      "file": "atlases/resources_gold_nugget.png"
-    },
-    {
-      "key": "atlases/tools_v2_power_drill",
-      "file": "atlases/tools_v2_power_drill.png"
-    },
-    {
-      "key": "ui/stars_0",
-      "file": "ui/stars_0.png"
+ "images": [
+  {
+   "key": "bg/builder",
+   "file": "bg/builder.webp"
+  },
+  {
+   "key": "bg/flight_earth",
+   "file": "bg/flight_earth.webp"
+  },
+  {
+   "key": "bg/flight_space",
+   "file": "bg/flight_space.webp"
+  },
+  {
+   "key": "bg/flight_moon",
+   "file": "bg/flight_moon.webp"
+  },
+  {
+   "key": "bg/menu",
+   "file": "bg/menu.webp"
+  },
+  {
+   "key": "bg/splash",
+   "file": "bg/splash.webp"
+  },
+  {
+   "key": "bg/result_win",
+   "file": "bg/result_win.webp"
+  },
+  {
+   "key": "bg/result_fail",
+   "file": "bg/result_fail.webp"
+  }
+ ],
+ "pages": [
+  {
+   "file": "pages/overhaul_0.webp",
+   "tex": "overhaul",
+   "w": 2048,
+   "h": 1024,
+   "frames": [
+    {
+     "key": "explore/crater_moon_s",
+     "tex": "overhaul",
+     "frame": "crater_moon_s",
+     "x": 0,
+     "y": 0,
+     "w": 512,
+     "h": 320
+    },
+    {
+     "key": "explore/crater_moon_l",
+     "tex": "overhaul",
+     "frame": "crater_moon_l",
+     "x": 528,
+     "y": 0,
+     "w": 512,
+     "h": 320
+    },
+    {
+     "key": "explore/crater_mars_s",
+     "tex": "overhaul",
+     "frame": "crater_mars_s",
+     "x": 1056,
+     "y": 0,
+     "w": 512,
+     "h": 320
+    },
+    {
+     "key": "explore/crater_mars_l",
+     "tex": "overhaul",
+     "frame": "crater_mars_l",
+     "x": 0,
+     "y": 336,
+     "w": 512,
+     "h": 320
+    },
+    {
+     "key": "ground/ground_moon",
+     "tex": "overhaul",
+     "frame": "ground_moon",
+     "x": 528,
+     "y": 336,
+     "w": 256,
+     "h": 256
+    },
+    {
+     "key": "ground/ground_mars",
+     "tex": "overhaul",
+     "frame": "ground_mars",
+     "x": 800,
+     "y": 336,
+     "w": 256,
+     "h": 256
+    },
+    {
+     "key": "ground/ground_mars_rock",
+     "tex": "overhaul",
+     "frame": "ground_mars_rock",
+     "x": 1072,
+     "y": 336,
+     "w": 256,
+     "h": 256
+    },
+    {
+     "key": "explore/rock_moon_1",
+     "tex": "overhaul",
+     "frame": "rock_moon_1",
+     "x": 1344,
+     "y": 336,
+     "w": 256,
+     "h": 192
+    },
+    {
+     "key": "explore/rock_moon_2",
+     "tex": "overhaul",
+     "frame": "rock_moon_2",
+     "x": 1616,
+     "y": 336,
+     "w": 256,
+     "h": 192
+    },
+    {
+     "key": "explore/rock_moon_3",
+     "tex": "overhaul",
+     "frame": "rock_moon_3",
+     "x": 0,
+     "y": 672,
+     "w": 256,
+     "h": 192
+    },
+    {
+     "key": "explore/rock_moon_4",
+     "tex": "overhaul",
+     "frame": "rock_moon_4",
+     "x": 272,
+     "y": 672,
+     "w": 256,
+     "h": 192
+    },
+    {
+     "key": "explore/rock_mars_1",
+     "tex": "overhaul",
+     "frame": "rock_mars_1",
+     "x": 544,
+     "y": 672,
+     "w": 256,
+     "h": 192
+    },
+    {
+     "key": "explore/rock_mars_2",
+     "tex": "overhaul",
+     "frame": "rock_mars_2",
+     "x": 816,
+     "y": 672,
+     "w": 256,
+     "h": 192
+    },
+    {
+     "key": "explore/rock_mars_3",
+     "tex": "overhaul",
+     "frame": "rock_mars_3",
+     "x": 1088,
+     "y": 672,
+     "w": 256,
+     "h": 192
+    },
+    {
+     "key": "explore/rock_mars_4",
+     "tex": "overhaul",
+     "frame": "rock_mars_4",
+     "x": 1360,
+     "y": 672,
+     "w": 256,
+     "h": 192
     }
-  ]
+   ]
+  },
+  {
+   "file": "pages/shared_1.webp",
+   "tex": null,
+   "w": 2048,
+   "h": 2048,
+   "frames": [
+    {
+     "key": "v2/tower",
+     "tex": "v2",
+     "frame": "tower",
+     "x": 0,
+     "y": 0,
+     "w": 586,
+     "h": 1080
+    },
+    {
+     "key": "v2/habitat",
+     "tex": "v2",
+     "frame": "habitat",
+     "x": 608,
+     "y": 0,
+     "w": 922,
+     "h": 960
+    },
+    {
+     "key": "v2/control",
+     "tex": "v2",
+     "frame": "control",
+     "x": 0,
+     "y": 1096,
+     "w": 764,
+     "h": 930
+    },
+    {
+     "key": "v2/tanks",
+     "tex": "v2",
+     "frame": "tanks",
+     "x": 784,
+     "y": 1096,
+     "w": 780,
+     "h": 657
+    },
+    {
+     "key": "v2/board",
+     "tex": "v2",
+     "frame": "board",
+     "x": 1584,
+     "y": 1096,
+     "w": 375,
+     "h": 630
+    }
+   ]
+  },
+  {
+   "file": "pages/shared_2.webp",
+   "tex": null,
+   "w": 2048,
+   "h": 2048,
+   "frames": [
+    {
+     "key": "v2/dish",
+     "tex": "v2",
+     "frame": "dish",
+     "x": 0,
+     "y": 0,
+     "w": 422,
+     "h": 570
+    },
+    {
+     "key": "v2/airlock",
+     "tex": "v2",
+     "frame": "airlock",
+     "x": 440,
+     "y": 0,
+     "w": 344,
+     "h": 480
+    },
+    {
+     "key": "ui/logo_en",
+     "tex": "ui",
+     "frame": "logo",
+     "x": 800,
+     "y": 0,
+     "w": 784,
+     "h": 396
+    },
+    {
+     "key": "ui/logo_ru",
+     "tex": "ui",
+     "frame": "logo_ru",
+     "x": 0,
+     "y": 586,
+     "w": 784,
+     "h": 396
+    },
+    {
+     "key": "atlases/machines_rocket_launchpad",
+     "tex": "machines",
+     "frame": "machines_rocket_launchpad",
+     "x": 800,
+     "y": 586,
+     "w": 370,
+     "h": 384
+    },
+    {
+     "key": "atlases/machines_generator",
+     "tex": "machines",
+     "frame": "machines_generator",
+     "x": 1192,
+     "y": 586,
+     "w": 384,
+     "h": 368
+    },
+    {
+     "key": "atlases/machines_solar_array",
+     "tex": "machines",
+     "frame": "machines_solar_array",
+     "x": 1592,
+     "y": 586,
+     "w": 384,
+     "h": 356
+    },
+    {
+     "key": "atlases/machines_rover",
+     "tex": "machines",
+     "frame": "machines_rover",
+     "x": 0,
+     "y": 998,
+     "w": 384,
+     "h": 321
+    },
+    {
+     "key": "v2/crate_a",
+     "tex": "v2",
+     "frame": "crate_a",
+     "x": 400,
+     "y": 998,
+     "w": 330,
+     "h": 315
+    },
+    {
+     "key": "v2/crate_b",
+     "tex": "v2",
+     "frame": "crate_b",
+     "x": 752,
+     "y": 998,
+     "w": 330,
+     "h": 315
+    },
+    {
+     "key": "v2/crate_c",
+     "tex": "v2",
+     "frame": "crate_c",
+     "x": 1104,
+     "y": 998,
+     "w": 330,
+     "h": 315
+    },
+    {
+     "key": "v2/pad_clamp",
+     "tex": "v2",
+     "frame": "pad_clamp",
+     "x": 1456,
+     "y": 998,
+     "w": 196,
+     "h": 300
+    },
+    {
+     "key": "v2/ui_portrait_astronaut",
+     "tex": "v2",
+     "frame": "ui_portrait_astronaut",
+     "x": 1672,
+     "y": 998,
+     "w": 256,
+     "h": 256
+    },
+    {
+     "key": "v2/ui_portrait_mechanic",
+     "tex": "v2",
+     "frame": "ui_portrait_mechanic",
+     "x": 0,
+     "y": 1335,
+     "w": 256,
+     "h": 256
+    },
+    {
+     "key": "v2/ui_portrait_driller",
+     "tex": "v2",
+     "frame": "ui_portrait_driller",
+     "x": 272,
+     "y": 1335,
+     "w": 256,
+     "h": 256
+    },
+    {
+     "key": "v2/ui_portrait_radio",
+     "tex": "v2",
+     "frame": "ui_portrait_radio",
+     "x": 544,
+     "y": 1335,
+     "w": 256,
+     "h": 256
+    },
+    {
+     "key": "v2/ui_portrait_chemist",
+     "tex": "v2",
+     "frame": "ui_portrait_chemist",
+     "x": 816,
+     "y": 1335,
+     "w": 256,
+     "h": 256
+    },
+    {
+     "key": "atlases/minions_miner_driller",
+     "tex": "minions",
+     "frame": "minions_miner_driller",
+     "x": 1088,
+     "y": 1335,
+     "w": 224,
+     "h": 190
+    },
+    {
+     "key": "atlases/minions_radio_scout",
+     "tex": "minions",
+     "frame": "minions_radio_scout",
+     "x": 1328,
+     "y": 1335,
+     "w": 224,
+     "h": 188
+    },
+    {
+     "key": "atlases/minions_chemist",
+     "tex": "minions",
+     "frame": "minions_chemist",
+     "x": 1568,
+     "y": 1335,
+     "w": 224,
+     "h": 178
+    },
+    {
+     "key": "atlases/minions_mechanic",
+     "tex": "minions",
+     "frame": "minions_mechanic",
+     "x": 1808,
+     "y": 1335,
+     "w": 224,
+     "h": 148
+    },
+    {
+     "key": "atlases/resources_iron_ore",
+     "tex": "resources",
+     "frame": "resources_iron_ore",
+     "x": 0,
+     "y": 1607,
+     "w": 128,
+     "h": 128
+    },
+    {
+     "key": "atlases/resources_purple_crystal",
+     "tex": "resources",
+     "frame": "resources_purple_crystal",
+     "x": 144,
+     "y": 1607,
+     "w": 128,
+     "h": 128
+    },
+    {
+     "key": "atlases/resources_ice_cube_bug",
+     "tex": "resources",
+     "frame": "resources_ice_cube_bug",
+     "x": 288,
+     "y": 1607,
+     "w": 128,
+     "h": 128
+    },
+    {
+     "key": "atlases/resources_magma_rock",
+     "tex": "resources",
+     "frame": "resources_magma_rock",
+     "x": 432,
+     "y": 1607,
+     "w": 128,
+     "h": 128
+    },
+    {
+     "key": "atlases/resources_bone_shell",
+     "tex": "resources",
+     "frame": "resources_bone_shell",
+     "x": 576,
+     "y": 1607,
+     "w": 128,
+     "h": 128
+    },
+    {
+     "key": "atlases/resources_gold_nugget",
+     "tex": "resources",
+     "frame": "resources_gold_nugget",
+     "x": 720,
+     "y": 1607,
+     "w": 128,
+     "h": 128
+    },
+    {
+     "key": "atlases/tools_v2_power_drill",
+     "tex": "tools_v2",
+     "frame": "tools_v2_power_drill",
+     "x": 864,
+     "y": 1607,
+     "w": 128,
+     "h": 128
+    }
+   ]
+  },
+  {
+   "file": "pages/shared_3.png",
+   "tex": null,
+   "w": 2048,
+   "h": 2048,
+   "frames": [
+    {
+     "key": "parts/tank_l",
+     "tex": "ui",
+     "frame": "tank_l",
+     "x": 0,
+     "y": 0,
+     "w": 256,
+     "h": 1024
+    },
+    {
+     "key": "v2/flame_small",
+     "tex": "v2",
+     "frame": "flame_small",
+     "x": 272,
+     "y": 0,
+     "w": 400,
+     "h": 840
+    },
+    {
+     "key": "v2/flame_medium",
+     "tex": "v2",
+     "frame": "flame_medium",
+     "x": 688,
+     "y": 0,
+     "w": 400,
+     "h": 840
+    },
+    {
+     "key": "v2/flame_large",
+     "tex": "v2",
+     "frame": "flame_large",
+     "x": 1104,
+     "y": 0,
+     "w": 400,
+     "h": 840
+    },
+    {
+     "key": "v2/pad_mark",
+     "tex": "v2",
+     "frame": "pad_mark",
+     "x": 0,
+     "y": 1040,
+     "w": 768,
+     "h": 768
+    },
+    {
+     "key": "ui/fx_flame_m",
+     "tex": "ui",
+     "frame": "fx_flame_m",
+     "x": 784,
+     "y": 1040,
+     "w": 316,
+     "h": 512
+    },
+    {
+     "key": "parts/tank_m",
+     "tex": "ui",
+     "frame": "tank_m",
+     "x": 1120,
+     "y": 1040,
+     "w": 256,
+     "h": 512
+    },
+    {
+     "key": "v2/ui_minimap_frame",
+     "tex": "v2",
+     "frame": "ui_minimap_frame",
+     "x": 1392,
+     "y": 1040,
+     "w": 480,
+     "h": 480
+    }
+   ]
+  },
+  {
+   "file": "pages/shared_4.png",
+   "tex": null,
+   "w": 2048,
+   "h": 2048,
+   "frames": [
+    {
+     "key": "ui/fx_smoke",
+     "tex": "ui",
+     "frame": "fx_smoke",
+     "x": 0,
+     "y": 0,
+     "w": 512,
+     "h": 470
+    },
+    {
+     "key": "ui/fx_explosion",
+     "tex": "ui",
+     "frame": "fx_explosion",
+     "x": 528,
+     "y": 0,
+     "w": 512,
+     "h": 470
+    },
+    {
+     "key": "ui/fx_blast",
+     "tex": "ui",
+     "frame": "fx_blast",
+     "x": 1056,
+     "y": 0,
+     "w": 512,
+     "h": 470
+    },
+    {
+     "key": "parts/bell_whisper",
+     "tex": "v2",
+     "frame": "bell_whisper",
+     "x": 1584,
+     "y": 0,
+     "w": 170,
+     "h": 400
+    },
+    {
+     "key": "parts/bell_bull",
+     "tex": "v2",
+     "frame": "bell_bull",
+     "x": 0,
+     "y": 486,
+     "w": 290,
+     "h": 378
+    },
+    {
+     "key": "parts/engine_whisper",
+     "tex": "ui",
+     "frame": "engine_whisper",
+     "x": 312,
+     "y": 486,
+     "w": 308,
+     "h": 358
+    },
+    {
+     "key": "parts/bell_spark",
+     "tex": "v2",
+     "frame": "bell_spark",
+     "x": 640,
+     "y": 486,
+     "w": 220,
+     "h": 352
+    },
+    {
+     "key": "parts/fins",
+     "tex": "ui",
+     "frame": "fins_red",
+     "x": 880,
+     "y": 486,
+     "w": 160,
+     "h": 320
+    },
+    {
+     "key": "parts/engine_bull",
+     "tex": "ui",
+     "frame": "engine_bull",
+     "x": 1056,
+     "y": 486,
+     "w": 308,
+     "h": 307
+    },
+    {
+     "key": "parts/pod",
+     "tex": "ui",
+     "frame": "pod",
+     "x": 1384,
+     "y": 486,
+     "w": 256,
+     "h": 307
+    },
+    {
+     "key": "v2/fx_cloud_xl",
+     "tex": "v2",
+     "frame": "fx_cloud_xl",
+     "x": 1656,
+     "y": 486,
+     "w": 344,
+     "h": 286
+    },
+    {
+     "key": "parts/parachute",
+     "tex": "ui",
+     "frame": "fx_chute",
+     "x": 0,
+     "y": 880,
+     "w": 384,
+     "h": 256
+    },
+    {
+     "key": "parts/nose_cone",
+     "tex": "ui",
+     "frame": "nose_cone",
+     "x": 400,
+     "y": 880,
+     "w": 256,
+     "h": 256
+    },
+    {
+     "key": "parts/tank_s",
+     "tex": "ui",
+     "frame": "tank_s",
+     "x": 672,
+     "y": 880,
+     "w": 256,
+     "h": 256
+    },
+    {
+     "key": "ground/ground_plate",
+     "tex": "v2",
+     "frame": "ground_plate",
+     "x": 944,
+     "y": 880,
+     "w": 256,
+     "h": 256
+    },
+    {
+     "key": "ground/ground_plate_worn",
+     "tex": "v2",
+     "frame": "ground_plate_worn",
+     "x": 1216,
+     "y": 880,
+     "w": 256,
+     "h": 256
+    },
+    {
+     "key": "ground/ground_hazard",
+     "tex": "v2",
+     "frame": "ground_hazard",
+     "x": 1488,
+     "y": 880,
+     "w": 256,
+     "h": 256
+    },
+    {
+     "key": "ground/ground_road",
+     "tex": "v2",
+     "frame": "ground_road",
+     "x": 1760,
+     "y": 880,
+     "w": 256,
+     "h": 256
+    },
+    {
+     "key": "v2/ui_dialog",
+     "tex": "v2",
+     "frame": "ui_dialog",
+     "x": 0,
+     "y": 1152,
+     "w": 224,
+     "h": 250,
+     "slice": {
+      "l": 141,
+      "r": 51,
+      "t": 80,
+      "b": 138,
+      "w0": 640,
+      "h0": 384
+     }
+    },
+    {
+     "key": "ui/stars_1",
+     "tex": "ui",
+     "frame": "stars_1",
+     "x": 240,
+     "y": 1152,
+     "w": 640,
+     "h": 224
+    },
+    {
+     "key": "ui/stars_2",
+     "tex": "ui",
+     "frame": "stars_2",
+     "x": 896,
+     "y": 1152,
+     "w": 640,
+     "h": 224
+    },
+    {
+     "key": "ui/stars_3",
+     "tex": "ui",
+     "frame": "stars_3",
+     "x": 0,
+     "y": 1418,
+     "w": 640,
+     "h": 224
+    },
+    {
+     "key": "ui/stars_0",
+     "tex": "ui",
+     "frame": "stars_0",
+     "x": 656,
+     "y": 1418,
+     "w": 640,
+     "h": 224
+    },
+    {
+     "key": "v2/fx_sparkle_l",
+     "tex": "v2",
+     "frame": "fx_sparkle_l",
+     "x": 1312,
+     "y": 1418,
+     "w": 208,
+     "h": 216
+    },
+    {
+     "key": "v2/fx_cloud_l",
+     "tex": "v2",
+     "frame": "fx_cloud_l",
+     "x": 1536,
+     "y": 1418,
+     "w": 252,
+     "h": 212
+    },
+    {
+     "key": "parts/engine_spark",
+     "tex": "ui",
+     "frame": "engine_spark",
+     "x": 0,
+     "y": 1658,
+     "w": 308,
+     "h": 205
+    },
+    {
+     "key": "v2/fx_blast_hit",
+     "tex": "v2",
+     "frame": "fx_blast_hit",
+     "x": 328,
+     "y": 1658,
+     "w": 384,
+     "h": 202
+    },
+    {
+     "key": "v2/fx_blast_ground",
+     "tex": "v2",
+     "frame": "fx_blast_ground",
+     "x": 728,
+     "y": 1658,
+     "w": 520,
+     "h": 182
+    },
+    {
+     "key": "v2/fx_sparkle_m",
+     "tex": "v2",
+     "frame": "fx_sparkle_m",
+     "x": 1264,
+     "y": 1658,
+     "w": 168,
+     "h": 174
+    },
+    {
+     "key": "ui/ico_gear",
+     "tex": "ui",
+     "frame": "ico_gear",
+     "x": 1448,
+     "y": 1658,
+     "w": 160,
+     "h": 160
+    },
+    {
+     "key": "ui/ico_play",
+     "tex": "ui",
+     "frame": "ico_play",
+     "x": 1624,
+     "y": 1658,
+     "w": 160,
+     "h": 160
+    },
+    {
+     "key": "ui/ico_pause",
+     "tex": "ui",
+     "frame": "ico_pause",
+     "x": 1800,
+     "y": 1658,
+     "w": 160,
+     "h": 160
+    },
+    {
+     "key": "ui/ico_x2",
+     "tex": "ui",
+     "frame": "ico_x2",
+     "x": 0,
+     "y": 1879,
+     "w": 160,
+     "h": 160
+    },
+    {
+     "key": "ui/ico_back",
+     "tex": "ui",
+     "frame": "ico_back",
+     "x": 176,
+     "y": 1879,
+     "w": 160,
+     "h": 160
+    },
+    {
+     "key": "ui/ico_sound",
+     "tex": "ui",
+     "frame": "ico_sound",
+     "x": 352,
+     "y": 1879,
+     "w": 160,
+     "h": 160
+    },
+    {
+     "key": "ui/ico_mute",
+     "tex": "ui",
+     "frame": "ico_mute",
+     "x": 528,
+     "y": 1879,
+     "w": 160,
+     "h": 160
+    },
+    {
+     "key": "ui/ico_reset",
+     "tex": "ui",
+     "frame": "ico_reset",
+     "x": 704,
+     "y": 1879,
+     "w": 160,
+     "h": 160
+    },
+    {
+     "key": "ui/ico_ru",
+     "tex": "ui",
+     "frame": "ico_ru",
+     "x": 880,
+     "y": 1879,
+     "w": 160,
+     "h": 160
+    },
+    {
+     "key": "ui/ico_en",
+     "tex": "ui",
+     "frame": "ico_en",
+     "x": 1056,
+     "y": 1879,
+     "w": 160,
+     "h": 160
+    },
+    {
+     "key": "ui/btn_blue",
+     "tex": "ui",
+     "frame": "btn_blue",
+     "x": 1232,
+     "y": 1879,
+     "w": 158,
+     "h": 160,
+     "slice": {
+      "l": 63,
+      "r": 63,
+      "t": 65,
+      "b": 77,
+      "w0": 640,
+      "h0": 160
+     }
+    },
+    {
+     "key": "ui/btn_red",
+     "tex": "ui",
+     "frame": "btn_red",
+     "x": 1408,
+     "y": 1879,
+     "w": 158,
+     "h": 160,
+     "slice": {
+      "l": 63,
+      "r": 63,
+      "t": 65,
+      "b": 77,
+      "w0": 640,
+      "h0": 160
+     }
+    },
+    {
+     "key": "ui/btn_green",
+     "tex": "ui",
+     "frame": "btn_green",
+     "x": 1584,
+     "y": 1879,
+     "w": 158,
+     "h": 160,
+     "slice": {
+      "l": 63,
+      "r": 63,
+      "t": 65,
+      "b": 77,
+      "w0": 640,
+      "h0": 160
+     }
+    },
+    {
+     "key": "ui/btn_orange",
+     "tex": "ui",
+     "frame": "btn_orange",
+     "x": 1760,
+     "y": 1879,
+     "w": 158,
+     "h": 160,
+     "slice": {
+      "l": 63,
+      "r": 63,
+      "t": 65,
+      "b": 77,
+      "w0": 640,
+      "h0": 160
+     }
+    }
+   ]
+  },
+  {
+   "file": "pages/shared_5.png",
+   "tex": null,
+   "w": 2048,
+   "h": 512,
+   "frames": [
+    {
+     "key": "ui/btn_yellow",
+     "tex": "ui",
+     "frame": "btn_yellow",
+     "x": 0,
+     "y": 0,
+     "w": 158,
+     "h": 160,
+     "slice": {
+      "l": 63,
+      "r": 63,
+      "t": 65,
+      "b": 77,
+      "w0": 640,
+      "h0": 160
+     }
+    },
+    {
+     "key": "ui/btn_purple",
+     "tex": "ui",
+     "frame": "btn_purple",
+     "x": 176,
+     "y": 0,
+     "w": 158,
+     "h": 160,
+     "slice": {
+      "l": 63,
+      "r": 63,
+      "t": 65,
+      "b": 77,
+      "w0": 640,
+      "h0": 160
+     }
+    },
+    {
+     "key": "ui/panel_big",
+     "tex": "ui",
+     "frame": "panel_big",
+     "x": 352,
+     "y": 0,
+     "w": 158,
+     "h": 158,
+     "slice": {
+      "l": 63,
+      "r": 63,
+      "t": 63,
+      "b": 63,
+      "w0": 1024,
+      "h0": 640
+     }
+    },
+    {
+     "key": "parts/probe_core",
+     "tex": "ui",
+     "frame": "probe_core",
+     "x": 528,
+     "y": 0,
+     "w": 256,
+     "h": 154
+    },
+    {
+     "key": "v2/fx_cloud_m",
+     "tex": "v2",
+     "frame": "fx_cloud_m",
+     "x": 800,
+     "y": 0,
+     "w": 180,
+     "h": 152
+    },
+    {
+     "key": "parts/parachute_packed",
+     "tex": "ui",
+     "frame": "parachute_packed",
+     "x": 1000,
+     "y": 0,
+     "w": 256,
+     "h": 128
+    },
+    {
+     "key": "v2/ui_icon_wrench",
+     "tex": "v2",
+     "frame": "ui_icon_wrench",
+     "x": 1272,
+     "y": 0,
+     "w": 128,
+     "h": 128
+    },
+    {
+     "key": "v2/ui_icon_gear",
+     "tex": "v2",
+     "frame": "ui_icon_gear",
+     "x": 1416,
+     "y": 0,
+     "w": 128,
+     "h": 128
+    },
+    {
+     "key": "v2/ui_icon_rocket",
+     "tex": "v2",
+     "frame": "ui_icon_rocket",
+     "x": 1560,
+     "y": 0,
+     "w": 128,
+     "h": 128
+    },
+    {
+     "key": "v2/ui_icon_fuel",
+     "tex": "v2",
+     "frame": "ui_icon_fuel",
+     "x": 1704,
+     "y": 0,
+     "w": 128,
+     "h": 128
+    },
+    {
+     "key": "v2/ui_arrow",
+     "tex": "v2",
+     "frame": "ui_arrow",
+     "x": 1848,
+     "y": 0,
+     "w": 128,
+     "h": 128
+    },
+    {
+     "key": "v2/ui_cursor_hand",
+     "tex": "v2",
+     "frame": "ui_cursor_hand",
+     "x": 0,
+     "y": 176,
+     "w": 128,
+     "h": 128
+    },
+    {
+     "key": "v2/ui_star_full",
+     "tex": "v2",
+     "frame": "ui_star_full",
+     "x": 144,
+     "y": 176,
+     "w": 120,
+     "h": 120
+    },
+    {
+     "key": "v2/ui_star_empty",
+     "tex": "v2",
+     "frame": "ui_star_empty",
+     "x": 280,
+     "y": 176,
+     "w": 120,
+     "h": 120
+    },
+    {
+     "key": "v2/fx_sparkle_s",
+     "tex": "v2",
+     "frame": "fx_sparkle_s",
+     "x": 416,
+     "y": 176,
+     "w": 94,
+     "h": 98
+    },
+    {
+     "key": "v2/fx_blast_burst",
+     "tex": "v2",
+     "frame": "fx_blast_burst",
+     "x": 528,
+     "y": 176,
+     "w": 130,
+     "h": 96
+    },
+    {
+     "key": "v2/fx_cloud_s",
+     "tex": "v2",
+     "frame": "fx_cloud_s",
+     "x": 680,
+     "y": 176,
+     "w": 92,
+     "h": 90
+    },
+    {
+     "key": "parts/decoupler",
+     "tex": "ui",
+     "frame": "decoupler",
+     "x": 792,
+     "y": 176,
+     "w": 256,
+     "h": 77
+    }
+   ]
+  }
+ ]
 }
