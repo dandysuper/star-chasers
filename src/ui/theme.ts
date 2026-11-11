@@ -6,6 +6,7 @@
 import Phaser from 'phaser';
 import { partDef } from '../data/parts';
 import { PART_W, UNIT_H, drawPart } from './partArt';
+import { addSliced, isOverhaul, sliceOf } from './overhaul';
 
 export const UI = 'ui';
 
@@ -130,7 +131,15 @@ export function makeSpeechBubble(
   const portraitFrame = opts.portrait ? (PORTRAIT_ART[opts.portrait] ?? opts.portrait) : undefined;
   const showPortrait = !!portraitFrame && hasV2(scene, portraitFrame);
 
-  if (hasDialog) {
+  const dialogSlice = hasDialog ? sliceOf(scene, V2, UI_V2_ART.dialog) : null;
+  if (dialogSlice) {
+    // the overhaul bubble stretches only across its flat middle, so the tail
+    // and the rounded ends keep their shape at any width
+    // corners scaled as if the whole delivered bubble were fitted to h, so
+    // the tail keeps the proportion the text layout below assumes
+    const k = h / dialogSlice.h0;
+    c.add(addSliced(scene, 0, 0, V2, UI_V2_ART.dialog, w, h, dialogSlice, k, true).obj);
+  } else if (hasDialog) {
     // ui_dialog has a bottom-left speech tail, so anchor slightly above centre
     // so the text box sits cleanly over (0, -h * 0.08)
     const bg = scene.add.image(0, 0, V2, UI_V2_ART.dialog).setDisplaySize(w, h);
@@ -183,13 +192,38 @@ export const BELL_ART: Record<string, string> = {
 /** Bell width as a fraction of the engine block's width. */
 const BELL_RATIO = 0.86;
 
+/**
+ * Size of an engine's bell and how far it tucks up under the body.
+ *
+ * Overhaul engines are drawn at one pixel scale with their bells: the body's
+ * bottom mount is exactly as wide as the top of its bell, so the bell is drawn
+ * at the body's own scale and butts onto it. Today's art has no shared scale,
+ * so the bell is sized as a fraction of the body instead.
+ */
+function bellBox(
+  scene: Phaser.Scene, id: string, partWidth: number,
+): { frame: string; w: number; h: number; overlap: number } | null {
+  const frame = BELL_ART[id];
+  if (!frame || !hasV2(scene, frame)) return null;
+  const f = scene.textures.getFrame(V2, frame);
+  if (!f || f.width <= 0) return null;
+  const body = partFrame(scene, id, false);
+  if (body && isOverhaul(scene, V2, frame) && isOverhaul(scene, UI, body)) {
+    const k = partWidth / scene.textures.getFrame(UI, body).width;
+    return { frame, w: Math.round(f.width * k), h: Math.round(f.height * k), overlap: 1 };
+  }
+  const w = Math.round(partWidth * BELL_RATIO);
+  return { frame, w, h: Math.round(w * (f.height / f.width)), overlap: 2 };
+}
+
 /** How far a part's bell hangs below its own box, in px (0 = no bell). */
 export function bellDrop(scene: Phaser.Scene, id: string, partWidth: number): number {
-  const frame = BELL_ART[id];
-  if (!frame || !hasV2(scene, frame)) return 0;
-  const f = scene.textures.getFrame(V2, frame);
-  if (!f || f.width <= 0) return 0;
-  return Math.round(partWidth * BELL_RATIO * (f.height / f.width));
+  return bellBox(scene, id, partWidth)?.h ?? 0;
+}
+
+/** Width of an engine's nozzle mouth, in px: where its plume starts. */
+export function bellWidth(scene: Phaser.Scene, id: string, partWidth: number): number {
+  return bellBox(scene, id, partWidth)?.w ?? Math.round(partWidth * 0.7);
 }
 
 /** True when the v2 atlas is loaded and carries this frame. */
@@ -225,7 +259,7 @@ const PART_FRAME: Record<string, string> = {
   nose_cone: 'nose_cone',
   probe_core: 'probe_core',
   pod: 'pod',
-  tank_s: 'tank_m',      // no short drum in the pack; the mid tank reads fine at s-size
+  tank_s: 'tank_s',      // overhaul only; today's pack falls back to tank_m (partFrame)
   tank_m: 'tank_m',
   tank_l: 'tank_l',
   engine_spark: 'engine_spark',
@@ -236,11 +270,23 @@ const PART_FRAME: Record<string, string> = {
   parachute: 'fx_chute',
 };
 
-/** Per-kind width multiplier: bells flare, parachute canopies are wide. */
+/** Per-kind width multiplier: engine housings flare past the hull. */
 const KIND_WIDTH: Record<string, number> = {
   engine: 1.2,
-  chute: 1.6,
 };
+/** The open canopy is wide; the packed canister is hull width. */
+const CANOPY_WIDTH = 1.6;
+
+/**
+ * The frame a part is drawn with. `icon` is the palette card: the parachute
+ * shows its open canopy there so it reads as a parachute, while the stack
+ * carries the packed canister when the overhaul supplies one.
+ */
+function partFrame(scene: Phaser.Scene, id: string, icon: boolean): string | null {
+  if (id === 'tank_s') return hasFrame(scene, 'tank_s') ? 'tank_s' : 'tank_m';
+  if (id === 'parachute' && !icon && hasFrame(scene, 'parachute_packed')) return 'parachute_packed';
+  return PART_FRAME[id] ?? null;
+}
 
 /**
  * Fins are the one part that is not a single centred sprite.
@@ -304,21 +350,26 @@ export function hasFrame(scene: Phaser.Scene, frame: string): boolean {
 
 /** Layout box for a part, derived from the sprite's own aspect ratio so a
  *  stacked rocket keeps the art's proportions instead of stretching. */
-export function partMetrics(scene: Phaser.Scene, id: string): PartMetrics {
+export function partMetrics(scene: Phaser.Scene, id: string, icon = false): PartMetrics {
   // fins are a mirrored pair, so their layout box spans both of them; the slot
   // itself is a seam, not a body (see finGeometry)
   const fins = finGeometry(scene, id);
   if (fins) return { w: fins.w, h: fins.rowH, frame: fins.frame };
 
-  const frame = PART_FRAME[id] ?? null;
+  const frame = partFrame(scene, id, icon);
   if (frame && hasFrame(scene, frame)) {
     const f = scene.textures.getFrame(UI, frame);
     if (f && f.width > 0) {
       const kind = partDef(id).kind;
-      const w = Math.round(PART_W * (KIND_WIDTH[kind] ?? 1));
-      // never let one part dominate the stack: clamp to 3.5 hull-widths
-      const h = Phaser.Math.Clamp(Math.round(w * (f.height / f.width)), 12, Math.round(PART_W * 3.5));
-      return { w, h, frame };
+      const wide = frame === 'fx_chute' ? CANOPY_WIDTH : (KIND_WIDTH[kind] ?? 1);
+      const w = Math.round(PART_W * wide);
+      const h = Math.round(w * (f.height / f.width));
+      // Overhaul parts are drawn to the game's own units (256 px of canvas
+      // per hull width), so a large tank really is four small ones tall.
+      // Today's frames have arbitrary proportions: never let one of those
+      // dominate the stack, clamp it to 3.5 hull-widths.
+      if (isOverhaul(scene, UI, frame)) return { w, h: Math.max(4, h), frame };
+      return { w, h: Phaser.Math.Clamp(h, 12, Math.round(PART_W * 3.5)), frame };
     }
   }
   const d = partDef(id);
@@ -328,9 +379,9 @@ export function partMetrics(scene: Phaser.Scene, id: string): PartMetrics {
 /** Add a part as an Image when a frame exists, else a drawn stub container.
  *  Both are positioned by their centre at (x, y). */
 export function addPart(
-  scene: Phaser.Scene, id: string, x: number, y: number,
+  scene: Phaser.Scene, id: string, x: number, y: number, icon = false,
 ): Phaser.GameObjects.Image | Phaser.GameObjects.Container {
-  const m = partMetrics(scene, id);
+  const m = partMetrics(scene, id, icon);
 
   // Fins: two copies of the one fin in the pack, hugging the hull. The right
   // one is flipped so the pair is a mirror image; both share a baseline so the
@@ -358,18 +409,14 @@ export function addPart(
     // Engines get their nozzle bell hung off the bottom edge. It has to live in
     // the same object as the body, or dragging the part in the builder would
     // leave the bell behind on the pad.
-    const bellFrame = BELL_ART[id];
-    if (bellFrame && hasV2(scene, bellFrame)) {
-      const f = scene.textures.getFrame(V2, bellFrame);
-      if (f && f.width > 0) {
-        const bw = Math.round(m.w * BELL_RATIO);
-        const bh = Math.round(bw * (f.height / f.width));
-        const bell = scene.add.image(0, m.h / 2 - 2, V2, bellFrame)
-          .setOrigin(0.5, 0).setDisplaySize(bw, bh);
-        const c = scene.add.container(x, y, [body, bell]);
-        c.setSize(m.w, m.h + bh);
-        return c;
-      }
+    const bb = bellBox(scene, id, m.w);
+    if (bb) {
+      const bell = scene.add.image(0, m.h / 2 - bb.overlap, V2, bb.frame)
+        .setOrigin(0.5, 0).setDisplaySize(bb.w, bb.h);
+      // the bell hangs behind the body, so the body's mount covers the seam
+      const c = scene.add.container(x, y, [bell, body]);
+      c.setSize(m.w, m.h + bb.h);
+      return c;
     }
 
     body.setPosition(x, y);
@@ -394,10 +441,12 @@ export function makePartInteractive(
   if (go.input) go.input.cursor = 'pointer';
 }
 
-/** Star plaque art for 0–3 stars. 0 and 1 share the one-star plaque, dimmed. */
-export function starFrame(stars: number): { frame: string; dim: boolean } {
+/** Star plaque art for 0–3 stars. 0 uses the overhaul's empty plaque when it
+ *  is there; otherwise 0 and 1 share the one-star plaque, dimmed. */
+export function starFrame(stars: number, scene?: Phaser.Scene): { frame: string; dim: boolean } {
   if (stars >= 3) return { frame: 'stars_3', dim: false };
   if (stars === 2) return { frame: 'stars_2', dim: false };
+  if (stars <= 0 && scene && hasFrame(scene, 'stars_0')) return { frame: 'stars_0', dim: false };
   return { frame: 'stars_1', dim: stars === 0 };
 }
 

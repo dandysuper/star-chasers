@@ -57,8 +57,10 @@ export class MenuScene extends Phaser.Scene {
     }
 
     // ---- logo ----
-    if (hasFrame(this, 'logo')) {
-      this.ui.push(this.add.image(width / 2, 104, UI, 'logo').setDisplaySize(392, 198));
+    // the overhaul adds a Russian logo; today's pack has only the English one
+    const logo = state.lang === 'ru' && hasFrame(this, 'logo_ru') ? 'logo_ru' : 'logo';
+    if (hasFrame(this, logo)) {
+      this.ui.push(this.add.image(width / 2, 104, UI, logo).setDisplaySize(392, 198));
     } else {
       this.ui.push(this.add.text(width / 2, 90, t('menu.title'), { ...TXT.title, fontSize: '56px' }).setOrigin(0.5));
     }
@@ -227,7 +229,7 @@ export class MenuScene extends Phaser.Scene {
         if (!unlocked) sr.setAlpha(0.4);
         c.add(sr);
       } else {
-        const sf = starFrame(stars);
+        const sf = starFrame(stars, this);
         if (hasFrame(this, sf.frame)) {
           const plaque = this.add.image(150, y, UI, sf.frame).setDisplaySize(96, 34);
           if (sf.dim) plaque.setTint(0x6a6a86);

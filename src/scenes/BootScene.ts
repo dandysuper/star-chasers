@@ -9,9 +9,15 @@ import { PRESET_BASIC } from '../data/parts';
 import { MISSIONS } from '../data/missions';
 import { musicAssetFiles } from '../core/themeTracks';
 import { preloadMinionAudio } from '../core/minionAudio';
+import { installOverhaul, queueOverhaul } from '../ui/overhaul';
 
 interface PlanetManifest {
   images?: { key: string; file: string }[];
+}
+
+interface RoverManifest {
+  images?: { key: string; file: string }[];
+  audio?: { key: string; file: string }[];
 }
 
 export class BootScene extends Phaser.Scene {
@@ -36,11 +42,13 @@ export class BootScene extends Phaser.Scene {
     // src/data/minionAudio.ts, which is nothing at all until a batch lands
     preloadMinionAudio(this);
 
-    // ui_v1 art: one packed atlas of sprite frames + the nine painted backdrops
+    // ui_v1 art: one packed atlas of sprite frames
     this.load.atlas(UI, 'assets/ui/ui.png', 'assets/ui/ui.json');
-    for (const [key, stem] of Object.entries(BG_FILES)) {
-      this.load.image(key, `assets/bg/${stem}.webp`);
-    }
+
+    // Optional art overhaul (artoverhaul.md). It also decides where each
+    // painted backdrop comes from: the overhaul file when the manifest lists
+    // one, today's assets/bg/ file otherwise.
+    queueOverhaul(this, BG_FILES);
 
     for (const key of [
       'astro_female', 'astro_female_walk', 'astro_male', 'astro_male_walk',
@@ -64,6 +72,19 @@ export class BootScene extends Phaser.Scene {
       }
     });
     this.load.json('planet_manifest', 'assets/planets/manifest.json');
+
+    // Optional rover art and sounds (roverassets.md), same contract: only the
+    // files listed exist. Until they do, the rover drives on the machines
+    // sprite with drawn tracks and no engine sound.
+    this.load.on('filecomplete-json-rover_manifest', (_key: string, _type: string, data: RoverManifest) => {
+      for (const img of data?.images ?? []) {
+        if (img?.key && img?.file) this.load.image(img.key, `assets/rover/${img.file}`);
+      }
+      for (const clip of data?.audio ?? []) {
+        if (clip?.key && clip?.file) this.load.audio(clip.key, `assets/rover/${clip.file}`);
+      }
+    });
+    this.load.json('rover_manifest', 'assets/rover/manifest.json');
   }
 
   create(): void {
@@ -72,6 +93,10 @@ export class BootScene extends Phaser.Scene {
     // otherwise the stored preference wins
     const pinnedLang = devLangOverride();
     if (pinnedLang) state.lang = pinnedLang;
+    // overhaul frames replace atlas frames, so this has to run before any
+    // animation is built from frame names
+    const overhaul = installOverhaul(this);
+    if (new URLSearchParams(location.search).has('dev')) console.log('overhaul', JSON.stringify(overhaul));
     // build walk anims for both astronauts once, at boot
     for (const g of ['female', 'male'] as const) {
       const data = this.cache.json.get(`anims_${g}`);

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { UI, hasFrame } from './theme';
+import { addSliced, sliceOf } from './overhaul';
 import { state } from '../core/state';
 import { applyMusicSetting } from './music';
 
@@ -66,9 +67,18 @@ export function makeButton(
   const g = scene.add.graphics();
   const wash = scene.add.graphics();
   let img: Phaser.GameObjects.Image | null = null;
+  let sliced: { obj: Phaser.GameObjects.NineSlice; sx: number; sy: number } | null = null;
   const tint = opts.color ?? BTN_TINT[variant];
+  // Overhaul buttons are painted in their own colour and stretch cleanly, so
+  // they are 9-sliced to size and need no colour wash on top.
+  const slice = art ? sliceOf(scene, UI, BTN_FRAME[variant]) : null;
 
-  if (art) {
+  if (slice) {
+    // the caps are scaled so the delivered button's full height fits h
+    sliced = addSliced(scene, 0, 0, UI, BTN_FRAME[variant], w, h, slice, h / slice.h0, true);
+    c.add(sliced.obj);
+    c.add(wash);
+  } else if (art) {
     // The pack's button frames are all the same dark pill — the only variation
     // is a tiny emblem. A translucent colour wash inside the painted rim keeps
     // the art's chunky outline while restoring the yellow/blue/red coding.
@@ -105,16 +115,21 @@ export function makeButton(
   // given, so a press can never resize the target out from under the pointer.
   const shape = (k: number) => {
     img?.setDisplaySize(w * k, h * k);
+    sliced?.obj.setScale(sliced.sx * k, sliced.sy * k);
+    wash.setScale(k);
     txt.setScale(k);
   };
   const rest = () => {
     shape(1);
-    if (img) drawButtonWash(wash, w, h, tint, 0.62);
+    if (sliced) wash.clear();
+    else if (img) drawButtonWash(wash, w, h, tint, 0.62);
     else drawButtonBg(g, w, h, tint);
   };
   const hover = () => {
     shape(1.03);
-    if (img) drawButtonWash(wash, w, h, lighten(tint, 0.28), 0.78);
+    // a faint white glaze: the painted colour already says what the button is
+    if (sliced) drawButtonWash(wash, w, h, 0xffffff, 0.16);
+    else if (img) drawButtonWash(wash, w, h, lighten(tint, 0.28), 0.78);
     else drawButtonBg(g, w, h, lighten(tint, 0.3));
   };
   const press = () => shape(0.97);
@@ -172,7 +187,19 @@ function drawButtonWash(
  *  drawn, otherwise the border eats their content. */
 export function makePanel(
   scene: Phaser.Scene, x: number, y: number, w: number, h: number, alpha = 0.92,
-): Phaser.GameObjects.Image | Phaser.GameObjects.Graphics {
+): Phaser.GameObjects.Image | Phaser.GameObjects.Graphics | Phaser.GameObjects.NineSlice {
+  // The overhaul panel has a thin bevel and a flat middle, so it 9-slices to
+  // any size, HUD panels included. Its cyan bevel sits 22 px into the art:
+  // big panels draw it at 60 %, but the small HUD panels lay their text out
+  // 16 px from the edge, so they draw it at 35 % to keep it clear of the text.
+  // The corners never take more than half the panel.
+  const slice = hasFrame(scene, 'panel_big') ? sliceOf(scene, UI, 'panel_big') : null;
+  if (slice) {
+    const big = w >= 420 && h >= 170;
+    const k = Math.min(big ? 0.6 : 0.35, w / ((slice.l + slice.r) * 2), h / ((slice.t + slice.b) * 2));
+    const { obj } = addSliced(scene, x, y, UI, 'panel_big', w, h, slice, k, true);
+    return obj.setOrigin(0, 0).setAlpha(alpha);
+  }
   if (w >= 420 && h >= 170 && hasFrame(scene, 'panel_big')) {
     return scene.add.image(x, y, UI, 'panel_big').setOrigin(0, 0).setDisplaySize(w, h).setAlpha(alpha);
   }

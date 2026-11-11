@@ -71,6 +71,46 @@ export interface PlanetDef {
   /** Transmit within this many seconds for the time star. */
   timeLimit: number;
   hintKeys: string[];
+  /** How the parked rover drives here, and the marks it and the boots leave. */
+  rover: RoverTuning;
+  surface: SurfaceLook;
+}
+
+/** Rover handling per planet (px, px/s, px/s², rad/s, s). */
+export interface RoverTuning {
+  maxSpeed: number;
+  accel: number;
+  /** Deceleration with the stick released: low grip in low gravity. */
+  coast: number;
+  brake: number;
+  turnRate: number;
+  /** Tint over the fallback rover sprite. */
+  tint?: number;
+  dustTint: number;
+  trackTint: number;
+  /** Pull on the kicked-up dust: weak on the Moon, so it flies in long arcs. */
+  dustGravity: number;
+  /** Seconds a tyre track stays on the ground. */
+  trackLife: number;
+}
+
+/** Drawn ground detail over the painted tiles. */
+export interface SurfaceLook {
+  /** Large soft light/dark patches that break up the tile repeat. */
+  blotchDark: number;
+  blotchLight: number;
+  craters: number;
+  craterBowl: number;
+  craterRim: number;
+  /** Mars: wind ripples drawn as soft arcs. */
+  ripples: number;
+  rippleColor: number;
+  /** Boot prints: tint and how long they last (Moon prints last for ages). */
+  bootTint: number;
+  bootLife: number;
+  /** Colour the screen edges are darkened toward. */
+  vignette: number;
+  vignetteAlpha: number;
 }
 
 const MOON_SAMPLES: SampleDef[] = [
@@ -113,7 +153,18 @@ export const PLANETS: Record<PlanetId, PlanetDef> = {
       { id: 'moon_all', labelKey: 'task.distinct', kind: 'distinct', count: 5, required: false },
     ],
     timeLimit: 150,
-    hintKeys: ['hint.explore.1', 'hint.explore.2', 'hint.explore.3', 'hint.moon.ice'],
+    hintKeys: ['hint.explore.1', 'hint.explore.2', 'hint.explore.3', 'hint.moon.ice', 'hint.explore.rover'],
+    rover: {
+      maxSpeed: 390, accel: 380, coast: 110, brake: 520, turnRate: 3.4,
+      tint: 0xe4e8f4, dustTint: 0xc9ccd6, trackTint: 0x2a2833, dustGravity: 55, trackLife: 70,
+    },
+    surface: {
+      blotchDark: 0x1d1b2e, blotchLight: 0xffffff,
+      craters: 22, craterBowl: 0x23212f, craterRim: 0xe8e8f0,
+      ripples: 0, rippleColor: 0x000000,
+      bootTint: 0x24222e, bootLife: 90,
+      vignette: 0x05040c, vignetteAlpha: 0.55,
+    },
   },
   mars: {
     id: 'mars',
@@ -140,7 +191,18 @@ export const PLANETS: Record<PlanetId, PlanetDef> = {
       { id: 'mars_all', labelKey: 'task.distinct', kind: 'distinct', count: 5, required: false },
     ],
     timeLimit: 200,
-    hintKeys: ['hint.explore.1', 'hint.explore.2', 'hint.explore.3', 'hint.mars.mudstone', 'hint.mars.dust'],
+    hintKeys: ['hint.explore.1', 'hint.explore.2', 'hint.explore.3', 'hint.mars.mudstone', 'hint.mars.dust', 'hint.explore.rover'],
+    rover: {
+      maxSpeed: 350, accel: 420, coast: 220, brake: 560, turnRate: 3.6,
+      tint: 0xf0c8b0, dustTint: 0xd98a5e, trackTint: 0x4a1d10, dustGravity: 130, trackLife: 30,
+    },
+    surface: {
+      blotchDark: 0x3a120a, blotchLight: 0xffc49a,
+      craters: 7, craterBowl: 0x4a1a0e, craterRim: 0xffb48a,
+      ripples: 46, rippleColor: 0x5a2212,
+      bootTint: 0x4a1a0e, bootLife: 25,
+      vignette: 0x1f0703, vignetteAlpha: 0.5,
+    },
   },
 };
 

@@ -21,6 +21,10 @@ const game = new Phaser.Game({
   height: 720,
   backgroundColor: '#0b0b2a',
   pixelArt: false,
+  // Trilinear filtering for power-of-two textures. The overhaul art is packed
+  // into power-of-two pages for this: rocket parts are delivered 6x larger
+  // than the builder draws them, and without mipmaps they shimmer.
+  render: { mipmapFilter: 'LINEAR_MIPMAP_LINEAR' },
   dom: { createContainer: true },
   input: {
     activePointers: 3,

@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { t } from '../core/i18n';
 import { COL, TXT } from './widgets';
 import { V2, UI_V2_ART, hasV2 } from './theme';
+import { fitInto } from './overhaul';
 
 export interface TouchControlsOpts {
   /** Initial label on the right-hand action button (defaults to `E`). */
@@ -71,8 +72,7 @@ export class TouchControls {
     this.actionContainer.add(this.actionBg);
 
     if (hasV2(scene, UI_V2_ART.cursorHand)) {
-      const hand = scene.add.image(0, -10, V2, UI_V2_ART.cursorHand)
-        .setDisplaySize(26, 30).setAlpha(0.92);
+      const hand = fitInto(scene.add.image(0, -10, V2, UI_V2_ART.cursorHand), 26, 30).setAlpha(0.92);
       this.actionContainer.add(hand);
     }
 

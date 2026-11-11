@@ -1,0 +1,54 @@
+{
+  "images": [
+    {
+      "key": "rover_s",
+      "file": "rover_s.png"
+    },
+    {
+      "key": "rover_se",
+      "file": "rover_se.png"
+    },
+    {
+      "key": "rover_e",
+      "file": "rover_e.png"
+    },
+    {
+      "key": "rover_ne",
+      "file": "rover_ne.png"
+    },
+    {
+      "key": "rover_n",
+      "file": "rover_n.png"
+    },
+    {
+      "key": "rover_track",
+      "file": "rover_track.png"
+    },
+    {
+      "key": "boot_print",
+      "file": "boot_print.png"
+    },
+    {
+      "key": "rover_icon",
+      "file": "rover_icon.png"
+    }
+  ],
+  "audio": [
+    {
+      "key": "rover_motor",
+      "file": "rover_motor.mp3"
+    },
+    {
+      "key": "rover_bump",
+      "file": "rover_bump.mp3"
+    },
+    {
+      "key": "rover_door",
+      "file": "rover_door.mp3"
+    },
+    {
+      "key": "rover_horn",
+      "file": "rover_horn.mp3"
+    }
+  ]
+}

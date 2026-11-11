@@ -1,0 +1,504 @@
+{
+  "images": [
+    {
+      "key": "parts/nose_cone",
+      "file": "parts/nose_cone.png"
+    },
+    {
+      "key": "parts/probe_core",
+      "file": "parts/probe_core.png"
+    },
+    {
+      "key": "parts/pod",
+      "file": "parts/pod.png"
+    },
+    {
+      "key": "parts/tank_s",
+      "file": "parts/tank_s.png"
+    },
+    {
+      "key": "parts/tank_m",
+      "file": "parts/tank_m.png"
+    },
+    {
+      "key": "parts/tank_l",
+      "file": "parts/tank_l.png"
+    },
+    {
+      "key": "parts/decoupler",
+      "file": "parts/decoupler.png"
+    },
+    {
+      "key": "parts/engine_spark",
+      "file": "parts/engine_spark.png"
+    },
+    {
+      "key": "parts/engine_bull",
+      "file": "parts/engine_bull.png"
+    },
+    {
+      "key": "parts/engine_whisper",
+      "file": "parts/engine_whisper.png"
+    },
+    {
+      "key": "parts/bell_spark",
+      "file": "parts/bell_spark.png"
+    },
+    {
+      "key": "parts/bell_bull",
+      "file": "parts/bell_bull.png"
+    },
+    {
+      "key": "parts/bell_whisper",
+      "file": "parts/bell_whisper.png"
+    },
+    {
+      "key": "parts/fins",
+      "file": "parts/fins.png"
+    },
+    {
+      "key": "parts/parachute",
+      "file": "parts/parachute.png"
+    },
+    {
+      "key": "parts/parachute_packed",
+      "file": "parts/parachute_packed.png"
+    },
+    {
+      "key": "bg/builder",
+      "file": "bg/builder.webp"
+    },
+    {
+      "key": "bg/flight_earth",
+      "file": "bg/flight_earth.webp"
+    },
+    {
+      "key": "bg/flight_space",
+      "file": "bg/flight_space.webp"
+    },
+    {
+      "key": "bg/flight_moon",
+      "file": "bg/flight_moon.webp"
+    },
+    {
+      "key": "bg/menu",
+      "file": "bg/menu.webp"
+    },
+    {
+      "key": "bg/splash",
+      "file": "bg/splash.webp"
+    },
+    {
+      "key": "bg/result_win",
+      "file": "bg/result_win.webp"
+    },
+    {
+      "key": "bg/result_fail",
+      "file": "bg/result_fail.webp"
+    },
+    {
+      "key": "ui/btn_blue",
+      "file": "ui/btn_blue.png"
+    },
+    {
+      "key": "ui/btn_red",
+      "file": "ui/btn_red.png"
+    },
+    {
+      "key": "ui/btn_green",
+      "file": "ui/btn_green.png"
+    },
+    {
+      "key": "ui/btn_orange",
+      "file": "ui/btn_orange.png"
+    },
+    {
+      "key": "ui/btn_yellow",
+      "file": "ui/btn_yellow.png"
+    },
+    {
+      "key": "ui/btn_purple",
+      "file": "ui/btn_purple.png"
+    },
+    {
+      "key": "ui/panel_big",
+      "file": "ui/panel_big.png"
+    },
+    {
+      "key": "ui/ico_gear",
+      "file": "ui/ico_gear.png"
+    },
+    {
+      "key": "ui/ico_play",
+      "file": "ui/ico_play.png"
+    },
+    {
+      "key": "ui/ico_pause",
+      "file": "ui/ico_pause.png"
+    },
+    {
+      "key": "ui/ico_x2",
+      "file": "ui/ico_x2.png"
+    },
+    {
+      "key": "ui/ico_back",
+      "file": "ui/ico_back.png"
+    },
+    {
+      "key": "ui/ico_sound",
+      "file": "ui/ico_sound.png"
+    },
+    {
+      "key": "ui/ico_mute",
+      "file": "ui/ico_mute.png"
+    },
+    {
+      "key": "ui/ico_reset",
+      "file": "ui/ico_reset.png"
+    },
+    {
+      "key": "ui/ico_ru",
+      "file": "ui/ico_ru.png"
+    },
+    {
+      "key": "ui/ico_en",
+      "file": "ui/ico_en.png"
+    },
+    {
+      "key": "ui/stars_1",
+      "file": "ui/stars_1.png"
+    },
+    {
+      "key": "ui/stars_2",
+      "file": "ui/stars_2.png"
+    },
+    {
+      "key": "ui/stars_3",
+      "file": "ui/stars_3.png"
+    },
+    {
+      "key": "v2/ui_star_full",
+      "file": "v2/ui_star_full.png"
+    },
+    {
+      "key": "v2/ui_star_empty",
+      "file": "v2/ui_star_empty.png"
+    },
+    {
+      "key": "v2/ui_dialog",
+      "file": "v2/ui_dialog.png"
+    },
+    {
+      "key": "v2/ui_portrait_astronaut",
+      "file": "v2/ui_portrait_astronaut.png"
+    },
+    {
+      "key": "v2/ui_portrait_mechanic",
+      "file": "v2/ui_portrait_mechanic.png"
+    },
+    {
+      "key": "v2/ui_portrait_driller",
+      "file": "v2/ui_portrait_driller.png"
+    },
+    {
+      "key": "v2/ui_portrait_radio",
+      "file": "v2/ui_portrait_radio.png"
+    },
+    {
+      "key": "v2/ui_portrait_chemist",
+      "file": "v2/ui_portrait_chemist.png"
+    },
+    {
+      "key": "v2/ui_minimap_frame",
+      "file": "v2/ui_minimap_frame.png"
+    },
+    {
+      "key": "v2/ui_icon_wrench",
+      "file": "v2/ui_icon_wrench.png"
+    },
+    {
+      "key": "v2/ui_icon_gear",
+      "file": "v2/ui_icon_gear.png"
+    },
+    {
+      "key": "v2/ui_icon_rocket",
+      "file": "v2/ui_icon_rocket.png"
+    },
+    {
+      "key": "v2/ui_icon_fuel",
+      "file": "v2/ui_icon_fuel.png"
+    },
+    {
+      "key": "v2/ui_arrow",
+      "file": "v2/ui_arrow.png"
+    },
+    {
+      "key": "v2/ui_cursor_hand",
+      "file": "v2/ui_cursor_hand.png"
+    },
+    {
+      "key": "ui/logo_en",
+      "file": "ui/logo_en.png"
+    },
+    {
+      "key": "ui/logo_ru",
+      "file": "ui/logo_ru.png"
+    },
+    {
+      "key": "explore/rock_moon_1",
+      "file": "explore/rock_moon_1.png"
+    },
+    {
+      "key": "explore/rock_moon_2",
+      "file": "explore/rock_moon_2.png"
+    },
+    {
+      "key": "explore/rock_moon_3",
+      "file": "explore/rock_moon_3.png"
+    },
+    {
+      "key": "explore/rock_moon_4",
+      "file": "explore/rock_moon_4.png"
+    },
+    {
+      "key": "explore/rock_mars_1",
+      "file": "explore/rock_mars_1.png"
+    },
+    {
+      "key": "explore/rock_mars_2",
+      "file": "explore/rock_mars_2.png"
+    },
+    {
+      "key": "explore/rock_mars_3",
+      "file": "explore/rock_mars_3.png"
+    },
+    {
+      "key": "explore/rock_mars_4",
+      "file": "explore/rock_mars_4.png"
+    },
+    {
+      "key": "explore/crater_moon_s",
+      "file": "explore/crater_moon_s.png"
+    },
+    {
+      "key": "explore/crater_moon_l",
+      "file": "explore/crater_moon_l.png"
+    },
+    {
+      "key": "explore/crater_mars_s",
+      "file": "explore/crater_mars_s.png"
+    },
+    {
+      "key": "explore/crater_mars_l",
+      "file": "explore/crater_mars_l.png"
+    },
+    {
+      "key": "ground/ground_moon",
+      "file": "ground/ground_moon.png"
+    },
+    {
+      "key": "ground/ground_mars",
+      "file": "ground/ground_mars.png"
+    },
+    {
+      "key": "ground/ground_mars_rock",
+      "file": "ground/ground_mars_rock.png"
+    },
+    {
+      "key": "ground/ground_plate",
+      "file": "ground/ground_plate.png"
+    },
+    {
+      "key": "ground/ground_plate_worn",
+      "file": "ground/ground_plate_worn.png"
+    },
+    {
+      "key": "ground/ground_hazard",
+      "file": "ground/ground_hazard.png"
+    },
+    {
+      "key": "ground/ground_road",
+      "file": "ground/ground_road.png"
+    },
+    {
+      "key": "v2/tower",
+      "file": "v2/tower.png"
+    },
+    {
+      "key": "v2/habitat",
+      "file": "v2/habitat.png"
+    },
+    {
+      "key": "v2/control",
+      "file": "v2/control.png"
+    },
+    {
+      "key": "v2/tanks",
+      "file": "v2/tanks.png"
+    },
+    {
+      "key": "v2/dish",
+      "file": "v2/dish.png"
+    },
+    {
+      "key": "v2/airlock",
+      "file": "v2/airlock.png"
+    },
+    {
+      "key": "v2/board",
+      "file": "v2/board.png"
+    },
+    {
+      "key": "v2/crate_a",
+      "file": "v2/crate_a.png"
+    },
+    {
+      "key": "v2/crate_b",
+      "file": "v2/crate_b.png"
+    },
+    {
+      "key": "v2/crate_c",
+      "file": "v2/crate_c.png"
+    },
+    {
+      "key": "v2/pad_mark",
+      "file": "v2/pad_mark.png"
+    },
+    {
+      "key": "v2/pad_clamp",
+      "file": "v2/pad_clamp.png"
+    },
+    {
+      "key": "atlases/machines_solar_array",
+      "file": "atlases/machines_solar_array.png"
+    },
+    {
+      "key": "atlases/machines_generator",
+      "file": "atlases/machines_generator.png"
+    },
+    {
+      "key": "atlases/machines_rocket_launchpad",
+      "file": "atlases/machines_rocket_launchpad.png"
+    },
+    {
+      "key": "atlases/machines_rover",
+      "file": "atlases/machines_rover.png"
+    },
+    {
+      "key": "v2/flame_small",
+      "file": "v2/flame_small.png"
+    },
+    {
+      "key": "v2/flame_medium",
+      "file": "v2/flame_medium.png"
+    },
+    {
+      "key": "v2/flame_large",
+      "file": "v2/flame_large.png"
+    },
+    {
+      "key": "ui/fx_flame_m",
+      "file": "ui/fx_flame_m.png"
+    },
+    {
+      "key": "v2/fx_cloud_s",
+      "file": "v2/fx_cloud_s.png"
+    },
+    {
+      "key": "v2/fx_cloud_m",
+      "file": "v2/fx_cloud_m.png"
+    },
+    {
+      "key": "v2/fx_cloud_l",
+      "file": "v2/fx_cloud_l.png"
+    },
+    {
+      "key": "v2/fx_cloud_xl",
+      "file": "v2/fx_cloud_xl.png"
+    },
+    {
+      "key": "ui/fx_smoke",
+      "file": "ui/fx_smoke.png"
+    },
+    {
+      "key": "ui/fx_explosion",
+      "file": "ui/fx_explosion.png"
+    },
+    {
+      "key": "ui/fx_blast",
+      "file": "ui/fx_blast.png"
+    },
+    {
+      "key": "v2/fx_blast_burst",
+      "file": "v2/fx_blast_burst.png"
+    },
+    {
+      "key": "v2/fx_blast_hit",
+      "file": "v2/fx_blast_hit.png"
+    },
+    {
+      "key": "v2/fx_blast_ground",
+      "file": "v2/fx_blast_ground.png"
+    },
+    {
+      "key": "v2/fx_sparkle_s",
+      "file": "v2/fx_sparkle_s.png"
+    },
+    {
+      "key": "v2/fx_sparkle_m",
+      "file": "v2/fx_sparkle_m.png"
+    },
+    {
+      "key": "v2/fx_sparkle_l",
+      "file": "v2/fx_sparkle_l.png"
+    },
+    {
+      "key": "atlases/minions_mechanic",
+      "file": "atlases/minions_mechanic.png"
+    },
+    {
+      "key": "atlases/minions_miner_driller",
+      "file": "atlases/minions_miner_driller.png"
+    },
+    {
+      "key": "atlases/minions_radio_scout",
+      "file": "atlases/minions_radio_scout.png"
+    },
+    {
+      "key": "atlases/minions_chemist",
+      "file": "atlases/minions_chemist.png"
+    },
+    {
+      "key": "atlases/resources_iron_ore",
+      "file": "atlases/resources_iron_ore.png"
+    },
+    {
+      "key": "atlases/resources_purple_crystal",
+      "file": "atlases/resources_purple_crystal.png"
+    },
+    {
+      "key": "atlases/resources_ice_cube_bug",
+      "file": "atlases/resources_ice_cube_bug.png"
+    },
+    {
+      "key": "atlases/resources_magma_rock",
+      "file": "atlases/resources_magma_rock.png"
+    },
+    {
+      "key": "atlases/resources_bone_shell",
+      "file": "atlases/resources_bone_shell.png"
+    },
+    {
+      "key": "atlases/resources_gold_nugget",
+      "file": "atlases/resources_gold_nugget.png"
+    },
+    {
+      "key": "atlases/tools_v2_power_drill",
+      "file": "atlases/tools_v2_power_drill.png"
+    },
+    {
+      "key": "ui/stars_0",
+      "file": "ui/stars_0.png"
+    }
+  ]
+}

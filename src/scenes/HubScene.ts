@@ -11,6 +11,7 @@ import { isTouchMode, onInputModeChange } from '../core/device';
 import { makeButton, makeIconButton, makePanel, ensureMusic, TXT, type LabelButton } from '../ui/widgets';
 import { InGameMenu } from '../ui/ingameMenu';
 import { V2, BASE_ART, GROUND_ART, UI_V2_ART, hasV2, addStarRow } from '../ui/theme';
+import { nativeRatio } from '../ui/overhaul';
 import { CrewMember, type CrewWho } from '../core/crew';
 import { playMinionSfx, stopMinionSound } from '../core/minionAudio';
 import { resetVoiceGate } from '../core/minionVoice';
@@ -153,9 +154,12 @@ export class HubScene extends Phaser.Scene {
     // Real deck tiles instead of a wash: the v2 ground art is seamless, so a
     // TileSprite covers the whole apron without a visible repeat lattice.
     const APRON = { x: 240, y: 800, w: 2920, h: 860 };
-    this.add.tileSprite(
-      APRON.x + APRON.w / 2, APRON.y + APRON.h / 2, APRON.w, APRON.h, V2, GROUND_ART.plate,
-    ).setDepth(-12);
+    // a TileSprite repeats its frame at the frame's own pixel size; overhaul
+    // tiles are drawn at 2x, so they repeat at half scale to keep the deck's
+    // plates the size the base was laid out for
+    const tile = (x: number, y: number, w: number, h: number, frame: string) =>
+      this.add.tileSprite(x, y, w, h, V2, frame).setTileScale(nativeRatio(this, V2, frame));
+    tile(APRON.x + APRON.w / 2, APRON.y + APRON.h / 2, APRON.w, APRON.h, GROUND_ART.plate).setDepth(-12);
 
     // A light scatter of scuffed plates only. Mixing the worn tile in at a high
     // rate doubled the rust-yellow plates already inside the base tile and the
@@ -163,7 +167,8 @@ export class HubScene extends Phaser.Scene {
     for (let y = APRON.y; y < APRON.y + APRON.h; y += 256) {
       for (let x = APRON.x; x < APRON.x + APRON.w; x += 256) {
         if (rng.frac() > 0.16) continue;
-        this.add.image(x + 128, y + 128, V2, GROUND_ART.worn).setDepth(-11).setAlpha(0.85);
+        this.add.image(x + 128, y + 128, V2, GROUND_ART.worn)
+          .setScale(nativeRatio(this, V2, GROUND_ART.worn)).setDepth(-11).setAlpha(0.85);
       }
     }
 
@@ -171,13 +176,13 @@ export class HubScene extends Phaser.Scene {
     const HZ = 26;
     const midX = APRON.x + APRON.w / 2;
     const midY = APRON.y + APRON.h / 2;
-    this.add.tileSprite(midX, APRON.y + HZ / 2, APRON.w, HZ, V2, GROUND_ART.hazard).setDepth(-10);
-    this.add.tileSprite(midX, APRON.y + APRON.h - HZ / 2, APRON.w, HZ, V2, GROUND_ART.hazard).setDepth(-10);
-    this.add.tileSprite(APRON.x + HZ / 2, midY, HZ, APRON.h - HZ * 2, V2, GROUND_ART.hazard).setDepth(-10);
-    this.add.tileSprite(APRON.x + APRON.w - HZ / 2, midY, HZ, APRON.h - HZ * 2, V2, GROUND_ART.hazard).setDepth(-10);
+    tile(midX, APRON.y + HZ / 2, APRON.w, HZ, GROUND_ART.hazard).setDepth(-10);
+    tile(midX, APRON.y + APRON.h - HZ / 2, APRON.w, HZ, GROUND_ART.hazard).setDepth(-10);
+    tile(APRON.x + HZ / 2, midY, HZ, APRON.h - HZ * 2, GROUND_ART.hazard).setDepth(-10);
+    tile(APRON.x + APRON.w - HZ / 2, midY, HZ, APRON.h - HZ * 2, GROUND_ART.hazard).setDepth(-10);
 
     // compacted track running from the habitat out to the pad
-    this.add.tileSprite(1500, 1400, 1760, 116, V2, GROUND_ART.road).setDepth(-9);
+    tile(1500, 1400, 1760, 116, GROUND_ART.road).setDepth(-9);
 
     // painted landing pad: one slab of the painted-concrete art under the pad,
     // plus a clean ring so the circle reads as closed at a distance

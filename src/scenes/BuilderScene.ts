@@ -3,8 +3,12 @@ import { state } from '../core/state';
 import { saveGame } from '../core/save';
 import { t } from '../core/i18n';
 import { partDef, PART_IDS, PRESET_BASIC } from '../data/parts';
-import { missionById } from '../data/missions';
+import { MISSIONS, missionById } from '../data/missions';
 import { computeAssemblyStats, MAX_PARTS } from '../physics/rocket';
+import {
+  PRESETS, presetAllowed, presetParts, presetStats, predictFlight, type RocketPreset,
+} from '../data/presets';
+import { buildRocketArt, fitRocketArt } from '../ui/rocketArt';
 import {
   appendToSide, assemblyCount, assemblyFromIds, columnAt, emptyAssembly, flatten,
   fromSlots, insertAtBottom, insertAtTop, makeNode, removeNode, toSlots,
@@ -12,8 +16,9 @@ import {
 } from '../data/assembly';
 import { makeButton, makeIconButton, makePanel, ensureMusic, TXT, drawBar, type LabelButton } from '../ui/widgets';
 import { InGameMenu } from '../ui/ingameMenu';
-import { addPart, partMetrics, makePartInteractive, BG, V2, UI_V2_ART, hasV2, bellDrop } from '../ui/theme';
+import { addPart, partMetrics, makePartInteractive, BG, V2, UI_V2_ART, hasV2, bellDrop, addStarRow } from '../ui/theme';
 import { PART_W } from '../ui/partArt';
+import { fitInto } from '../ui/overhaul';
 
 type PartGO = Phaser.GameObjects.Image | Phaser.GameObjects.Container;
 
@@ -77,8 +82,16 @@ export class BuilderScene extends Phaser.Scene {
   private inGameMenu!: InGameMenu;
   /** Mirror of the last layout, so the drop logic and the highlight agree. */
   private layoutCache: Layout | null = null;
+  /** Everything the preset picker put on screen; empty while it is closed. */
+  private presetObjs: Phaser.GameObjects.GameObject[] = [];
+  /** The preset the rocket was loaded from, until the player edits it. */
+  private loadedPreset: string | null = null;
 
   constructor() { super('builder'); }
+
+  private get presetsOpen(): boolean {
+    return this.presetObjs.length > 0;
+  }
 
   create(): void {
     ensureMusic(this, state.music);
@@ -101,10 +114,16 @@ export class BuilderScene extends Phaser.Scene {
 
     const mission = missionById(state.missionId);
     const allowed = mission?.allowedParts ?? PART_IDS;
+    this.presetObjs = [];
+    this.loadedPreset = null;
+    this.camZoom = 1;
+    this.camPan = { x: 0, y: 0 };
     this.asm = this.loadDesign(allowed);
     this.relayout();
     this.buildPalette(allowed);
     this.refreshStats();
+    // a tall saved rocket (a preset, say) opens framed rather than cut off
+    this.fitView(true);
 
     // ---- on-screen zoom & delete controls for touchscreens ----
     this.buildTouchToolbar();
@@ -115,19 +134,26 @@ export class BuilderScene extends Phaser.Scene {
     bar.lineStyle(2, 0x1d1b2e).lineBetween(0, height - 64, width, height - 64);
     makeButton(this, 95, height - 32, t('builder.back'), { w: 160, h: 46, variant: 'purple', onClick: () => this.scene.start('hub') });
     makeButton(this, width - 150, height - 32, t('builder.next'), { w: 280, h: 48, fontSize: 20, variant: 'yellow', onClick: () => this.next() });
-    makeButton(this, width - 430, height - 32, t('builder.preset'), { w: 190, h: 44, variant: 'blue', onClick: () => this.applyPreset(mission) });
+    makeButton(this, width - 430, height - 32, t('builder.presets'), { w: 190, h: 44, variant: 'blue', onClick: () => this.openPresets() });
     makeButton(this, width - 600, height - 32, t('builder.clear'), { w: 140, h: 44, variant: 'red', onClick: () => this.clear() });
     if (hasV2(this, UI_V2_ART.cursorHand)) {
-      this.add.image(198, height - 32, V2, UI_V2_ART.cursorHand).setDisplaySize(22, 25);
+      fitInto(this.add.image(198, height - 32, V2, UI_V2_ART.cursorHand), 22, 25);
     }
     this.add.text(hasV2(this, UI_V2_ART.cursorHand) ? 214 : 190, height - 32, t('builder.hint_drag'), {
       ...TXT.small, fontSize: '12px', color: '#9a9ad0', wordWrap: { width: 320 },
     }).setOrigin(0, 0.5);
 
-    this.input.keyboard?.on('keydown-DELETE', () => { if (!this.inGameMenu?.isOpen) this.deleteSelected(); });
-    this.input.keyboard?.on('keydown-BACKSPACE', () => { if (!this.inGameMenu?.isOpen) this.deleteSelected(); });
+    const canEdit = () => !this.inGameMenu?.isOpen && !this.presetsOpen;
+    this.input.keyboard?.on('keydown-DELETE', () => { if (canEdit()) this.deleteSelected(); });
+    this.input.keyboard?.on('keydown-BACKSPACE', () => { if (canEdit()) this.deleteSelected(); });
 
     this.inGameMenu = new InGameMenu(this, {
+      // Esc closes the preset picker before it opens the game menu
+      onEscapeBeforeOpen: () => {
+        if (!this.presetsOpen) return false;
+        this.closePresets();
+        return true;
+      },
       onHub: () => {
         this.saveDesign();
         this.scene.start('hub');
@@ -139,7 +165,7 @@ export class BuilderScene extends Phaser.Scene {
     });
 
     this.input.on('wheel', (_p: unknown, _o: unknown, _dx: number, dy: number) => {
-      if (this.inGameMenu?.isOpen) return;
+      if (!canEdit()) return;
       this.camZoom = Phaser.Math.Clamp(this.camZoom - Math.sign(dy) * 0.1, 0.4, 2.2);
       this.applyCam();
     });
@@ -147,7 +173,7 @@ export class BuilderScene extends Phaser.Scene {
     // Panning: right-drag on desktop, or single-finger drag in the middle
     // canvas area when not dragging a part
     this.input.on('pointerdown', (p: Phaser.Input.Pointer, currentlyOver: Phaser.GameObjects.GameObject[]) => {
-      if (this.dragGhost || this.inGameMenu?.isOpen) return;
+      if (this.dragGhost || !canEdit()) return;
       const inCenter = p.x > PAL_W + 8 && p.x < width - STATS_W - 20 && p.y < height - 68;
       if (p.rightButtonDown() || (inCenter && currentlyOver.length === 0)) {
         this.isPanningBg = true;
@@ -301,8 +327,8 @@ export class BuilderScene extends Phaser.Scene {
     card.add(bg);
 
     // part art, fitted into a 40×56 box on the left
-    const m = partMetrics(this, id);
-    const art = addPart(this, id, 0, 0);
+    const m = partMetrics(this, id, true);
+    const art = addPart(this, id, 0, 0, true);
     const fit = Math.min(38 / m.w, 54 / m.h);
     // Images store their size as a display scale, Containers as a transform —
     // setScale would clobber the former, so branch on the type.
@@ -546,6 +572,7 @@ export class BuilderScene extends Phaser.Scene {
       appendToSide(this.asm, target.hostUid, target.side, node);
     }
 
+    this.loadedPreset = null;
     this.relayout();
     this.refreshStats();
     this.saveDesign();
@@ -591,26 +618,223 @@ export class BuilderScene extends Phaser.Scene {
     if (this.selectedUid === null) return;
     removeNode(this.asm, this.selectedUid);
     this.selectedUid = null;
+    this.loadedPreset = null;
     this.relayout();
     this.refreshStats();
     this.saveDesign();
   }
 
-  private applyPreset(mission: ReturnType<typeof missionById>): void {
-    const parts = mission ? PRESET_BASIC.filter((id) => mission.allowedParts.includes(id)) : PRESET_BASIC;
-    this.asm = assemblyFromIds(parts);
+  private applyPreset(preset: RocketPreset): void {
+    this.asm = fromSlots(preset.slots);
     this.selectedUid = null;
+    this.loadedPreset = preset.id;
     this.relayout();
     this.refreshStats();
     this.saveDesign();
+    this.fitView(false);
+    this.flashInfo(t('presets.loaded', { name: t(`preset.${preset.id}.name`) }));
   }
 
   private clear(): void {
     this.asm = emptyAssembly();
     this.selectedUid = null;
+    this.loadedPreset = null;
     this.relayout();
     this.refreshStats();
     this.saveDesign();
+  }
+
+  /**
+   * Frame the whole rocket between the top edge and the zoom toolbar. A
+   * twelve-part preset is far taller than the screen at 1:1, and a rocket you
+   * cannot see the bottom of looks broken. `onlyIfTall` keeps the 1:1 view
+   * for anything that already fits.
+   */
+  private fitView(onlyIfTall: boolean): void {
+    const L = this.layout();
+    if (L.spine.length === 0) return;
+    const { height } = this.scale;
+    const topY = 64;
+    const bottomY = height - 132;
+    const rocketH = Math.max(1, L.deepest - L.top);
+    const rocketW = Math.max(1, L.maxX - L.minX);
+    const availW = this.scale.width - PAL_W - STATS_W - 80;
+    const fits = rocketH <= bottomY - WORK_Y && rocketW <= availW;
+    if (onlyIfTall && fits) return;
+    const zoom = Phaser.Math.Clamp(Math.min(1, (bottomY - topY) / rocketH, availW / rocketW), 0.4, 1);
+    this.camZoom = zoom;
+    const shownH = rocketH * zoom;
+    const top = topY + Math.max(0, (bottomY - topY - shownH) / 2);
+    this.camPan = { x: 0, y: top - WORK_Y - L.top * zoom };
+    this.applyCam();
+  }
+
+  // ---------------- preset picker ----------------
+
+  private openPresets(): void {
+    if (this.presetsOpen || this.inGameMenu?.isOpen) return;
+    const { width, height } = this.scale;
+    const missionId = missionById(state.missionId)?.id ?? null;
+    const keep = <T extends Phaser.GameObjects.GameObject>(go: T, depth: number): T => {
+      (go as unknown as { setDepth(d: number): unknown }).setDepth(depth);
+      this.presetObjs.push(go);
+      return go;
+    };
+
+    // the dim swallows every click under the picker; a click on it closes
+    const dim = keep(this.add.rectangle(width / 2, height / 2, width, height, 0x08081a, 0.8), 300);
+    dim.setInteractive();
+    dim.on('pointerup', () => this.closePresets());
+
+    const PW = 1060;
+    const PH = 642;
+    const px = (width - PW) / 2;
+    const py = (height - PH) / 2;
+    // drawn rather than the painted frame: its ornate border and header plate
+    // sit right where the six cards and the subtitle need the room
+    const frame = keep(this.add.graphics(), 301);
+    frame.fillStyle(0x000000, 0.35).fillRoundedRect(px + 6, py + 10, PW, PH, 22);
+    frame.fillStyle(0x1b1c40, 0.99).fillRoundedRect(px, py, PW, PH, 22);
+    frame.fillStyle(0x2b2d5c, 1).fillRoundedRect(px + 10, py + 10, PW - 20, 86, 16);
+    frame.lineStyle(5, 0x1d1b2e, 1).strokeRoundedRect(px, py, PW, PH, 22);
+    frame.lineStyle(2, 0xffd23f, 0.6).strokeRoundedRect(px + 6, py + 6, PW - 12, PH - 12, 18);
+    // clicks on the panel itself must not reach the dim
+    keep(this.add.zone(width / 2, height / 2, PW, PH).setInteractive(), 302);
+
+    const title = keep(this.add.text(width / 2, py + 32, t('presets.title'), {
+      ...TXT.title, fontSize: '28px', stroke: '#1d1b2e', strokeThickness: 6,
+    }).setOrigin(0.5), 303);
+    if (hasV2(this, UI_V2_ART.iconRocket)) {
+      keep(fitInto(this.add.image(width / 2 - title.width / 2 - 24, py + 32, V2, UI_V2_ART.iconRocket), 24, 29), 303);
+    }
+    keep(this.add.text(width / 2, py + 54, t('presets.subtitle'), {
+      ...TXT.small, fontSize: '13px', color: '#cfd2ff', align: 'center', wordWrap: { width: PW - 180 },
+    }).setOrigin(0.5, 0), 303);
+
+    const close = makeButton(this, px + PW - 50, py + 40, '✕', {
+      w: 52, h: 44, fontSize: 20, variant: 'red', onClick: () => this.closePresets(),
+    });
+    keep(close, 303);
+    if (close.hitZone) keep(close.hitZone, 306);
+
+    const CW = 328;
+    const CH = 250;
+    const GAP = 14;
+    const gridX = px + (PW - (CW * 3 + GAP * 2)) / 2;
+    const gridY = py + 108;
+    PRESETS.forEach((preset, i) => {
+      const cx = gridX + (i % 3) * (CW + GAP);
+      const cy = gridY + Math.floor(i / 3) * (CH + GAP);
+      this.buildPresetCard(preset, cx, cy, CW, CH, missionId, keep);
+    });
+  }
+
+  private buildPresetCard(
+    preset: RocketPreset, x: number, y: number, w: number, h: number,
+    missionId: string | null,
+    keep: <T extends Phaser.GameObjects.GameObject>(go: T, depth: number) => T,
+  ): void {
+    const allowed = presetAllowed(preset, missionId);
+    const best = !!missionId && preset.bestFor.includes(missionId);
+    const stats = presetStats(preset);
+    const parts = presetParts(preset);
+    const dimmed = allowed ? 1 : 0.38;
+    const fade = <T extends Phaser.GameObjects.GameObject>(go: T): T => {
+      (go as unknown as { setAlpha(a: number): unknown }).setAlpha(dimmed);
+      return keep(go, 304);
+    };
+
+    const bg = keep(this.add.graphics(), 303);
+    const paint = (hover: boolean) => {
+      bg.clear();
+      bg.fillStyle(hover ? 0x3d3f7a : 0x24264f, allowed ? 1 : 0.6);
+      bg.fillRoundedRect(x, y, w, h, 14);
+      bg.fillStyle(preset.color, allowed ? 0.9 : 0.4);
+      bg.fillRoundedRect(x + 8, y + 10, 104, h - 20, 10);
+      bg.fillStyle(0x0d0d22, 0.35);
+      bg.fillRoundedRect(x + 12, y + 14, 96, h - 28, 8);
+      bg.lineStyle(3, best ? 0xffd23f : hover ? 0x8fa8ff : 0x1d1b2e, 1);
+      bg.strokeRoundedRect(x, y, w, h, 14);
+    };
+    paint(false);
+
+    // the rocket itself, scaled into the coloured bay on the left
+    const art = buildRocketArt(this, fromSlots(preset.slots));
+    fitRocketArt(art, x + 60, y + h / 2, 84, h - 44);
+    fade(art.container);
+
+    const tx = x + 124;
+    const textW = w - 136;
+    const name = fade(this.add.text(tx, y + 12, t(`preset.${preset.id}.name`), {
+      ...TXT.h2, fontSize: '19px', wordWrap: { width: textW },
+    }));
+    if (best) {
+      keep(this.add.text(x + w - 10, y - 10, t('presets.best'), {
+        ...TXT.small, fontSize: '12px', color: '#1d1b2e', fontStyle: 'bold',
+        backgroundColor: '#ffd23f', padding: { x: 8, y: 3 },
+      }).setOrigin(1, 0), 305);
+    }
+    fade(this.add.text(tx, name.y + name.height + 4, t(`preset.${preset.id}.desc`), {
+      ...TXT.small, fontSize: '12px', color: '#e6e8ff', wordWrap: { width: textW }, lineSpacing: 1,
+    }));
+    // the numbers and the mission rows sit on the card's bottom edge, so a
+    // long description in either language never pushes them out of the card
+    fade(this.add.text(tx, y + h - 100, t('presets.stats', {
+      mass: Math.round(stats.mass), dv: Math.round(stats.dvTotal), twr: stats.twr.toFixed(1),
+    }), { ...TXT.small, fontSize: '11px', color: '#9fe8ff', wordWrap: { width: textW } }));
+
+    // what the simple flight plan earns on each flight mission
+    let ry = y + h - 70;
+    for (const id of ['m1', 'm2']) {
+      const m = MISSIONS[id];
+      fade(this.add.text(tx, ry, t(m.titleKey), {
+        ...TXT.small, fontSize: '12px', color: '#ffffff',
+      }).setOrigin(0, 0.5));
+      if (presetAllowed(preset, id)) {
+        const p = predictFlight(parts, id);
+        fade(addStarRow(this, x + w - 52, ry, p.success ? p.stars : 0, 16, 3));
+      } else {
+        fade(this.add.text(x + w - 52, ry, t('presets.not_allowed'), {
+          ...TXT.small, fontSize: '11px', color: '#8a8cc0',
+        }).setOrigin(0.5));
+      }
+      ry += 23;
+    }
+
+    if (!allowed) {
+      keep(this.add.text(tx, ry, `🔒 ${t('presets.locked')}`, {
+        ...TXT.small, fontSize: '11px', color: '#ffb3b3', wordWrap: { width: textW },
+      }).setOrigin(0, 0.5), 305);
+      return;
+    }
+    if (predictFlight(parts, null).escapes) {
+      fade(this.add.text(tx, ry, `🌍 ${t('presets.escapes')}`, {
+        ...TXT.small, fontSize: '12px', color: '#ffd23f', fontStyle: 'bold',
+      }).setOrigin(0, 0.5));
+    }
+
+    const zone = keep(this.add.zone(x + w / 2, y + h / 2, w, h).setInteractive(), 305);
+    if (zone.input) zone.input.cursor = 'pointer';
+    zone.on('pointerover', () => paint(true));
+    zone.on('pointerout', () => paint(false));
+    zone.on('pointerup', () => {
+      this.closePresets();
+      this.applyPreset(preset);
+    });
+  }
+
+  private closePresets(): void {
+    const objs = this.presetObjs;
+    this.presetObjs = [];
+    for (const go of objs) go.destroy();
+  }
+
+  private flashInfo(text: string): void {
+    const { width } = this.scale;
+    const msg = this.add.text(width / 2, 44, text, {
+      ...TXT.body, fontStyle: 'bold', color: '#d8ffc8', backgroundColor: '#163a20', padding: { x: 14, y: 8 },
+    }).setOrigin(0.5, 0).setDepth(200);
+    this.tweens.add({ targets: msg, alpha: 0, delay: 2200, duration: 400, onComplete: () => msg.destroy() });
   }
 // ---------------- stats panel ----------------
 
@@ -642,7 +866,7 @@ export class BuilderScene extends Phaser.Scene {
     rows.forEach(([k, v], i) => {
       const isFuel = i === 3 && hasV2(this, UI_V2_ART.iconFuel);
       if (isFuel) {
-        c.add(this.add.image(24, 52 + i * 26, V2, UI_V2_ART.iconFuel).setDisplaySize(16, 19));
+        c.add(fitInto(this.add.image(24, 52 + i * 26, V2, UI_V2_ART.iconFuel), 16, 19));
       }
       c.add(this.add.text(isFuel ? 38 : 16, 52 + i * 26, k, TXT.small).setOrigin(0, 0.5));
       c.add(this.add.text(STATS_W - 16, 52 + i * 26, v, { ...TXT.body, fontSize: '15px' }).setOrigin(1, 0.5));
@@ -670,7 +894,7 @@ export class BuilderScene extends Phaser.Scene {
     this.stagePanel = sc;
     sc.add(makePanel(this, 0, 0, STATS_W, 96 + stats.stages.length * 24));
     if (hasV2(this, UI_V2_ART.iconRocket)) {
-      sc.add(this.add.image(26, 24, V2, UI_V2_ART.iconRocket).setDisplaySize(20, 24));
+      sc.add(fitInto(this.add.image(26, 24, V2, UI_V2_ART.iconRocket), 20, 24));
     }
     sc.add(this.add.text(hasV2(this, UI_V2_ART.iconRocket) ? 42 : 16, 12, t('builder.stages'), TXT.h2).setOrigin(0, 0));
     let sy = 44;
@@ -688,6 +912,15 @@ export class BuilderScene extends Phaser.Scene {
       const txt = this.add.text(0, wy, `⚠ ${t(w.key, w.vars)}`, { ...TXT.warn, wordWrap: { width: STATS_W } }).setOrigin(0, 0);
       wc.add(txt);
       wy += txt.height + 6;
+    }
+    // a freshly loaded preset says how to fly it; any edit makes it the
+    // player's own rocket again and the mission hint comes back
+    if (this.loadedPreset) {
+      const plan = this.add.text(0, wy + 6, `🚀 ${t('presets.plan_title')}: ${t(`preset.${this.loadedPreset}.plan`)}`, {
+        ...TXT.small, fontSize: '13px', color: '#c8ffd0', wordWrap: { width: STATS_W },
+      }).setOrigin(0, 0);
+      wc.add(plan);
+      wy += plan.height + 10;
     }
     const hintKey = mission?.hintKeys?.[0];
     if (hintKey) {

@@ -22,13 +22,30 @@ npm run typecheck  # tsc --noEmit
 |---|---|
 | **Menu** | switch language / sound, choose the astronaut, jump into the game |
 | **Hub** | walk the base on foot, use the mission board, the sample lab and the pad |
-| **Builder** | drag parts onto the stack, watch mass / Δv / TWR / stability update live |
+| **Builder** | drag parts onto the stack, watch mass / Δv / TWR / stability update live, or load a ready-made rocket from **Presets** |
 | **Flight** | you pilot the rocket in a real 2-D physics sim: engine, throttle, tilt, staging, parachute |
-| **Explore** | walk the Moon or Mars, drill samples to finish the task list, beam the data home |
+| **Explore** | walk the Moon or Mars (or drive the rover), drill samples to finish the task list, beam the data home |
 | **Result** | stars, telemetry, a fun fact, and the next step |
 
 Four missions (`m1` reach 10 km, `m2` reach 70 km and cut the engine, `moon` and `mars`
 sample walks) plus a Sandbox that starts from the working preset rocket.
+
+**Rocket presets.** The builder's **Presets** button opens six ready-made rockets
+(`src/data/presets.ts`): Basic rocket, Sky Hopper, Space Arrow, Triple Booster, Crew
+Capsule and Star Chaser. Each card shows the stars the rocket earns on First Launch
+and Reach Space with the simplest flight plan (engine on, straight up, `Q` when a
+stage runs dry, engine off above 70 km). Those stars are not hand-typed:
+`predictFlight` flies the rocket through the real simulator and the mission's own
+check when the picker opens. Presets that use parts a mission forbids are shown
+greyed out. Loading one also prints its flight plan in the builder's side panel.
+
+**The rover.** On both planets a rover waits beside the lander. Walk up and press
+`E` (or `F`) to climb in; it drives at more than twice walking speed, drills samples
+with its arm, and can transmit from beside the lander. `E`/`F` gets out, `H` honks.
+Its eight-way art, tyre tracks, boot prints, HUD badge and sounds live in
+`public/assets/rover/` (specs in [`roverassets.md`](roverassets.md)). Each file is
+optional: drop it from the manifest and that piece falls back to the handoff
+`machines_rover` sprite, drawn decals, or silence.
 
 **Sample tasks.** Each planet (`src/data/planets.ts`) scatters ten samples and sets a
 checklist: required tasks (e.g. *2 × ice*, *1 × mudstone*) unlock the transmit at the
@@ -42,6 +59,7 @@ on-screen pads and touch wording, a desktop gets the keyboard and no pads, and a
 hybrid device switches to whichever was used last without a reload.
 
 - **Hub & Explore**: WASD / arrows or the bottom-left **virtual thumbstick** to walk; `E`, the bottom-right **action button**, or tapping a nearby station/sample/lander directly to interact/drill/transmit.
+- **Rover (Explore)**: `E` or `F` next to the rover to get in; the same keys or thumbstick steer it (it turns toward the direction you hold, then accelerates); `E` drills or transmits when something is in reach and otherwise gets out, `F` always gets out, `H` horn. On touch, the action button does all of it.
 - **Builder**: drag or tap palette cards to attach parts; wheel or on-screen `+` / `−` / reset buttons to zoom; right-drag or 1-finger grid drag to pan; `Delete` or the on-screen **✕ Remove part** button to remove the selected part.
 - **Flight**: `Space` engine on/off, `W`/`S` throttle, `A`/`D` tilt, `Q` drop stage, `C` parachute (all also on the bottom button row); `P` or pause icon to pause, `[` / `]` or warp icon (cycles 1× → 2× → 5× → 10× → 1×) to warp, `R` or reset icon to restart, `Esc` for the menu, back icon to return to the builder. Steering needs a flight computer or crew pod.
 
@@ -51,18 +69,25 @@ hybrid device switches to whichever was used last without a reload.
 src/
   core/       state, save, i18n, devtools, walker (player), crew (patrols),
               device (input-mode detection), minionArt (one size for every
-              minion), audioState + audioSignals (is sound actually audible)
+              minion), audioState + audioSignals (is sound actually audible),
+              rover (the drivable planet rover)
   data/       parts, bodies, mission definitions and their win/lose checks,
-              planets (surface look, samples, sample tasks)
+              planets (surface look, samples, sample tasks, rover handling),
+              presets (ready-made rockets + their predicted flights)
   physics/    the flight sim + rocket stat maths (pure, unit-tested)
   scenes/     boot, menu, hub, builder, flight, explore, result
-  ui/         theme (atlas wiring), widgets, touch (mobile joystick/action), drawn part fallbacks
+  ui/         theme (atlas wiring), widgets, touch (mobile joystick/action), drawn part fallbacks,
+              rocketArt (one rocket drawing for flight + preset cards),
+              flightFx (sky gradient, nozzle glow), surfaceFx (tracks, boot prints, vignette)
   i18n/       en.json, ru.json — every string in the game lives here
 public/assets/
   ui/ui.png|json   packed atlas: parts, buttons, panels, icons, effects, logo
   v2/v2.png|json   packed atlas: base buildings, ground tiles, crew walks/idles, bells, fx, plumes, UI v2
   bg/*.webp        painted backdrops
   planets/         optional Moon/Mars art listed in manifest.json (see reqassets.md)
+  rover/           optional rover art and sounds listed in manifest.json (see roverassets.md)
+  overhaul/        optional art overhaul listed in manifest.json; replaces atlas frames
+                   of the same name at boot (see artoverhaul.md, src/ui/overhaul.ts)
   anims/           walk-cycle JSON for the astronauts and the base crew
   atlases/         handoff art (astronauts, minions, terrain, machines, tools)
 v2_src/            raw wishlist drop the v2 atlas is cut from (never shipped)

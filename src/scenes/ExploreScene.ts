@@ -10,6 +10,7 @@ import {
 import { makeIconButton, makePanel, ensureMusic, TXT } from '../ui/widgets';
 import { InGameMenu } from '../ui/ingameMenu';
 import { V2, FX_ART, UI_V2_ART, hasV2, makeSpeechBubble } from '../ui/theme';
+import { OVERHAUL, hasOverhaul, nativeRatio } from '../ui/overhaul';
 import { TouchControls } from '../ui/touch';
 import { addSampleIcon } from '../ui/sampleArt';
 import { isTouchMode, onInputModeChange } from '../core/device';
@@ -17,13 +18,40 @@ import { MINION_HEIGHT, attachMinionFit } from '../core/minionArt';
 import {
   playAnyMinionVoice, playMinionSfx, playMinionVoice, stopMinionSound,
 } from '../core/minionAudio';
+import { Rover, ROVER_ICON } from '../core/rover';
+import { DecalTrail, decalScale, ensureBootTexture, ensureVignetteTexture } from '../ui/surfaceFx';
 
 const TILE = 64;
 const MAP_W = 40;
 const MAP_H = 30;
 const SPAWN = { x: 400, y: 400 };
+/** Where the rover waits, beside the lander. */
+const ROVER_PARK = { x: SPAWN.x - 170, y: SPAWN.y + 90 };
+/** Reach for drilling and transmitting, px: the rover's arm reaches further. */
+const REACH_WALK = { sample: 64, lander: 96 };
+const REACH_DRIVE = { sample: 96, lander: 140 };
+/** How close the astronaut must stand to climb in. */
+const BOARD_DIST = 110;
+const ZOOM_WALK = 1.4;
+const ZOOM_DRIVE = 1.12;
+/** Stride between boot prints, px. */
+const STRIDE = 24;
+/** Rover badge in the driving HUD box, px, and the left padding it sits in. */
+const ICON_SIZE = 34;
+const ICON_GUTTER = 44;
+
+/** Draw order by where an object touches the ground: lower on screen is nearer. */
+const depthAt = (footY: number) => 1 + footY / 1000;
 /** Longest edge of a sample icon on the ground, px. */
 const SAMPLE_SIZE = 60;
+/** World px per pixel of the overhaul ground tile: its 256 px cover 192 px.
+ *  Under the 1.4x walking zoom that is about one texel per screen pixel, and
+ *  the repeat is wide enough that the tile's darker spots do not line up into
+ *  a visible grid (at 128 px they did). */
+const GROUND_SCALE = 0.75;
+/** Repeats of the ground tile baked into one texture (4 × 256 = 1024, a
+ *  power of two, so the texture wraps and gets mipmaps). */
+const GROUND_REPS = 4;
 
 interface Sample {
   def: SampleDef;
@@ -33,6 +61,7 @@ interface Sample {
   collected: boolean;
   /** Ring colour last drawn, so it is only redrawn when the role changes. */
   wanted?: boolean;
+  shadow?: Phaser.GameObjects.Ellipse;
 }
 
 interface Helper {
@@ -83,8 +112,25 @@ export class ExploreScene extends Phaser.Scene {
   private hudObjects: Phaser.GameObjects.GameObject[] = [];
   private inGameMenu!: InGameMenu;
   private pauseStart = 0;
+  private rover!: Rover;
+  /** True while the astronaut is at the rover's wheel. */
+  private driving = false;
+  /** F was pressed since the last frame: get in or out of the rover. */
+  private toggleQueued = false;
+  private roverText!: Phaser.GameObjects.Text;
+  /** Painted rover badge inside the speedometer box (roverassets.md), if loaded. */
+  private roverIcon?: Phaser.GameObjects.Image;
+  private footprints!: DecalTrail;
+  private bootScale = 1;
+  private lastStep = { x: 0, y: 0 };
+  private footSide = 1;
+  private playerShadow!: Phaser.GameObjects.Ellipse;
 
   constructor() { super('explore'); }
+
+  private get reach(): { sample: number; lander: number } {
+    return this.driving ? REACH_DRIVE : REACH_WALK;
+  }
 
   create(): void {
     ensureMusic(this, state.music);
@@ -98,6 +144,7 @@ export class ExploreScene extends Phaser.Scene {
     }
     this.planet = planetById(this.mission.planet);
     this.ended = false;
+    this.tipShown = false;
     this.drilling = false;
     this.drill = undefined;
     this.factBox = undefined;
@@ -108,24 +155,40 @@ export class ExploreScene extends Phaser.Scene {
     this.dust = [];
     this.hintTimer = 0;
     this.idleT = 0;
+    this.driving = false;
+    this.footSide = 1;
     this.cameras.main.setBackgroundColor(this.planet.sky);
     this.startT = this.time.now;
 
     const rng = new Phaser.Math.RandomDataGenerator([`${Date.now() % 9973}`]);
+    this.physics.world.setBounds(0, 0, MAP_W * TILE, MAP_H * TILE);
     this.buildTerrain(rng);
     this.buildLander();
 
+    // boot prints: on the Moon there is no wind, so they stay for ages
+    const bootKey = ensureBootTexture(this);
+    this.footprints = new DecalTrail(this, bootKey, 140, {
+      tint: this.planet.surface.bootTint, alpha: 0.34, life: this.planet.surface.bootLife, depth: -8,
+    });
+    this.bootScale = decalScale(this, bootKey, 9);
+
     // --- player astronaut ---
     const g = state.astronaut;
+    this.playerShadow = this.add.ellipse(0, 0, 46, 16, 0x000000, 0.26);
     this.player = this.physics.add.sprite(SPAWN.x + 90, SPAWN.y + 40, `astro_${g}_walk`, `astro_${g}_walk_front_0`);
     this.player.setCollideWorldBounds(true);
     this.player.setSize(50, 60);
-    this.physics.world.setBounds(0, 0, MAP_W * TILE, MAP_H * TILE);
     this.physics.add.collider(this.player, this.rockGroup);
+    this.lastStep = { x: this.player.x, y: this.player.y };
+
+    // --- the rover, parked beside the lander ---
+    this.rover = new Rover(this, ROVER_PARK.x, ROVER_PARK.y, this.planet.rover);
+    this.physics.add.collider(this.rover.zone, this.rockGroup, () => this.rover.bump());
+    this.physics.add.collider(this.player, this.rover.zone);
 
     this.cameras.main.startFollow(this.player, true, 0.15, 0.15);
     this.cameras.main.setBounds(0, 0, MAP_W * TILE, MAP_H * TILE);
-    this.cameras.main.setZoom(1.4);
+    this.cameras.main.setZoom(ZOOM_WALK);
 
     this.buildSamples(rng);
     this.buildHelpers();
@@ -142,10 +205,27 @@ export class ExploreScene extends Phaser.Scene {
     this.promptText = this.add.text(width / 2, height - 90, '', {
       ...TXT.h2, fontSize: '20px', backgroundColor: '#1d1d3acc', padding: { x: 12, y: 6 },
     }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(50);
+    // speedometer + controls while driving, under the radar; the painted
+    // rover badge, when there is one, sits in a gutter on the box's left
+    const hasIcon = this.textures.exists(ROVER_ICON);
+    this.roverText = this.add.text(width - MINIMAP_SIZE / 2 - 14, MINIMAP_SIZE + 52, '', {
+      ...TXT.small, fontSize: '13px', color: '#ffffff', align: 'center',
+      backgroundColor: '#1d1d3acc',
+      padding: { left: hasIcon ? ICON_GUTTER : 8, right: 8, top: 4, bottom: 4 },
+    }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(50).setVisible(false);
+    if (hasIcon) {
+      this.roverIcon = this.add.image(0, 0, ROVER_ICON)
+        .setDisplaySize(ICON_SIZE, ICON_SIZE).setScrollFactor(0).setDepth(51).setVisible(false);
+    }
     this.refreshHUD();
 
     this.buildMinimap();
     if (this.planet.dust) this.buildDust();
+    // darkened screen edges: frames the view, and on the Moon reads as the
+    // black sky pressing in at the horizon
+    const vignette = this.add.image(width / 2, height / 2, ensureVignetteTexture(this))
+      .setDisplaySize(width, height).setScrollFactor(0).setDepth(39)
+      .setTint(this.planet.surface.vignette).setAlpha(this.planet.surface.vignetteAlpha);
 
     const menuBtn = makeIconButton(this, width - MINIMAP_SIZE - 44, 36, 'ico_gear', () => this.inGameMenu.toggle(), 44);
     menuBtn.setScrollFactor(0).setDepth(65);
@@ -163,7 +243,8 @@ export class ExploreScene extends Phaser.Scene {
     this.hudCam = this.cameras.add(0, 0, width, height);
     this.hudCam.setName('hud');
     this.hudCam.transparent = true;
-    this.hudObjects = [this.taskText, this.invText, this.promptText, menuBtn, ...this.touch.objects];
+    this.hudObjects = [this.taskText, this.invText, this.promptText, this.roverText, vignette, menuBtn, ...this.touch.objects];
+    if (this.roverIcon) this.hudObjects.push(this.roverIcon);
     if (this.minimapContainer) this.hudObjects.push(this.minimapContainer);
     if (this.dustGfx) this.hudObjects.push(this.dustGfx);
     const hudSet = new Set<Phaser.GameObjects.GameObject>(this.hudObjects);
@@ -173,6 +254,8 @@ export class ExploreScene extends Phaser.Scene {
     this.inGameMenu = new InGameMenu(this, {
       onOpen: () => {
         this.player.setVelocity(0, 0);
+        this.rover.halt();
+        this.rover.pauseMotor(true);
         this.pauseStart = this.time.now;
         if (this.drill) this.drill.timer.paused = true;
         this.drillLoop?.pause();
@@ -182,6 +265,7 @@ export class ExploreScene extends Phaser.Scene {
           this.startT += this.time.now - this.pauseStart;
           this.pauseStart = 0;
         }
+        this.rover.pauseMotor(false);
         if (this.drill) this.drill.timer.paused = false;
         this.drillLoop?.resume();
       },
@@ -192,17 +276,31 @@ export class ExploreScene extends Phaser.Scene {
     // the sound manager is global, so a loop outlives the scene unless it is
     // explicitly stopped — leaving the drill running in the menu is the sort of
     // bug nobody reports, they just hear it
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => stopMinionSound(this.drillLoop));
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      stopMinionSound(this.drillLoop);
+      this.rover.stopMotor();
+    });
 
     // input
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.keyWASD = this.input.keyboard!.addKeys('W,A,S,D') as Record<string, Phaser.Input.Keyboard.Key>;
     this.keyE = this.input.keyboard!.addKey('E');
+    // F and H are events, not polled: a tap shorter than one frame still counts
+    this.toggleQueued = false;
+    this.input.keyboard!.on('keydown-F', () => { this.toggleQueued = true; });
+    this.input.keyboard!.on('keydown-H', () => {
+      if (this.driving && !this.inGameMenu?.isOpen) this.rover.honk();
+    });
 
-    // the first line of the walk says where you are and what the job is
+    // the first line of the walk says where you are and what the job is, the
+    // second points out the ride
     this.time.delayedCall(600, () => {
       const radio = this.helpers.find((h) => h.kind === 'minions_radio_scout') ?? this.helpers[0];
       if (radio && !this.ended) this.bubble(radio, t(`explore.arrive.${this.planet.id}`));
+    });
+    this.time.delayedCall(4800, () => {
+      const mech = this.helpers.find((h) => h.kind === 'minions_mechanic') ?? this.helpers[0];
+      if (mech && !this.ended && !this.driving) this.bubble(mech, t('explore.rover_ready', { act: this.actionLabel() }));
     });
   }
 
@@ -212,9 +310,9 @@ export class ExploreScene extends Phaser.Scene {
    *  atlas frame under the planet's tint. */
   private tile(x: number, y: number, art: TileArt): Phaser.GameObjects.Image {
     if (art.art && this.textures.exists(art.art)) {
-      return this.add.image(x, y, art.art).setDisplaySize(TILE + 1, TILE + 1);
+      return this.add.image(x, y, art.art).setDisplaySize(TILE + 1, TILE + 1).setDepth(-10);
     }
-    const img = this.add.image(x, y, 'terrain_v2', art.frame);
+    const img = this.add.image(x, y, 'terrain_v2', art.frame).setDepth(-10);
     if (art.tint !== undefined) img.setTint(art.tint);
     return img;
   }
@@ -228,14 +326,16 @@ export class ExploreScene extends Phaser.Scene {
     // the painted bedrock) shows as a hard square, and the decor frames are
     // opaque squares too.
     const painted = (t: TileArt) => !!t.art && this.textures.exists(t.art);
-    const groundPainted = painted(p.ground);
+    const overhaulGround = this.buildOverhaulGround(rng);
+    const groundPainted = overhaulGround || painted(p.ground);
     const patchChance = groundPainted ? 0 : p.patchChance;
-    for (let ty = 0; ty < MAP_H; ty++) {
+    for (let ty = 0; ty < MAP_H && !overhaulGround; ty++) {
       for (let tx = 0; tx < MAP_W; tx++) {
         const art = rng.frac() < patchChance ? p.patch : p.ground;
         this.tile(tx * TILE + TILE / 2, ty * TILE + TILE / 2, art);
       }
     }
+    this.buildSurfaceDetail(rng, overhaulGround);
     // scatter rocks (obstacles) & decor
     this.rockGroup = this.physics.add.staticGroup();
     for (let i = 0; i < 45; i++) {
@@ -248,7 +348,7 @@ export class ExploreScene extends Phaser.Scene {
         continue;
       }
       const rock = this.rockGroup.create(x, y, 'terrain', rng.pick(p.rocks)) as Phaser.Physics.Arcade.Sprite;
-      rock.setScale(0.8).refreshBody();
+      rock.setScale(0.8).refreshBody().setDepth(depthAt(y + rock.displayHeight * 0.4));
       if (p.rockTint !== undefined) rock.setTint(p.rockTint);
     }
     for (let i = 0; i < (groundPainted ? 0 : 80); i++) {
@@ -259,24 +359,207 @@ export class ExploreScene extends Phaser.Scene {
     }
   }
 
-  /** A drawn cartoon boulder with a solid foot. The terrain atlas rocks are
-   *  opaque squares, which read as holes on the painted ground. */
+  /**
+   * The overhaul ground (`ground_<planet>`), when delivered: the tile baked
+   * 4×4 into one power-of-two texture and laid in a grid of plain images.
+   * A TileSprite would allocate a canvas the size of the whole map; a
+   * wrapping texture repeats exactly, so neighbouring images meet with no seam.
+   * Mars also gets a few soft patches of its bedrock tile. Returns false when
+   * there is no overhaul ground for this planet.
+   */
+  private buildOverhaulGround(rng: Phaser.Math.RandomDataGenerator): boolean {
+    const id = this.planet.id;
+    const fill = this.repeatTexture(`ground_${id}`, GROUND_REPS, false);
+    if (!fill) return false;
+    const W = MAP_W * TILE;
+    const H = MAP_H * TILE;
+    const step = this.textures.get(fill).getSourceImage().width * GROUND_SCALE;
+    for (let y = 0; y < H; y += step) {
+      for (let x = 0; x < W; x += step) {
+        this.add.image(x, y, fill).setOrigin(0, 0).setScale(GROUND_SCALE).setDepth(-10);
+      }
+    }
+    const patch = this.repeatTexture(`ground_${id}_rock`, GROUND_REPS, true);
+    if (patch) {
+      for (let i = 0; i < 9; i++) {
+        const x = rng.between(0, W);
+        const y = rng.between(0, H);
+        this.add.image(x, y, patch).setDepth(-9.5).setFlipX(rng.frac() < 0.5)
+          .setScale(GROUND_SCALE * rng.realInRange(0.6, 1.1));
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Bake `reps × reps` copies of an overhaul ground tile into one canvas
+   * texture (cached across visits). `soft` cuts it to an irregular blob that
+   * fades out at the edge, for patches laid over another ground.
+   */
+  private repeatTexture(frame: string, reps: number, soft: boolean): string | null {
+    if (!hasOverhaul(this, frame)) return null;
+    const key = `ov_fill_${frame}${soft ? '_soft' : ''}`;
+    if (this.textures.exists(key)) return key;
+    const f = this.textures.getFrame(OVERHAUL, frame);
+    const src = f.source.image as CanvasImageSource;
+    const tw = f.cutWidth;
+    const th = f.cutHeight;
+    const tex = this.textures.createCanvas(key, tw * reps, th * reps);
+    if (!tex) return null;
+    const ctx = tex.context;
+    for (let j = 0; j < reps; j++) {
+      for (let i = 0; i < reps; i++) ctx.drawImage(src, f.cutX, f.cutY, tw, th, i * tw, j * th, tw, th);
+    }
+    if (soft) {
+      // a union of soft round blobs, not one ellipse, so the patch has an
+      // uneven outline like a real outcrop
+      const S = tw * reps;
+      const mask = document.createElement('canvas');
+      mask.width = S;
+      mask.height = S;
+      const m = mask.getContext('2d');
+      const rng = new Phaser.Math.RandomDataGenerator([frame]);
+      for (let k = 0; k < 7 && m; k++) {
+        const cx = S * rng.realInRange(0.3, 0.7);
+        const cy = S * rng.realInRange(0.3, 0.7);
+        const r = S * rng.realInRange(0.16, 0.28);
+        const g = m.createRadialGradient(cx, cy, 0, cx, cy, r);
+        g.addColorStop(0, 'rgba(0,0,0,1)');
+        g.addColorStop(0.55, 'rgba(0,0,0,0.85)');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        m.fillStyle = g;
+        m.fillRect(0, 0, S, S);
+      }
+      ctx.globalCompositeOperation = 'destination-in';
+      ctx.drawImage(mask, 0, 0);
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    tex.refresh();
+    return key;
+  }
+
+  /** A boulder with a solid foot: the overhaul rock art when delivered, a drawn
+   *  cartoon one otherwise. The terrain atlas rocks are opaque squares, which
+   *  read as holes on the painted ground. */
   private addBoulder(x: number, y: number, rng: Phaser.Math.RandomDataGenerator): void {
+    const frame = `rock_${this.planet.id}_${rng.between(1, 4)}`;
+    if (hasOverhaul(this, frame)) {
+      const img = this.add.image(0, 0, OVERHAUL, frame).setOrigin(0.5, 1);
+      img.setScale(rng.between(42, 70) / img.frame.width);
+      const w = img.displayWidth;
+      const h = img.displayHeight;
+      // the art's base sits on the bottom edge of its canvas: that is the foot
+      const footY = y + h * 0.35;
+      img.setPosition(x, footY).setDepth(depthAt(footY));
+      this.add.ellipse(x + 5, footY - h * 0.08, w * 0.82, h * 0.26, 0x000000, 0.22).setDepth(-7);
+      const foot = this.add.zone(x, footY - h * 0.22, w * 0.7, h * 0.4);
+      this.physics.add.existing(foot, true);
+      this.rockGroup.add(foot);
+      return;
+    }
     const mars = this.planet.id === 'mars';
     const body = mars ? 0x8a4128 : 0x7d7f86;
     const light = mars ? 0xb8613f : 0xa9abb2;
     const dark = mars ? 0x5e2a1a : 0x55575e;
     const w = rng.between(38, 64);
     const h = Math.round(w * rng.realInRange(0.6, 0.8));
-    const g = this.add.graphics().setPosition(x, y);
-    g.fillStyle(0x000000, 0.22).fillEllipse(4, h * 0.42, w * 1.05, h * 0.42);
+    const g = this.add.graphics().setPosition(x, y).setDepth(depthAt(y + h * 0.4));
+    g.fillStyle(0x000000, 0.22).fillEllipse(6, h * 0.42, w * 1.15, h * 0.46);
     g.fillStyle(body, 1).fillEllipse(0, 0, w, h);
+    g.fillStyle(dark, 0.55).fillEllipse(w * 0.08, h * 0.2, w * 0.86, h * 0.5);
+    g.fillStyle(body, 1).fillEllipse(-w * 0.04, -h * 0.06, w * 0.84, h * 0.7);
     g.fillStyle(light, 1).fillEllipse(-w * 0.14, -h * 0.18, w * 0.5, h * 0.36);
+    g.fillStyle(0xffffff, 0.35).fillEllipse(-w * 0.2, -h * 0.25, w * 0.16, h * 0.1);
     g.fillStyle(dark, 1).fillEllipse(w * 0.2, h * 0.16, w * 0.22, h * 0.18);
     g.lineStyle(3, 0x1d1b2e, 1).strokeEllipse(0, 0, w, h);
     const foot = this.add.zone(x, y + h * 0.1, w * 0.8, h * 0.6);
     this.physics.add.existing(foot, true);
     this.rockGroup.add(foot);
+  }
+
+  /**
+   * Ground detail over the painted tiles. One 64 px tile repeated 1200 times
+   * reads as wallpaper; big soft light and dark patches break the repeat, and
+   * each planet gets its own landforms: craters with lit rims on the Moon,
+   * wind ripples and a few old craters on Mars. One static Graphics, drawn once.
+   */
+  private buildSurfaceDetail(rng: Phaser.Math.RandomDataGenerator, paintedRipples = false): void {
+    const s = this.planet.surface;
+    const W = MAP_W * TILE;
+    const H = MAP_H * TILE;
+    const g = this.add.graphics().setDepth(-9);
+    const clearOfBase = (x: number, y: number, r: number) =>
+      Math.hypot(x - SPAWN.x, y - SPAWN.y) > 260 + r && Math.hypot(x - ROVER_PARK.x, y - ROVER_PARK.y) > 120 + r;
+
+    for (let i = 0; i < 34; i++) {
+      const x = rng.between(0, W);
+      const y = rng.between(0, H);
+      const w = rng.between(240, 620);
+      const squash = rng.realInRange(0.5, 0.8);
+      const dark = rng.frac() < 0.55;
+      const alpha = dark ? rng.realInRange(0.06, 0.12) : rng.realInRange(0.04, 0.08);
+      // stacked shrinking layers fake a soft radial edge, so a patch reads
+      // as a change in the soil rather than a cut-out disc
+      for (let k = 0; k < 4; k++) {
+        const f = 1 - k * 0.22;
+        g.fillStyle(dark ? s.blotchDark : s.blotchLight, alpha / 2.5);
+        g.fillEllipse(x, y, w * f, w * squash * f);
+      }
+    }
+
+    // the overhaul ground has its wind ripples painted in; drawn ones on top
+    // read as scratches
+    for (let i = 0; i < (paintedRipples ? 0 : s.ripples); i++) {
+      const x = rng.between(60, W - 60);
+      const y = rng.between(60, H - 60);
+      if (!clearOfBase(x, y, 40)) continue;
+      const len = rng.between(60, 150);
+      g.lineStyle(3, s.rippleColor, rng.realInRange(0.12, 0.22));
+      for (let k = 0; k < 3; k++) {
+        const yy = y + k * 11;
+        g.beginPath();
+        g.moveTo(x - len / 2, yy);
+        for (let t = 1; t <= 12; t++) {
+          const px = x - len / 2 + (len * t) / 12;
+          g.lineTo(px, yy - Math.sin((t / 12) * Math.PI) * 6);
+        }
+        g.strokePath();
+      }
+    }
+
+    const craterArt = (big: boolean) => {
+      const frame = `crater_${this.planet.id}_${big ? 'l' : 's'}`;
+      return hasOverhaul(this, frame) ? frame : null;
+    };
+    for (let i = 0; i < s.craters; i++) {
+      const r = rng.between(26, 96);
+      const x = rng.between(r + 40, W - r - 40);
+      const y = rng.between(r + 40, H - r - 40);
+      if (!clearOfBase(x, y, r)) continue;
+      const art = craterArt(r > 52);
+      if (art) {
+        // the canvas carries the rim and its soft fade, a little wider than
+        // the drawn rim (r × 2.3) it replaces
+        const img = this.add.image(x, y, OVERHAUL, art).setDepth(-9);
+        img.setScale((r * 2.6) / img.frame.width);
+        continue;
+      }
+      const ry = r * 0.62;   // seen at a slant, the bowl is an ellipse
+      // ejecta: a ring of pale specks thrown out of the impact
+      g.fillStyle(s.craterRim, 0.16);
+      for (let k = 0; k < 10; k++) {
+        const a = rng.realInRange(0, Math.PI * 2);
+        const d = r * rng.realInRange(1.15, 1.6);
+        g.fillEllipse(x + Math.cos(a) * d, y + Math.sin(a) * d * 0.62, rng.between(6, 14), rng.between(4, 9));
+      }
+      g.fillStyle(s.craterRim, 0.22).fillEllipse(x, y, r * 2.3, ry * 2.3);   // raised rim
+      g.fillStyle(s.craterBowl, 0.34).fillEllipse(x, y, r * 2, ry * 2);      // the bowl
+      // light from the top-left: the near (upper) wall is in shadow, the far
+      // wall catches the sun
+      g.fillStyle(s.craterBowl, 0.3).fillEllipse(x - r * 0.12, y - ry * 0.2, r * 1.6, ry * 1.4);
+      g.fillStyle(s.craterRim, 0.18).fillEllipse(x + r * 0.3, y + ry * 0.42, r * 1.0, ry * 0.6);
+      g.lineStyle(2, s.craterBowl, 0.35).strokeEllipse(x, y, r * 2, ry * 2);
+    }
   }
 
   private buildLander(): void {
@@ -286,19 +569,23 @@ export class ExploreScene extends Phaser.Scene {
       const s = 200 / Math.max(this.lander.width, this.lander.height);
       this.lander.setScale(s);
     } else {
-      this.lander = this.add.image(SPAWN.x, SPAWN.y, 'machines', 'machines_rocket_launchpad').setScale(0.8);
+      this.lander = this.add.image(SPAWN.x, SPAWN.y, 'machines', 'machines_rocket_launchpad')
+        .setScale(0.8 * nativeRatio(this, 'machines', 'machines_rocket_launchpad'));
     }
-    // Mars has company: a parked rover beside the lander, a nod to the real
-    // rovers that do this job there today
-    if (p.id === 'mars') {
-      this.add.image(SPAWN.x - 170, SPAWN.y + 70, 'machines', 'machines_rover').setScale(0.5).setTint(0xf0c8b0);
-    }
+    const footY = this.lander.y + this.lander.displayHeight * 0.4;
+    this.lander.setDepth(depthAt(footY));
+    // a soft shadow under the legs, and a solid footprint so neither the
+    // astronaut nor the rover passes through the lander
+    this.add.ellipse(this.lander.x + 6, footY - 6, this.lander.displayWidth * 0.8, 34, 0x000000, 0.24).setDepth(-7);
+    const base = this.add.zone(this.lander.x, footY - 34, 80, 24);
+    this.physics.add.existing(base, true);
+    this.rockGroup.add(base);
     // Tap the lander directly on smartphones to transmit once the tasks are done
     this.lander.setInteractive();
     if (this.lander.input) this.lander.input.cursor = 'pointer';
     this.lander.on('pointerup', () => {
       if (this.inGameMenu?.isOpen || this.drilling || this.ended) return;
-      const near = Math.hypot(this.player.x - this.lander.x, this.player.y - this.lander.y) < 110;
+      const near = Math.hypot(this.player.x - this.lander.x, this.player.y - this.lander.y) < this.reach.lander + 14;
       if (near && requiredTasksDone(this.planet, this.inventory)) this.transmit();
     });
   }
@@ -323,15 +610,16 @@ export class ExploreScene extends Phaser.Scene {
         placed.push({ x, y });
         // ring is drawn at its own origin and positioned — so scaling it pulses
         // around the sample instead of drifting (see PLAN §2.9)
-        const ring = this.add.graphics().setPosition(x, y);
-        const go = addSampleIcon(this, x, y, def, SAMPLE_SIZE);
-        const sample: Sample = { def, go, ring, x, y, collected: false };
+        const ring = this.add.graphics().setPosition(x, y).setDepth(-6);
+        const shadow = this.add.ellipse(x + 3, y + SAMPLE_SIZE * 0.32, SAMPLE_SIZE * 0.8, 14, 0x000000, 0.24).setDepth(-7);
+        const go = addSampleIcon(this, x, y, def, SAMPLE_SIZE).setDepth(depthAt(y + SAMPLE_SIZE * 0.3));
+        const sample: Sample = { def, go, ring, x, y, collected: false, shadow };
         // Tap a sample directly on touch screens when within reach
         go.setInteractive();
         if (go.input) go.input.cursor = 'pointer';
         go.on('pointerup', () => {
           if (this.inGameMenu?.isOpen || this.drilling || this.ended || sample.collected) return;
-          if (Math.hypot(sample.x - this.player.x, sample.y - this.player.y) < 84) this.startDrill(sample);
+          if (Math.hypot(sample.x - this.player.x, sample.y - this.player.y) < this.reach.sample + 20) this.startDrill(sample);
         });
         this.samples.push(sample);
       }
@@ -424,6 +712,13 @@ export class ExploreScene extends Phaser.Scene {
     g.fillStyle(0x7ac74f, 1);
     g.fillRect(l.rx - 4, l.ry - 4, 8, 8);
 
+    // the parked rover (orange); while driving, the player dot is the rover
+    if (!this.driving) {
+      const r = toRadar(this.rover.x, this.rover.y);
+      g.fillStyle(0xff9a3d, 1);
+      g.fillRoundedRect(r.rx - 5, r.ry - 3.5, 10, 7, 2);
+    }
+
     // uncollected samples: gold if a task needs it, cyan otherwise
     for (const s of this.samples) {
       if (s.collected) continue;
@@ -492,43 +787,84 @@ export class ExploreScene extends Phaser.Scene {
 
   // -------------------------------------------------------------- update ---
 
+  /** The stick: arrows / WASD, or the thumbstick when no key is held. -1..1. */
+  private stick(): { x: number; y: number } {
+    let x = (this.cursors.left.isDown || this.keyWASD.A.isDown ? -1 : 0) + (this.cursors.right.isDown || this.keyWASD.D.isDown ? 1 : 0);
+    let y = (this.cursors.up.isDown || this.keyWASD.W.isDown ? -1 : 0) + (this.cursors.down.isDown || this.keyWASD.S.isDown ? 1 : 0);
+    if (x === 0 && y === 0 && (this.touch.dx !== 0 || this.touch.dy !== 0)) {
+      x = this.touch.dx;
+      y = this.touch.dy;
+    }
+    return { x, y };
+  }
+
   override update(_t: number, delta: number): void {
     this.updateDust(delta);
-    if (this.ended) return;
-    if (this.inGameMenu?.isOpen) {
-      this.player.setVelocity(0, 0);
+    const dt = Math.min(delta / 1000, 0.1);
+    this.rover.update(this.inGameMenu?.isOpen ? 0 : dt);
+    this.footprints.update(dt);
+    if (this.ended) {
+      this.rover.halt();
       return;
     }
-    const speed = this.planet.walkSpeed;
-    let vx = (this.cursors.left.isDown || this.keyWASD.A.isDown ? -speed : 0) + (this.cursors.right.isDown || this.keyWASD.D.isDown ? speed : 0);
-    let vy = (this.cursors.up.isDown || this.keyWASD.W.isDown ? -speed : 0) + (this.cursors.down.isDown || this.keyWASD.S.isDown ? speed : 0);
-    if (vx === 0 && vy === 0 && (this.touch.dx !== 0 || this.touch.dy !== 0)) {
-      vx = this.touch.dx * speed;
-      vy = this.touch.dy * speed;
+    if (this.inGameMenu?.isOpen) {
+      this.player.setVelocity(0, 0);
+      this.rover.halt();
+      return;
     }
-    if (this.drilling) { vx = 0; vy = 0; }
-    this.player.setVelocity(vx, vy);
-
+    const input = this.stick();
     const g = state.astronaut;
-    const moving = vx !== 0 || vy !== 0;
-    if (moving) {
-      this.idleT = 0;
-      const dir = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? 'side_right' : 'side_left') : (vy > 0 ? 'front' : 'back');
-      this.player.play(`astro_${g}_walk_${dir}`, true);
-    } else {
-      this.idleT += delta;
-      const cur = this.player.anims.currentAnim?.key ?? `astro_${g}_walk_front`;
-      const dir = cur.replace(`astro_${g}_walk_`, '').replace(`astro_${g}_idle_`, '');
-      this.player.play(`astro_${g}_idle_${dir}`, true);
-    }
 
-    // helpers follow with lag
+    if (this.driving) {
+      if (this.drilling) this.rover.halt();
+      else this.rover.drive(input.x, input.y, dt);
+      // the astronaut rides along: the rest of the scene keeps reading the
+      // player's position, so it simply sits on the rover
+      this.player.setPosition(this.rover.x, this.rover.y);
+      this.idleT = this.rover.speed > 5 ? 0 : this.idleT + delta;
+      const speedLine = t('explore.rover_speed', { v: this.rover.kmh });
+      this.roverText.setText(`${this.roverIcon ? '' : '🚙 '}${speedLine}\n${t(isTouchMode() ? 'explore.rover_keys_touch' : 'explore.rover_keys')}`);
+      // the box is centred and its width follows the text, so the badge
+      // follows the box's left edge
+      this.roverIcon?.setPosition(
+        this.roverText.x - this.roverText.width / 2 + ICON_GUTTER / 2,
+        this.roverText.y + this.roverText.height / 2,
+      );
+    } else {
+      const speed = this.planet.walkSpeed;
+      let vx = input.x * speed;
+      let vy = input.y * speed;
+      if (this.drilling) { vx = 0; vy = 0; }
+      this.player.setVelocity(vx, vy);
+
+      const moving = vx !== 0 || vy !== 0;
+      if (moving) {
+        this.idleT = 0;
+        const dir = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? 'side_right' : 'side_left') : (vy > 0 ? 'front' : 'back');
+        this.player.play(`astro_${g}_walk_${dir}`, true);
+        this.stepPrints();
+      } else {
+        this.idleT += delta;
+        const cur = this.player.anims.currentAnim?.key ?? `astro_${g}_walk_front`;
+        const dir = cur.replace(`astro_${g}_walk_`, '').replace(`astro_${g}_idle_`, '');
+        this.player.play(`astro_${g}_idle_${dir}`, true);
+      }
+    }
+    const footY = this.player.y + 30;
+    this.player.setDepth(depthAt(footY));
+    this.playerShadow.setPosition(this.player.x + 3, footY - 2).setDepth(depthAt(footY) - 0.0005);
+
+    // helpers follow with lag; they jog to keep up with the rover
+    const lerp = this.driving ? 0.07 : 0.05;
     for (const h of this.helpers) {
       const tx = this.player.x + h.offset.x;
       const ty = this.player.y + h.offset.y;
-      h.go.x = Phaser.Math.Linear(h.go.x, tx, 0.05);
-      h.go.y = Phaser.Math.Linear(h.go.y, ty, 0.05);
+      h.go.x = Phaser.Math.Linear(h.go.x, tx, lerp);
+      h.go.y = Phaser.Math.Linear(h.go.y, ty, lerp);
       h.go.setFlipX(this.player.x < h.go.x);
+      h.go.setDepth(depthAt(h.go.y + h.go.displayHeight * 0.45));
+      // the speech bubble rides along, or it would be left behind by the rover
+      if (h.bubble?.active) h.bubble.setPosition(h.go.x, h.go.y - 68);
     }
 
     this.updateScout();
@@ -553,6 +889,76 @@ export class ExploreScene extends Phaser.Scene {
     // an empty prompt would still draw its background box
     this.promptText.setVisible(this.promptText.text !== '');
   }
+
+  /** Leave a boot print every stride, alternating feet either side of the
+   *  line of travel. */
+  private stepPrints(): void {
+    const dx = this.player.x - this.lastStep.x;
+    const dy = this.player.y - this.lastStep.y;
+    const d = Math.hypot(dx, dy);
+    if (d < STRIDE) return;
+    const a = Math.atan2(dy, dx);
+    this.footSide = -this.footSide;
+    const off = 9 * this.footSide;
+    this.footprints.stamp(
+      this.player.x - Math.sin(a) * off,
+      this.player.y + 26 + Math.cos(a) * off * 0.6,
+      a,
+      this.bootScale,
+    );
+    this.lastStep = { x: this.player.x, y: this.player.y };
+  }
+
+  /** Climb into the parked rover: the astronaut disappears into the seat and
+   *  the camera pulls back for the faster view. */
+  private boardRover(): void {
+    if (this.driving || this.drilling || this.ended) return;
+    this.driving = true;
+    this.player.setVelocity(0, 0);
+    const body = this.player.body as Phaser.Physics.Arcade.Body;
+    body.enable = false;
+    this.player.setVisible(false);
+    this.playerShadow.setVisible(false);
+    this.rover.setOccupied(true);
+    this.roverText.setVisible(true);
+    this.roverIcon?.setVisible(true);
+    this.cameras.main.zoomTo(ZOOM_DRIVE, 600, 'Sine.easeInOut');
+    if (!this.tipShown) {
+      this.tipShown = true;
+      const mech = this.helpers.find((h) => h.kind === 'minions_mechanic') ?? this.helpers[0];
+      if (mech) this.bubble(mech, t(`explore.rover_fact.${this.planet.id}`));
+    }
+  }
+
+  /** Step out beside the rover, on whichever side has room. */
+  private leaveRover(): void {
+    if (!this.driving || this.drilling) return;
+    this.rover.halt();
+    this.rover.setOccupied(false);
+    this.driving = false;
+    const a = this.rover.heading + Math.PI / 2;
+    const spots = [a, a + Math.PI, this.rover.heading + Math.PI, this.rover.heading].map((ang) => ({
+      x: this.rover.x + Math.cos(ang) * 92,
+      y: this.rover.y + Math.sin(ang) * 70,
+    }));
+    const W = MAP_W * TILE;
+    const H = MAP_H * TILE;
+    const free = spots.find((p) => p.x > 40 && p.x < W - 40 && p.y > 40 && p.y < H - 40
+      && this.physics.overlapRect(p.x - 25, p.y - 30, 50, 60, true, true)
+        .every((b) => b === this.rover.body || b === this.player.body)) ?? spots[0];
+    this.player.setPosition(free.x, free.y);
+    const body = this.player.body as Phaser.Physics.Arcade.Body;
+    body.reset(free.x, free.y);
+    body.enable = true;
+    this.player.setVisible(true);
+    this.playerShadow.setVisible(true);
+    this.lastStep = { x: free.x, y: free.y };
+    this.roverText.setVisible(false);
+    this.roverIcon?.setVisible(false);
+    this.cameras.main.zoomTo(ZOOM_WALK, 600, 'Sine.easeInOut');
+  }
+
+  private tipShown = false;
 
   /** The radio scout points at the nearest sample a task still needs — or,
    *  once the tasks are done, back at the lander. */
@@ -611,7 +1017,12 @@ export class ExploreScene extends Phaser.Scene {
   }
 
   private bubble(h: Helper, text: string): void {
-    h.bubble?.destroy();
+    // one speaker at a time: the helpers stand close together, so two bubbles
+    // would stack on top of each other
+    for (const o of this.helpers) {
+      o.bubble?.destroy();
+      o.bubble = undefined;
+    }
     const { container: c } = makeSpeechBubble(this, 240, 88, text, {
       fontSize: 12,
       portrait: h.kind,
@@ -624,10 +1035,15 @@ export class ExploreScene extends Phaser.Scene {
 
   private updateInteract(): void {
     const px = this.player.x, py = this.player.y;
+    const reach = this.reach;
     const s = this.nearestSample(px, py);
-    const nearSample = s && Math.hypot(s.x - px, s.y - py) < 64;
-    const nearLander = Math.hypot(px - this.lander.x, py - this.lander.y) < 96;
+    const nearSample = s && Math.hypot(s.x - px, s.y - py) < reach.sample;
+    const nearLander = Math.hypot(px - this.lander.x, py - this.lander.y) < reach.lander;
+    const nearRover = !this.driving && Math.hypot(px - this.rover.x, py - this.rover.y) < BOARD_DIST;
     const pressed = Phaser.Input.Keyboard.JustDown(this.keyE) || this.touch.consumeAction();
+    // F is the keyboard's dedicated in/out of the rover, wherever you are
+    const toggle = this.toggleQueued;
+    this.toggleQueued = false;
     // On a phone the "E" in the prompt is meaningless — name the button the
     // player actually presses instead.
     const act = this.actionLabel();
@@ -637,8 +1053,13 @@ export class ExploreScene extends Phaser.Scene {
       this.touch.setActionState(false, '…');
       return;
     }
+    if (toggle && (this.driving || nearRover)) {
+      if (this.driving) this.leaveRover(); else this.boardRover();
+      return;
+    }
     if (nearSample && s) {
-      this.promptText.setText(t('explore.prompt_drill', { act, sample: t(`sample.${s.def.id}`) }));
+      const key = this.driving ? 'explore.prompt_drill_rover' : 'explore.prompt_drill';
+      this.promptText.setText(t(key, { act, sample: t(`sample.${s.def.id}`) }));
       this.touch.setActionState(true, this.touchLabel());
       if (pressed) this.startDrill(s);
     } else if (nearLander) {
@@ -649,8 +1070,18 @@ export class ExploreScene extends Phaser.Scene {
       } else {
         const left = this.planet.tasks.filter((task) => task.required && !taskDone(task, this.inventory)).length;
         this.promptText.setText(t('explore.need_tasks', { n: left }));
-        this.touch.setActionState(false, this.touchLabel());
+        // in the rover the button still gets you out
+        this.touch.setActionState(this.driving, this.touchLabel());
+        if (pressed && this.driving) this.leaveRover();
       }
+    } else if (nearRover) {
+      this.promptText.setText(t('explore.prompt_board', { act }));
+      this.touch.setActionState(true, this.touchLabel());
+      if (pressed) this.boardRover();
+    } else if (this.driving) {
+      this.promptText.setText('');
+      this.touch.setActionState(true, t('explore.rover_out_short'));
+      if (pressed) this.leaveRover();
     } else {
       this.promptText.setText('');
       this.touch.setActionState(false, this.touchLabel());
@@ -672,12 +1103,14 @@ export class ExploreScene extends Phaser.Scene {
   private startDrill(s: Sample): void {
     this.drilling = true;
     this.player.setVelocity(0, 0);
+    this.rover.halt();
     // the driller wakes up: a line, the drill spinning up, then the loop
     playMinionVoice(this, 'driller_v02');
     playMinionSfx(this, 'driller_fx01');
     this.drillLoop = playMinionSfx(this, 'driller_fx02', { loop: true });
     const bar = this.add.graphics().setDepth(70);
-    const icon = this.add.image(s.x, s.y - 60, 'tools_v2', 'tools_v2_power_drill').setScale(0.8).setDepth(70);
+    const icon = this.add.image(s.x, s.y - 60, 'tools_v2', 'tools_v2_power_drill')
+      .setScale(0.8 * nativeRatio(this, 'tools_v2', 'tools_v2_power_drill')).setDepth(70);
     this.hudCam.ignore([bar, icon]);   // world-anchored
     const w = 80;
     const ms = s.def.drillMs;
@@ -707,6 +1140,7 @@ export class ExploreScene extends Phaser.Scene {
     s.collected = true;
     s.go.setVisible(false);
     s.ring.setVisible(false);
+    s.shadow?.setVisible(false);
     this.sparkleBurst(s.x, s.y);
     this.inventory.push(s.def.id);
     const after = this.planet.tasks.filter((task) => taskDone(task, this.inventory)).length;
@@ -776,6 +1210,8 @@ export class ExploreScene extends Phaser.Scene {
     if (this.ended) return;
     this.ended = true;
     this.player.setVelocity(0, 0);
+    this.rover.halt();
+    this.rover.stopMotor();
     this.promptText.setText(t('explore.transmitting'));
     const time = (this.time.now - this.startT) / 1000;
     const underTime = time < this.planet.timeLimit;

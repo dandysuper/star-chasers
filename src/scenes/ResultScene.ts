@@ -69,7 +69,7 @@ export class ResultScene extends Phaser.Scene {
     y += 50;
 
     // ---- star plaque ----
-    const sf = starFrame(r.success ? data.stars : 0);
+    const sf = starFrame(r.success ? data.stars : 0, this);
     if (hasFrame(this, sf.frame)) {
       const plaque = this.add.image(0, y + 44, UI, sf.frame).setDisplaySize(248, 86);
       if (sf.dim) plaque.setTint(0x70708c);

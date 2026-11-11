@@ -161,6 +161,9 @@ export interface FlatDesign {
    * part *of its own column* rather than of the whole stack.
    */
   columns: number[];
+  /** Node uid per entry, so a renderer can map a flat index (and so a stage)
+   *  back to the part it drew. */
+  uids: number[];
 }
 
 /**
@@ -173,19 +176,22 @@ export interface FlatDesign {
 export function flatten(asm: Assembly): FlatDesign {
   const ids: string[] = [];
   const columns: number[] = [];
+  const uids: number[] = [];
   for (const node of asm.spine) {
     ids.push(node.id);
     columns.push(0);
+    uids.push(node.uid);
     for (const col of asm.sides) {
       if (col.hostUid !== node.uid) continue;
       const columnId = 1 + asm.sides.indexOf(col);
       for (const child of col.nodes) {
         ids.push(child.id);
         columns.push(columnId);
+        uids.push(child.uid);
       }
     }
   }
-  return { ids, columns };
+  return { ids, columns, uids };
 }
 
 /** Flat spine ids only — used where a plain stack is genuinely wanted. */

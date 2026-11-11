@@ -192,12 +192,20 @@ export function computeStats(partIds: string[], columns?: number[]): RocketStats
         warnings.push({ key: 'warn.engine_attach', partIndex: i });
         blocking = true;
       }
-      // must be the lowest part of its column: the whole stage group for a
-      // plain stack, just its own booster column when the design has them
+      // must be the lowest part of its column *within its own stage*: the
+      // whole stage group for a plain stack, just its own booster column when
+      // the design has them. Stage groups are contiguous in the flat list, so
+      // the scan stops at the stage boundary — otherwise the upper stage's
+      // engine of every two-stage rocket counted as "buried" under the lower
+      // stage and the builder refused to launch it.
       if (columns) {
         const column = columns[i];
+        const group = partIndexToGroup.get(i);
         let lowest = i;
-        for (let j = i; j < partIds.length; j += 1) if (columns[j] === column) lowest = j;
+        for (let j = i + 1; j < partIds.length; j += 1) {
+          if (partIndexToGroup.get(j) !== group) break;
+          if (columns[j] === column) lowest = j;
+        }
         if (i !== lowest) {
           warnings.push({ key: 'warn.engine_bottom', partIndex: i });
           blocking = true;
