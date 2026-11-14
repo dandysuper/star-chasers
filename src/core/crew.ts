@@ -11,7 +11,7 @@
  */
 import Phaser from 'phaser';
 import { V2 } from '../ui/theme';
-import { MINION_HEIGHT, attachMinionFit, fitMinion } from './minionArt';
+import { MINION_HEIGHT, MINION_BODY_FOOT_OFFSET, addMinionCollider, attachMinionFit, fitMinion } from './minionArt';
 import { mumble } from './minionVoice';
 
 export type CrewWho = 'mechanic' | 'driller' | 'radio' | 'chemist';
@@ -38,6 +38,8 @@ const IDLE_CHANCE = 0.55;
 
 export class CrewMember {
   readonly sprite: Phaser.GameObjects.Sprite;
+  readonly zone: Phaser.GameObjects.Zone;
+  private readonly body: Phaser.Physics.Arcade.Body;
   private readonly scene: Phaser.Scene;
   private readonly who: CrewWho;
   private readonly path: { x: number; y: number }[];
@@ -68,6 +70,7 @@ export class CrewMember {
     const start = this.path[0];
     this.sprite = scene.add.sprite(start.x, start.y, V2, `minion_${spec.who}_front_0`)
       .setDepth(start.y);
+    ({ zone: this.zone, body: this.body } = addMinionCollider(scene, start.x, start.y));
     // Height, not scale: the cut frames have no shared anchor, so a fixed scale
     // makes the crew change size as the animation walks through its frames.
     attachMinionFit(this.sprite, spec.height ?? MINION_HEIGHT);
@@ -77,12 +80,16 @@ export class CrewMember {
 
   /** Advance one frame. `delta` is Phaser's frame delta in ms. */
   update(delta: number): void {
+    // Arcade owns the position; the artwork follows its fixed-size foot body.
+    this.sprite.setPosition(this.zone.x, this.zone.y + MINION_BODY_FOOT_OFFSET);
+    this.sprite.setDepth(this.sprite.y);
     this.chatterLeft -= delta;
     if (this.chatterLeft <= 0) {
       // Retry briefly if audio is locked or another crew member just spoke.
       this.chatterLeft = this.speak() ? Phaser.Math.Between(7000, 12000) : 1000;
     }
     if (this.idleLeft > 0) {
+      this.body.setVelocity(0, 0);
       this.idleLeft -= delta;
       if (this.idleLeft <= 0) {
         this.idleLeft = 0;
@@ -92,12 +99,13 @@ export class CrewMember {
       return;
     }
 
-    if (this.path.length < 2) { this.play(); return; }
+    if (this.path.length < 2) { this.body.setVelocity(0, 0); this.play(); return; }
     const target = this.path[this.next];
     const dx = target.x - this.sprite.x;
     const dy = target.y - this.sprite.y;
     const dist = Math.hypot(dx, dy);
     if (dist < ARRIVE_EPS) {
+      this.body.setVelocity(0, 0);
       // stop here for a moment, then carry on: the waypoint is only consumed
       // once the breather ends, so nobody drifts off the path mid-idle
       if (this.tryIdle()) return;
@@ -105,10 +113,8 @@ export class CrewMember {
       this.play();
       return;
     }
-    const step = Math.min(dist, (this.speed * delta) / 1000);
-    this.sprite.x += (dx / dist) * step;
-    this.sprite.y += (dy / dist) * step;
-    this.sprite.setDepth(this.sprite.y);
+    const speed = Math.min(this.speed, dist / Math.max(delta / 1000, 0.001));
+    this.body.setVelocity((dx / dist) * speed, (dy / dist) * speed);
     this.face(dx, dy);
     this.play();
   }
@@ -159,6 +165,7 @@ export class CrewMember {
 
   destroy(): void {
     this.scene.tweens.killTweensOf(this.sprite);
+    this.zone.destroy();
     this.sprite.destroy();
   }
 }

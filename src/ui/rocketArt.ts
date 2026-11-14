@@ -7,6 +7,8 @@ import Phaser from 'phaser';
 import type { Assembly, Node, Side } from '../data/assembly';
 import { partDef } from '../data/parts';
 import { addPart, bellDrop, partMetrics } from './theme';
+import { PART_W } from './partArt';
+import { partBounds } from './partShape';
 
 export type PartGO = Phaser.GameObjects.Image | Phaser.GameObjects.Container;
 
@@ -55,10 +57,11 @@ export function buildRocketArt(scene: Phaser.Scene, asm: Assembly, x = 0, y = 0)
     container.add(go);
     const bell = partDef(node.id).kind === 'engine' ? bellDrop(scene, node.id, w) : 0;
     parts.push({ node, go, x: px, y: py, w, h, bell, column });
-    top = Math.min(top, py - h / 2);
-    bottom = Math.max(bottom, py + h / 2 + bell);
-    minX = Math.min(minX, px - w / 2);
-    maxX = Math.max(maxX, px + w / 2);
+    const bounds = partBounds(go);
+    top = Math.min(top, py + bounds.top);
+    bottom = Math.max(bottom, py + bounds.bottom);
+    minX = Math.min(minX, px + bounds.left);
+    maxX = Math.max(maxX, px + bounds.right);
   };
 
   const hosts = new Map<number, { x: number; y: number; w: number; h: number }>();
@@ -72,11 +75,13 @@ export function buildRocketArt(scene: Phaser.Scene, asm: Assembly, x = 0, y = 0)
 
   for (const col of asm.sides) {
     const host = hosts.get(col.hostUid);
-    if (!host) continue;
+    if (!host || !col.nodes.length) continue;
     const colMetrics = col.nodes.map((n) => partMetrics(scene, n.id));
-    const colW = colMetrics.reduce((mx, m) => Math.max(mx, m.w), host.w);
-    const sx = (col.side === 'left' ? -1 : 1) * (host.w / 2 + colW / 2 - SIDE_OVERLAP);
-    let sy = host.y - host.h / 2;
+    const colW = colMetrics.reduce((mx, m, i) => partDef(col.nodes[i].id).kind === 'fins' ? mx : Math.max(mx,m.w), PART_W);
+    const finsOnly = col.nodes.every(n=>partDef(n.id).kind === 'fins');
+    const sx = finsOnly ? host.x : (col.side === 'left' ? -1 : 1) * (Math.min(host.w,PART_W) / 2 + colW / 2 - SIDE_OVERLAP);
+    let sy = finsOnly ? host.y + host.h/2 : host.y - host.h / 2;
+    if (partDef(col.nodes[0].id).kind === 'nose') sy -= colMetrics[0].h;
     col.nodes.forEach((node, i) => {
       const m = colMetrics[i];
       place(node, sx, sy + m.h / 2, m.w, m.h, col.side);

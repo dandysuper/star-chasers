@@ -13,6 +13,44 @@ function run(sim: FlightSim, steps: number, control: ReturnType<typeof defaultCo
 }
 
 describe('flight sim (spec §4)', () => {
+  it('retains angular momentum when the steering target reverses', () => {
+    const sim = new FlightSim(PRESET_BASIC);
+    sim.y = EARTH.R+80000; sim.launched=true; sim.phase='flying';
+    const c = {...defaultControl(),targetAngle:0.5};
+    run(sim,60,c);
+    expect(sim.angularVelocity).toBeGreaterThan(0);
+    const angle=sim.angle;
+    run(sim,1,{...c,targetAngle:-0.5});
+    expect(sim.angle).toBeGreaterThan(angle);
+    run(sim,240,{...c,targetAngle:-0.5});
+    expect(sim.angularVelocity).toBeLessThan(0);
+  });
+
+  it('turning does not erase sideways velocity in vacuum', () => {
+    const sim = new FlightSim(PRESET_BASIC);
+    sim.y=EARTH.R+80000; sim.vx=200; sim.launched=true; sim.phase='flying';
+    run(sim,60,{...defaultControl(),targetAngle:-0.5});
+    expect(sim.vx).toBeGreaterThan(199);
+  });
+
+  it('half throttle halves propellant flow and produces less acceleration', () => {
+    const full = new FlightSim(PRESET_BASIC), half = new FlightSim(PRESET_BASIC);
+    const c = {...defaultControl(),engineOn:true,throttle:1};
+    run(full,120,c); run(half,120,{...c,throttle:0.5});
+    expect(half.fuelBurnedTotal).toBeCloseTo(full.fuelBurnedTotal/2,6);
+    expect(half.telemetry().vspeed).toBeLessThan(full.telemetry().vspeed);
+    expect(half.telemetry().altitude).toBeLessThan(full.telemetry().altitude);
+  });
+
+  it('zero throttle burns no fuel and the last tick cannot burn more than remains', () => {
+    const sim = new FlightSim(PRESET_BASIC);
+    const c = {...defaultControl(),engineOn:true,throttle:0};
+    run(sim,60,c); expect(sim.fuelBurnedTotal).toBe(0);
+    sim.stage!.fuel = 0.001;
+    run(sim,1,{...c,throttle:1});
+    expect(sim.fuelBurnedTotal).toBeCloseTo(0.001,10);
+    expect(sim.stage!.fuel).toBe(0);
+  });
   it('stationary rocket stays on the pad', () => {
     const sim = new FlightSim(PRESET_BASIC);
     const c = defaultControl();

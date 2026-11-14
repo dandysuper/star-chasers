@@ -13,6 +13,7 @@ import { InGameMenu } from '../ui/ingameMenu';
 import { V2, BASE_ART, GROUND_ART, UI_V2_ART, hasV2, addStarRow } from '../ui/theme';
 import { nativeRatio } from '../ui/overhaul';
 import { CrewMember, type CrewWho } from '../core/crew';
+import { addPixelFootprint } from '../core/pixelFootprint';
 import { playMinionSfx, stopMinionSound } from '../core/minionAudio';
 import { resetVoiceGate } from '../core/minionVoice';
 
@@ -35,6 +36,8 @@ const FUEL_EARSHOT = 280;
 const GREET_RADIUS = 150;
 /** Beyond this a minion forgets it greeted you, so it can greet you again. */
 const GREET_FORGET = 320;
+/** A hidden character remains readable while the building stays recognizable. */
+const OCCLUDED_BUILDING_ALPHA = 0.62;
 /** Standing-still greeting: how long before the wave, and the pose frame. */
 const WAVE_AFTER_MS = 4500;
 const WAVE_FRAME = 'astro_wave';
@@ -47,11 +50,19 @@ interface Station {
   promptKey: string;
 }
 
+interface HubBuilding {
+  image: Phaser.GameObjects.Image;
+  label?: Phaser.GameObjects.Text;
+  bounds: Phaser.Geom.Rectangle;
+  footY: number;
+}
+
 export class HubScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
   private walker!: Walker;
   private solids!: Phaser.Physics.Arcade.StaticGroup;
   private stations: Station[] = [];
+  private buildings: HubBuilding[] = [];
   private crew: CrewMember[] = [];
   private promptText!: Phaser.GameObjects.Text;
   private objectiveText!: Phaser.GameObjects.Text;
@@ -81,6 +92,7 @@ export class HubScene extends Phaser.Scene {
     this.fizzLoop = undefined;
     resetVoiceGate();
     this.stations = [];
+    this.buildings = [];
     this.hudObjects = [];
     // the scene object is reused between visits: drop last visit's references
     this.overlay = undefined;
@@ -254,21 +266,21 @@ export class HubScene extends Phaser.Scene {
   private place(key: string, frame: string, x: number, y: number, height: number, signKey?: string): Phaser.GameObjects.Image {
     const src = this.textures.getFrame(key, frame);
     const scale = height / (src?.height || height);
-    const img = this.add.image(x, y, key, frame).setScale(scale).setDepth(y);
-    // A small foot blocker, not the full sprite bounds: the full bounds shoved
-    // the player sideways when they spawned near a machine and stopped them
-    // walking up to anything.
-    const blocker = this.add.rectangle(x, y + img.displayHeight * 0.38, img.displayWidth * 0.6, 48, 0x000000, 0);
-    this.physics.add.existing(blocker, true);
-    this.solids.add(blocker);
+    const img = this.add.image(x, y, key, frame).setScale(scale);
+    const footY = y + img.displayHeight / 2;
+    img.setDepth(footY);
+    // Only painted pixels at the base are solid; transparent PNG gaps are open.
+    addPixelFootprint(this, img, this.solids);
+    let label: Phaser.GameObjects.Text | undefined;
     if (signKey) {
       // the sign sits at the machine's feet: with the camera zoomed 1.5, a label
       // above a 400 px pad would sit outside the view most of the time
-      this.add.text(x, y + img.displayHeight / 2 + 10, t(signKey), {
+      label = this.add.text(x, footY + 10, t(signKey), {
         ...TXT.small, fontSize: '14px', color: '#ffe8a3', fontStyle: 'bold',
         stroke: '#1d1b2e', strokeThickness: 5,
-      }).setOrigin(0.5, 0).setDepth(y - 1);
+      }).setOrigin(0.5, 0).setDepth(footY + 0.1);
     }
+    this.buildings.push({ image: img, label, bounds: img.getBounds(), footY });
     return img;
   }
 
@@ -334,7 +346,8 @@ export class HubScene extends Phaser.Scene {
     const at = want ? this.stations.find((s) => s.id === want) : undefined;
     const spawn = at ? { x: at.x, y: at.y + 40 } : SPAWN;
     this.player = this.physics.add.sprite(spawn.x, spawn.y, `astro_${g}_walk`, `astro_${g}_walk_front_0`);
-    this.player.setSize(46, 54).setDepth(spawn.y + 10);
+    this.fitPlayerFootBody();
+    this.player.setDepth(this.player.y + this.player.displayHeight * (1 - this.player.originY));
     this.player.setCollideWorldBounds(true);
     this.physics.world.setBounds(0, 0, WORLD_W, WORLD_H);
     this.physics.add.collider(this.player, this.solids);
@@ -379,6 +392,12 @@ export class HubScene extends Phaser.Scene {
       },
     ];
     this.crew = patrols.map((p) => new CrewMember(this, p));
+    for (let i = 0; i < this.crew.length; i++) {
+      const mob = this.crew[i];
+      this.physics.add.collider(mob.zone, this.player);
+      this.physics.add.collider(mob.zone, this.solids);
+      for (let j = 0; j < i; j++) this.physics.add.collider(mob.zone, this.crew[j].zone);
+    }
   }
 
   // ------------------------------------------------------------------ hud ---
@@ -426,11 +445,14 @@ export class HubScene extends Phaser.Scene {
     if (this.leaving) return;
     // the crew keeps walking while the mission picker is open
     for (const c of this.crew) c.update(delta);
+    this.updateBuildingOcclusion(delta);
     if (this.overlay || this.inGameMenu?.isOpen) { this.player.setVelocity(0, 0); return; }
 
     const move = this.walker.update();
     this.updateWave(move.moving, delta);
-    this.player.setDepth(this.player.y + 10);
+    this.fitPlayerFootBody();
+    // Depth follows the visible boots, not the sprite centre or physics body.
+    this.player.setDepth(this.player.y + this.player.displayHeight * (1 - this.player.originY));
 
     // the keyboard prompt is noise on a phone: there is no E to press there
     const key = isTouchMode() ? '' : '  ·  E';
@@ -452,6 +474,30 @@ export class HubScene extends Phaser.Scene {
     this.drawGuide();
     this.updateFuelFarmAudio(delta);
     this.updateCrewGreetings();
+  }
+
+  private fitPlayerFootBody(): void {
+    // World-sized footprint at the boots, including the differently scaled wave pose.
+    const width = 34 / Math.abs(this.player.scaleX);
+    const height = 22 / Math.abs(this.player.scaleY);
+    const body = this.player.body as Phaser.Physics.Arcade.Body;
+    body.setSize(width, height, false);
+    body.setOffset((this.player.width - width) / 2, this.player.height - height);
+  }
+
+  private updateBuildingOcclusion(delta: number): void {
+    const actors = [this.player, ...this.crew.map((member) => member.sprite)].map((sprite) => ({
+      footY: sprite.y + sprite.displayHeight * (1 - sprite.originY),
+      bounds: sprite.getBounds(),
+    }));
+    for (const building of this.buildings) {
+      const hidden = actors.some((actor) => actor.footY < building.footY
+        && Phaser.Geom.Intersects.RectangleToRectangle(actor.bounds, building.bounds));
+      const target = hidden ? OCCLUDED_BUILDING_ALPHA : 1;
+      const alpha = Phaser.Math.Linear(building.image.alpha, target, Math.min(1, delta / 120));
+      building.image.setAlpha(Math.abs(alpha - target) < 0.01 ? target : alpha);
+      building.label?.setAlpha(building.image.alpha);
+    }
   }
 
   /**

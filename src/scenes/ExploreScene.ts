@@ -14,7 +14,7 @@ import { OVERHAUL, hasOverhaul, nativeRatio } from '../ui/overhaul';
 import { TouchControls } from '../ui/touch';
 import { addSampleIcon } from '../ui/sampleArt';
 import { isTouchMode, onInputModeChange } from '../core/device';
-import { MINION_HEIGHT, attachMinionFit } from '../core/minionArt';
+import { MINION_HEIGHT, MINION_BODY_FOOT_OFFSET, addMinionCollider, attachMinionFit } from '../core/minionArt';
 import {
   playAnyMinionVoice, playMinionSfx, playMinionVoice, stopMinionSound,
 } from '../core/minionAudio';
@@ -68,6 +68,8 @@ interface Sample {
 
 interface Helper {
   go: Phaser.GameObjects.Image;
+  zone: Phaser.GameObjects.Zone;
+  body: Phaser.Physics.Arcade.Body;
   bubble?: Phaser.GameObjects.Container;
   offset: { x: number; y: number };
   kind: string;
@@ -689,14 +691,22 @@ export class ExploreScene extends Phaser.Scene {
   private buildHelpers(): void {
     const helperFrames = ['minions_mechanic', 'minions_miner_driller', 'minions_radio_scout', 'minions_chemist'];
     for (let i = 0; i < 4; i++) {
-      const go = this.add.image(SPAWN.x + 140 + i * 30, SPAWN.y + 80 + i * 25, 'minions', helperFrames[i]);
+      const offset = { x: -70 - (i % 2) * 84, y: 36 + Math.floor(i / 2) * 58 };
+      const go = this.add.image(this.player.x + offset.x, this.player.y + offset.y, 'minions', helperFrames[i]);
       // same rendered height as the hub crew, so the helpers do not change
       // size between the base and the planet
       attachMinionFit(go, MINION_HEIGHT);
+      const { zone, body } = addMinionCollider(this, go.x, go.y);
+      this.physics.add.collider(zone, this.player);
+      this.physics.add.collider(zone, this.rockGroup);
+      this.physics.add.collider(zone, this.rover.zone);
+      for (const other of this.helpers) this.physics.add.collider(zone, other.zone);
       // a 2×2 escort behind the astronaut
       this.helpers.push({
         go,
-        offset: { x: -70 - (i % 2) * 84, y: 36 + Math.floor(i / 2) * 58 },
+        zone,
+        body,
+        offset,
         kind: helperFrames[i],
       });
     }
@@ -863,11 +873,13 @@ export class ExploreScene extends Phaser.Scene {
     this.footprints.update(dt);
     if (this.ended) {
       this.rover.halt();
+      for (const h of this.helpers) h.body.setVelocity(0, 0);
       return;
     }
     if (this.inGameMenu?.isOpen) {
       this.player.setVelocity(0, 0);
       this.rover.halt();
+      for (const h of this.helpers) h.body.setVelocity(0, 0);
       // keys pressed in the menu must not act once it closes
       this.actionQueued = false;
       this.toggleQueued = false;
@@ -911,7 +923,7 @@ export class ExploreScene extends Phaser.Scene {
         this.player.play(`astro_${g}_idle_${dir}`, true);
       }
     }
-    const footY = this.player.y + 30;
+    const footY = this.player.y + this.player.displayHeight * (1 - this.player.originY);
     this.player.setDepth(depthAt(footY));
     this.playerShadow.setPosition(this.player.x + 3, footY - 2).setDepth(depthAt(footY) - 0.0005);
 
@@ -919,18 +931,18 @@ export class ExploreScene extends Phaser.Scene {
     // they were and watch the rover; afterwards they jog back, never faster
     // than CREW_JOG, so they run over instead of sliding across the map
     for (const h of this.helpers) {
+      h.go.setPosition(h.zone.x, h.zone.y + MINION_BODY_FOOT_OFFSET);
       if (!this.driving) {
         const dx = this.player.x + h.offset.x - h.go.x;
         const dy = this.player.y + h.offset.y - h.go.y;
         const d = Math.hypot(dx, dy);
-        const step = Math.min(d * 0.05, CREW_JOG * dt);
-        if (d > 0.01) {
-          h.go.x += (dx / d) * step;
-          h.go.y += (dy / d) * step;
-        }
-      }
+        const speed = Math.min(d * 3, CREW_JOG);
+        if (d > 2) h.body.setVelocity((dx / d) * speed, (dy / d) * speed);
+        else h.body.setVelocity(0, 0);
+      } else h.body.setVelocity(0, 0);
       h.go.setFlipX(this.player.x < h.go.x);
-      h.go.setDepth(depthAt(h.go.y + h.go.displayHeight * 0.45));
+      // Minion art is anchored at its feet, so y is already its sorting point.
+      h.go.setDepth(depthAt(h.go.y));
       // the speech bubble rides along, or it would be left behind by the rover
       if (h.bubble?.active) h.bubble.setPosition(h.go.x, h.go.y - 68);
     }

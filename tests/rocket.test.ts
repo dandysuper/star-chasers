@@ -4,6 +4,18 @@ import { PRESET_BASIC } from '../src/data/parts';
 import { G0 } from '../src/data/bodies';
 
 describe('rocket stats (spec §3)', () => {
+  it('allows a fairing on a side column and fins below its engine', () => {
+    const parts = ['nose_cone', 'probe_core', 'tank_m', 'nose_cone', 'tank_s', 'engine_spark', 'fins', 'engine_spark'];
+    const stats = computeStats(parts, [0,0,0,1,1,1,1,0]);
+    expect(stats.blocking).toBe(false);
+    expect(stats.warnings.some(w => w.key === 'warn.nose_top' || w.key === 'warn.engine_bottom')).toBe(false);
+  });
+
+  it('still rejects a fairing buried below a side tank', () => {
+    const parts = ['nose_cone', 'probe_core', 'tank_m', 'tank_s', 'nose_cone', 'engine_spark'];
+    expect(computeStats(parts, [0,0,0,1,1,0]).warnings.some(w => w.key === 'warn.nose_top')).toBe(true);
+  });
+
   it('default rocket ≈ 1750 kg, TWR ≈ 3.1, Δv ≈ 2.7 km/s', () => {
     const s = computeStats(PRESET_BASIC);
     expect(Math.round(s.mass)).toBe(1750);

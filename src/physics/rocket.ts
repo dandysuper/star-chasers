@@ -204,7 +204,7 @@ export function computeStats(partIds: string[], columns?: number[]): RocketStats
         let lowest = i;
         for (let j = i + 1; j < partIds.length; j += 1) {
           if (partIndexToGroup.get(j) !== group) break;
-          if (columns[j] === column) lowest = j;
+          if (columns[j] === column && !isSeam(j)) lowest = j;
         }
         if (i !== lowest) {
           warnings.push({ key: 'warn.engine_bottom', partIndex: i });
@@ -220,7 +220,7 @@ export function computeStats(partIds: string[], columns?: number[]): RocketStats
     }
     if (d.kind === 'nose') {
       hasNose = true;
-      if (i !== 0) {
+      if (columns ? partIds.some((_,j)=>j<i && columns[j]===columns[i]) : i !== 0) {
         warnings.push({ key: 'warn.nose_top', partIndex: i });
         blocking = true;
       }

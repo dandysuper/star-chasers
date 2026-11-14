@@ -16,8 +16,10 @@ import {
 } from '../data/assembly';
 import { makeButton, makeIconButton, makePanel, ensureMusic, TXT, drawBar, type LabelButton } from '../ui/widgets';
 import { InGameMenu } from '../ui/ingameMenu';
-import { addPart, partMetrics, makePartInteractive, BG, V2, UI_V2_ART, hasV2, bellDrop, addStarRow } from '../ui/theme';
+import { addPart, partMetrics, BG, V2, UI_V2_ART, hasV2, bellDrop, addStarRow } from '../ui/theme';
 import { PART_W } from '../ui/partArt';
+import { partBounds, drawPartOutline, enablePartSelection } from '../ui/partShape';
+import { throttleSlider } from '../ui/throttleSlider';
 import { fitInto } from '../ui/overhaul';
 
 type PartGO = Phaser.GameObjects.Image | Phaser.GameObjects.Container;
@@ -26,7 +28,7 @@ type PartGO = Phaser.GameObjects.Image | Phaser.GameObjects.Container;
 type Target =
   | { kind: 'top' }
   | { kind: 'bottom' }
-  | { kind: 'side'; hostUid: number; side: Side };
+  | { kind: 'side'; hostUid: number; side: Side; end?: 'top' | 'bottom' };
 
 interface Rect { x: number; y: number; w: number; h: number }
 
@@ -49,12 +51,6 @@ const WORK_X = 620;         // workspace anchor on screen
 const WORK_Y = 90;
 const STATS_W = 306;
 
-/** Horizontal band around the centre line that means "extend the core stack". */
-const CENTRE_TOL = 72;
-/** How close a drop must be to an end before it counts as that end. */
-const SNAP_DIST = 110;
-/** Gap between an end of the stack and its snap marker. */
-const SNAP_OFFSET = 26;
 /** How far a booster column overlaps its host, so it reads as bolted on. */
 const SIDE_OVERLAP = 8;
 
@@ -86,6 +82,9 @@ export class BuilderScene extends Phaser.Scene {
   private presetObjs: Phaser.GameObjects.GameObject[] = [];
   /** The preset the rocket was loaded from, until the player edits it. */
   private loadedPreset: string | null = null;
+  private undoStack: Assembly[] = [];
+  private redoStack: Assembly[] = [];
+  private throttle = 1;
 
   constructor() { super('builder'); }
 
@@ -131,6 +130,8 @@ export class BuilderScene extends Phaser.Scene {
     this.camZoom = 1;
     this.camPan = { x: 0, y: 0 };
     this.asm = this.loadDesign(allowed);
+    this.undoStack = []; this.redoStack = [];
+    this.throttle = Phaser.Math.Clamp(state.designs[state.designKey()]?.throttle ?? state.design.throttle ?? 1, 0, 1);
     this.relayout();
     this.buildPalette(allowed);
     this.refreshStats();
@@ -149,13 +150,20 @@ export class BuilderScene extends Phaser.Scene {
     makeButton(this, width - 430, height - 32, t('builder.presets'), { w: 190, h: 44, variant: 'blue', onClick: () => this.openPresets() });
     makeButton(this, width - 600, height - 32, t('builder.clear'), { w: 140, h: 44, variant: 'red', onClick: () => this.clear() });
     if (hasV2(this, UI_V2_ART.cursorHand)) {
-      fitInto(this.add.image(198, height - 32, V2, UI_V2_ART.cursorHand), 22, 25);
+      fitInto(this.add.image(PAL_W + 8, height - 139, V2, UI_V2_ART.cursorHand), 22, 25);
     }
-    this.add.text(hasV2(this, UI_V2_ART.cursorHand) ? 214 : 190, height - 32, t('builder.hint_drag'), {
-      ...TXT.small, fontSize: '12px', color: '#9a9ad0', wordWrap: { width: 320 },
+    this.add.text(PAL_W + 20, height - 139, t('builder.hint_drag'), {
+      ...TXT.small, fontSize: '12px', color: '#9a9ad0', wordWrap: { width: 590 },
     }).setOrigin(0, 0.5);
 
     const canEdit = () => !this.inGameMenu?.isOpen && !this.presetsOpen;
+    this.input.keyboard?.on('keydown', (e: KeyboardEvent) => {
+      if (!canEdit() || !(e.ctrlKey || e.metaKey)) return;
+      if (e.code === 'KeyZ' || e.code === 'KeyY') {
+        e.preventDefault();
+        this.restoreHistory(e.code === 'KeyY' || e.shiftKey);
+      }
+    });
     this.input.keyboard?.on('keydown-DELETE', () => { if (canEdit()) this.deleteSelected(); });
     this.input.keyboard?.on('keydown-BACKSPACE', () => { if (canEdit()) this.deleteSelected(); });
 
@@ -250,8 +258,8 @@ export class BuilderScene extends Phaser.Scene {
   private saveDesign(): void {
     const flat = flatten(this.asm);
     const slots = toSlots(this.asm);
-    state.design = { parts: flat.ids, slots };
-    state.designs[state.designKey()] = { parts: flat.ids, slots };
+    state.design = { parts: flat.ids, slots, throttle: this.throttle };
+    state.designs[state.designKey()] = { parts: flat.ids, slots, throttle: this.throttle };
     saveGame();
   }
 // ---------------- camera ----------------
@@ -275,6 +283,8 @@ export class BuilderScene extends Phaser.Scene {
     const { height } = this.scale;
     const x0 = PAL_W + 34;
     const y0 = height - 98;
+    makeButton(this,x0,30,'↶',{w:44,h:38,onClick:()=>this.restoreHistory(false)});
+    makeButton(this,x0+52,30,'↷',{w:44,h:38,onClick:()=>this.restoreHistory(true)});
     makeButton(this, x0, y0, '+', {
       w: 44, h: 40, fontSize: 22, variant: 'blue',
       onClick: () => {
@@ -329,7 +339,7 @@ export class BuilderScene extends Phaser.Scene {
       const col = i % COLS;
       const row = Math.floor(i / COLS);
       const cx = startX + col * CELL_W;
-      const cy = 78 + row * CELL_H;
+      const cy = 102 + row * CELL_H;
       this.buildPaletteCard(id, cx, cy);
     });
   }
@@ -343,24 +353,19 @@ export class BuilderScene extends Phaser.Scene {
     bg.strokeRoundedRect(-CELL_W / 2 + 2, -CELL_H / 2 + 2, CELL_W - 4, CELL_H - 4, 10);
     card.add(bg);
 
-    // part art, fitted into a 40×56 box on the left
-    const m = partMetrics(this, id, true);
     const art = addPart(this, id, 0, 0, true);
-    const fit = Math.min(38 / m.w, 54 / m.h);
-    // Images store their size as a display scale, Containers as a transform —
-    // setScale would clobber the former, so branch on the type.
-    if (art instanceof Phaser.GameObjects.Image) {
-      art.setDisplaySize(m.w * fit, m.h * fit);
-    } else {
-      art.setScale(fit);
-    }
-    art.setPosition(-CELL_W / 2 + 30, 0);
+    const bounds = partBounds(art);
+    const fit = Math.min(38 / bounds.width, 40 / bounds.height);
+    art.setScale(art.scaleX * fit, art.scaleY * fit);
+    art.setPosition(-CELL_W / 2 + 29 - bounds.centerX * fit, 15 - bounds.centerY * fit);
     card.add(art);
-
-    card.add(this.add.text(-CELL_W / 2 + 56, -26, t(`part.${id}.name`), {
-      ...TXT.small, fontSize: '12px', color: '#fff', fontStyle: 'bold', wordWrap: { width: 62 },
-    }).setOrigin(0, 0));
-    card.add(this.add.text(-CELL_W / 2 + 56, 4, `${d.massDry} kg`, {
+    const name = this.add.text(0, -33, t(`part.${id}.name`), {
+      ...TXT.small, fontSize: '12px', color: '#fff', fontStyle: 'bold',
+      align: 'center', wordWrap: { width: CELL_W - 14, useAdvancedWrap: true },
+    }).setOrigin(0.5,0);
+    for (let size = 12; size > 8 && (name.height > 29 || name.width > CELL_W - 14); size--) name.setFontSize(size - 1);
+    card.add(name);
+    card.add(this.add.text(-CELL_W / 2 + 56, 8, `${d.massDry} kg`, {
       ...TXT.small, fontSize: '11px', color: '#ffd23f',
     }).setOrigin(0, 0));
     const stat = d.kind === 'engine' ? `${(d.thrustVac! / 1000)} kN` : d.kind === 'tank' ? `${d.fuel} kg` : '';
@@ -377,12 +382,30 @@ export class BuilderScene extends Phaser.Scene {
 
   // ---------------- drag & drop ----------------
 
-  private startDrag(id: string, p: Phaser.Input.Pointer): void {
+  private prepareMove(node: Node, pointer: Phaser.Input.Pointer): void {
+    if (this.dragGhost || this.presetsOpen || this.inGameMenu?.isOpen) return;
+    const x=pointer.x, y=pointer.y;
+    const cancel=()=>this.input.off('pointermove',begin);
+    const begin=(p:Phaser.Input.Pointer)=>{
+      if (!p.isDown || Math.hypot(p.x-x,p.y-y)<8) return;
+      cancel(); this.input.off('pointerup',cancel);
+      const before=structuredClone(this.asm);
+      const attached=this.asm.sides.filter(c=>c.hostUid===node.uid);
+      removeNode(this.asm,node.uid);
+      this.relayout();
+      this.startDrag(node.id,p,{before,node,attached});
+    };
+    this.input.on('pointermove',begin); this.input.once('pointerup',cancel);
+  }
+
+  private startDrag(id: string, p: Phaser.Input.Pointer, moving?: {before:Assembly;node:Node;attached:Assembly["sides"]}): void {
+    if (this.dragGhost || this.inGameMenu?.isOpen || this.presetsOpen) return;
     this.isPanningBg = false;
     const startX = p.x;
     const startY = p.y;
     this.dragGhost = addPart(this, id, p.x, p.y);
     this.dragGhost.setDepth(100).setAlpha(0.85);
+    this.dragGhost.setScale(this.dragGhost.scaleX * this.camZoom, this.dragGhost.scaleY * this.camZoom);
 
     const move = (ptr: Phaser.Input.Pointer) => {
       this.dragGhost?.setPosition(ptr.x, ptr.y);
@@ -393,8 +416,20 @@ export class BuilderScene extends Phaser.Scene {
       this.input.off('pointerup', up);
       const wp = this.worldPoint(ptr);
       this.unhighlightTarget();
-      const target = this.targetAt(wp);
-      const placed = target ? this.place(id, target) : false;
+      const target = this.targetAt(wp, id);
+      const inWork = ptr.x > PAL_W && ptr.x < this.scale.width - STATS_W - 16 && ptr.y < this.scale.height - 68;
+      if (moving) {
+        if (target && inWork && !this.validatePlace(id,target)) {
+          this.undoStack.push(moving.before); this.redoStack=[];
+          this.insertPart(this.asm,moving.node,target);
+          if (this.asm.spine.some(n=>n.uid===moving.node.uid)) this.asm.sides.push(...moving.attached);
+          else if (moving.attached.length) { this.asm=moving.before; this.undoStack.pop(); }
+        } else this.asm=moving.before;
+        this.relayout(); this.refreshStats(); this.saveDesign();
+        this.dragGhost?.destroy(); this.dragGhost=undefined;
+        return;
+      }
+      const placed = target && inWork ? this.place(id, target) : false;
       // A quick tap on a palette card, without dragging to the rocket, drops
       // the part where it naturally belongs instead of doing nothing.
       if (!placed && Math.hypot(ptr.x - startX, ptr.y - startY) < 18) {
@@ -420,13 +455,13 @@ export class BuilderScene extends Phaser.Scene {
   /** Where every part sits right now. The spine stacks down the centre line;
    *  each booster column hangs off its host and stacks down from the host's
    *  top edge, so a strap-on tank sits beside the tank it is bolted to. */
-  private layout(): Layout {
+  private layout(asm: Assembly = this.asm): Layout {
     const pos = new Map<number, Rect>();
     const spine: { node: Node; rect: Rect }[] = [];
     let y = this.stackTopY;
     let widest = PART_W;
 
-    for (const node of this.asm.spine) {
+    for (const node of asm.spine) {
       const m = partMetrics(this, node.id);
       const rect: Rect = { x: 0, y: y + m.h / 2, w: m.w, h: m.h };
       pos.set(node.uid, rect);
@@ -439,13 +474,15 @@ export class BuilderScene extends Phaser.Scene {
     let minX = -widest / 2;
     let maxX = widest / 2;
 
-    for (const col of this.asm.sides) {
+    for (const col of asm.sides) {
       const host = pos.get(col.hostUid);
       if (!host || col.nodes.length === 0) continue;
       const metrics = col.nodes.map((n) => partMetrics(this, n.id));
-      const colW = metrics.reduce((mx, m) => Math.max(mx, m.w), PART_W);
-      const x = (col.side === 'left' ? -1 : 1) * (host.w / 2 + colW / 2 - SIDE_OVERLAP);
-      let cy = host.y - host.h / 2;
+      const colW = metrics.reduce((mx, m, i) => partDef(col.nodes[i].id).kind === 'fins' ? mx : Math.max(mx, m.w), PART_W);
+      const finsOnly = col.nodes.every(n => partDef(n.id).kind === 'fins');
+      const x = finsOnly ? host.x : (col.side === 'left' ? -1 : 1) * (Math.min(host.w, PART_W) / 2 + colW / 2 - SIDE_OVERLAP);
+      let cy = finsOnly ? host.y + host.h / 2 : host.y - host.h / 2;
+      if (partDef(col.nodes[0].id).kind === 'nose') cy -= metrics[0].h;
       col.nodes.forEach((node, i) => {
         const m = metrics[i];
         const rect: Rect = { x, y: cy + m.h / 2, w: m.w, h: m.h };
@@ -462,65 +499,60 @@ export class BuilderScene extends Phaser.Scene {
     return { pos, spine, top: this.stackTopY, deepest, minX, maxX };
   }
 
-  /** Which spine part a free-floating y coordinate is level with. */
-  private spineHostAt(L: Layout, y: number): { node: Node; rect: Rect } | null {
-    let best: { node: Node; rect: Rect } | null = null;
-    let bestDist = Infinity;
-    for (const entry of L.spine) {
-      const top = entry.rect.y - entry.rect.h / 2;
-      const bottom = entry.rect.y + entry.rect.h / 2;
-      const dist = y < top ? top - y : y > bottom ? y - bottom : 0;
-      if (dist < bestDist) { bestDist = dist; best = entry; }
+  /** Snap to the closest valid final part position, at a fixed screen distance. */
+  private targetAt(wp: { x: number; y: number }, id: string): Target | null {
+    if (!this.asm.spine.length) return {kind: 'bottom'};
+    const candidates: Target[] = [{kind:'top'}, {kind:'bottom'}];
+    for (const host of this.asm.spine) {
+      if (partDef(host.id).kind === 'fins') continue;
+      for (const side of ['left','right'] as Side[]) {
+        candidates.push({kind:'side',hostUid:host.uid,side,end:'bottom'});
+        if (columnAt(this.asm,host.uid,side)) candidates.push({kind:'side',hostUid:host.uid,side,end:'top'});
+      }
     }
-    return bestDist <= 90 ? best : null;
+    let best: Target | null = null, distance = 84 / this.camZoom;
+    for (const candidate of candidates) {
+      if (this.validatePlace(id,candidate)) continue;
+      const rect = this.previewRect(id,candidate);
+      const d = Math.hypot(wp.x-rect.x,wp.y-rect.y);
+      if (d < distance) { distance=d; best=candidate; }
+    }
+    return best;
   }
 
-  /**
-   * Turn a drop point into an intent.
-   *
-   * Near the centre line means "extend the core stack" (top or bottom). Out to
-   * the side means "bolt a booster onto whichever part you are level with" —
-   * that is what makes three columns abreast possible.
-   */
-  private targetAt(wp: { x: number; y: number }): Target | null {
-    const L = this.layout();
-    if (L.spine.length === 0) return { kind: 'bottom' };
-
-    if (Math.abs(wp.x) <= CENTRE_TOL) {
-      const dTop = Math.abs(wp.y - (L.top - SNAP_OFFSET));
-      const dBottom = Math.abs(wp.y - (L.deepest + SNAP_OFFSET));
-      if (dTop <= SNAP_DIST && dTop <= dBottom) return { kind: 'top' };
-      if (dBottom <= SNAP_DIST) return { kind: 'bottom' };
-      return dTop <= dBottom ? { kind: 'top' } : { kind: 'bottom' };
+  private insertPart(asm: Assembly, node: Node, target: Target): void {
+    const kind = partDef(node.id).kind;
+    if (target.kind === 'top') {
+      if (kind === 'nose' && asm.spine[0] && partDef(asm.spine[0].id).kind === 'nose') removeNode(asm,asm.spine[0].uid);
+      insertAtTop(asm,node,pid=>partDef(pid).kind === 'nose');
+    } else if (target.kind === 'bottom') {
+      insertAtBottom(asm,node,pid=>partDef(pid).kind === 'engine');
+    } else {
+      const col = columnAt(asm,target.hostUid,target.side);
+      if (target.end === 'top' && col) {
+        if (kind === 'nose' && partDef(col.nodes[0].id).kind === 'nose') col.nodes.shift();
+        col.nodes.splice(kind !== 'nose' && partDef(col.nodes[0]?.id ?? node.id).kind === 'nose' ? 1 : 0,0,node);
+      } else appendToSide(asm,target.hostUid,target.side,node);
     }
+  }
 
-    const host = this.spineHostAt(L, wp.y);
-    if (!host) return null;
-    return { kind: 'side', hostUid: host.node.uid, side: wp.x < 0 ? 'left' : 'right' };
+  private previewRect(id: string, target: Target): Rect {
+    const preview = structuredClone(this.asm);
+    this.insertPart(preview,{uid:-1,id},target);
+    return this.layout(preview).pos.get(-1)!;
   }
 
   private highlightTarget(wp: { x: number; y: number }, id: string): void {
     this.unhighlightTarget();
-    const target = this.targetAt(wp);
+    const target = this.targetAt(wp,id);
     if (!target) return;
-    const err = this.validatePlace(id, target);
-    const L = this.layout();
-
-    const g = this.add.graphics();
-    g.lineStyle(3, err ? 0xff6b6b : 0x7ac74f, 1);
-    if (target.kind === 'side') {
-      const host = L.pos.get(target.hostUid);
-      if (!host) { g.destroy(); return; }
-      const w = Math.max(56, host.w * 0.7);
-      const x = target.side === 'left' ? host.x - host.w / 2 - w / 2 - 4 : host.x + host.w / 2 + w / 2 + 4;
-      g.strokeRoundedRect(x - w / 2, host.y - 24, w, 48, 8);
-    } else {
-      const y = target.kind === 'top' ? L.top - 18 : L.deepest + 18;
-      const w = 110;
-      g.strokeRoundedRect(-w / 2, y - 18, w, 36, 8);
-    }
-    this.snapHi = g;
-    this.workspace.add(g);
+    const rect = this.previewRect(id,target);
+    const art = addPart(this,id,0,0);
+    const g = this.add.graphics().setPosition(rect.x,rect.y);
+    drawPartOutline(g,art,0x92ef65);
+    art.destroy();
+    this.workspace.add(g); this.snapHi=g;
+    this.dragGhost?.setPosition(this.workspace.x + rect.x*this.camZoom,this.workspace.y + rect.y*this.camZoom);
   }
 
   private unhighlightTarget(): void {
@@ -537,15 +569,17 @@ export class BuilderScene extends Phaser.Scene {
     const kind = partDef(id).kind;
 
     if (target.kind === 'side') {
-      if (kind === 'nose') return 'warn.nose_side';
+      if (kind === 'nose') return target.end === 'top' && columnAt(this.asm,target.hostUid,target.side) ? null : 'warn.nose_top';
+      if (target.end === 'top') return kind === 'engine' ? 'warn.engine_attach' : null;
       if (!SIDE_OK.has(kind)) return 'warn.side_boosters_only';
       const column = columnAt(this.asm, target.hostUid, target.side);
-      const last = column?.nodes[column.nodes.length - 1];
+      const last = column?.nodes.filter(n => partDef(n.id).kind !== 'fins').slice(-1)[0];
       if (!last) {
         // an engine needs something to hang from
         return kind === 'engine' ? 'warn.engine_attach' : null;
       }
       const lastKind = partDef(last.id).kind;
+      if (kind === 'fins') return null;
       if (lastKind === 'engine' && kind !== 'decoupler') return 'warn.engine_bottom';
       if (kind === 'engine' && lastKind !== 'tank' && lastKind !== 'decoupler') return 'warn.engine_attach';
       return null;
@@ -574,20 +608,8 @@ export class BuilderScene extends Phaser.Scene {
     const err = this.validatePlace(id, target);
     if (err) { this.flashWarn(err); return false; }
 
-    const node = makeNode(id);
-    const kind = partDef(id).kind;
-
-    if (target.kind === 'top') {
-      const tip = this.asm.spine[0];
-      if (kind === 'nose' && tip && partDef(tip.id).kind === 'nose') {
-        removeNode(this.asm, tip.uid);
-      }
-      insertAtTop(this.asm, node, (pid) => partDef(pid).kind === 'nose');
-    } else if (target.kind === 'bottom') {
-      insertAtBottom(this.asm, node, (pid) => partDef(pid).kind === 'engine');
-    } else {
-      appendToSide(this.asm, target.hostUid, target.side, node);
-    }
+    this.remember();
+    this.insertPart(this.asm, makeNode(id), target);
 
     this.loadedPreset = null;
     this.relayout();
@@ -610,10 +632,8 @@ export class BuilderScene extends Phaser.Scene {
       const rect = L.pos.get(node.uid);
       if (!rect) continue;
       const go = addPart(this, node.id, rect.x, rect.y);
-      // fins occupy a seam rather than a slot, so their layout height is a few
-      // pixels; give every part a hit box tall enough to actually click
-      makePartInteractive(go, rect.w, Math.max(rect.h, 44));
-      go.on('pointerdown', () => this.select(node.uid));
+      // Select the visible pixels, including child images of fin pairs and bells.
+      enablePartSelection(go, p => { this.select(node.uid); this.prepareMove(node,p); });
       this.workspace.add(go);
       this.gos.set(node.uid, go);
     }
@@ -633,6 +653,7 @@ export class BuilderScene extends Phaser.Scene {
 
   private deleteSelected(): void {
     if (this.selectedUid === null) return;
+    this.remember();
     removeNode(this.asm, this.selectedUid);
     this.selectedUid = null;
     this.loadedPreset = null;
@@ -642,6 +663,7 @@ export class BuilderScene extends Phaser.Scene {
   }
 
   private applyPreset(preset: RocketPreset): void {
+    this.remember();
     this.asm = fromSlots(preset.slots);
     this.selectedUid = null;
     this.loadedPreset = preset.id;
@@ -652,7 +674,24 @@ export class BuilderScene extends Phaser.Scene {
     this.flashInfo(t('presets.loaded', { name: t(`preset.${preset.id}.name`) }));
   }
 
+  private remember(): void {
+    this.undoStack.push(structuredClone(this.asm));
+    if (this.undoStack.length > 80) this.undoStack.shift();
+    this.redoStack = [];
+  }
+
+  private restoreHistory(redo: boolean): void {
+    if (this.dragGhost) return;
+    const from = redo ? this.redoStack : this.undoStack;
+    const to = redo ? this.undoStack : this.redoStack;
+    const next = from.pop(); if (!next) return;
+    to.push(structuredClone(this.asm)); this.asm = next;
+    this.selectedUid = null; this.loadedPreset = null;
+    this.relayout(); this.refreshStats(); this.saveDesign();
+  }
+
   private clear(): void {
+    this.remember();
     this.asm = emptyAssembly();
     this.selectedUid = null;
     this.loadedPreset = null;
@@ -868,7 +907,7 @@ export class BuilderScene extends Phaser.Scene {
     // ---- flight numbers ----
     const c = this.add.container(px, 20);
     this.statsPanel = c;
-    c.add(makePanel(this, 0, 0, STATS_W, 236));
+    c.add(makePanel(this, 0, 0, STATS_W, 306));
     if (hasV2(this, UI_V2_ART.iconGear)) {
       c.add(this.add.image(28, 26, V2, UI_V2_ART.iconGear).setDisplaySize(22, 22));
     }
@@ -877,16 +916,20 @@ export class BuilderScene extends Phaser.Scene {
     const rows: [string, string][] = [
       [t('stats.mass'), `${Math.round(stats.mass)} kg`],
       [t('stats.dv'), `${Math.round(stats.dvTotal)} m/s`],
-      [t('stats.twr'), stats.twr.toFixed(2)],
+      [t('stats.twr'), (stats.twr * this.throttle).toFixed(2)],
       [t('stats.fuel'), `${Math.round(stats.fuelTotal)} kg`],
     ];
+    let twrText: Phaser.GameObjects.Text;
+    const burnTexts: Phaser.GameObjects.Text[] = [];
     rows.forEach(([k, v], i) => {
       const isFuel = i === 3 && hasV2(this, UI_V2_ART.iconFuel);
       if (isFuel) {
         c.add(fitInto(this.add.image(24, 52 + i * 26, V2, UI_V2_ART.iconFuel), 16, 19));
       }
       c.add(this.add.text(isFuel ? 38 : 16, 52 + i * 26, k, TXT.small).setOrigin(0, 0.5));
-      c.add(this.add.text(STATS_W - 16, 52 + i * 26, v, { ...TXT.body, fontSize: '15px' }).setOrigin(1, 0.5));
+      const valueText = this.add.text(STATS_W - 16, 52 + i * 26, v, { ...TXT.body, fontSize: '15px' }).setOrigin(1, 0.5);
+      c.add(valueText);
+      if (i === 2) twrText = valueText;
     });
 
     c.add(this.add.text(16, 52 + rows.length * 26 + 6, stats.stable ? t('stats.stable') : t('stats.wobbly'), {
@@ -906,27 +949,34 @@ export class BuilderScene extends Phaser.Scene {
       }).setOrigin(0, 0.5));
     }
 
+    c.add(throttleSlider(this,16,230,STATS_W-32,()=>this.throttle,v=>{
+      this.throttle=v; this.saveDesign();
+      twrText.setText((stats.twr*v).toFixed(2));
+      burnTexts.forEach((text,i)=>text.setText(t('stats.stage_n',{n:i+1,dv:Math.round(stats.stages[i].dv),t:v>0?(stats.stages[i].burn/v).toFixed(0):'∞'})));
+    }));
+
     // ---- stages ----
-    const sc = this.add.container(px, 272);
+    const sc = this.add.container(px, 344);
     this.stagePanel = sc;
-    sc.add(makePanel(this, 0, 0, STATS_W, 96 + stats.stages.length * 24));
+    sc.add(makePanel(this, 0, 0, STATS_W, 80 + stats.stages.length * 28));
     if (hasV2(this, UI_V2_ART.iconRocket)) {
       sc.add(fitInto(this.add.image(26, 24, V2, UI_V2_ART.iconRocket), 20, 24));
     }
     sc.add(this.add.text(hasV2(this, UI_V2_ART.iconRocket) ? 42 : 16, 12, t('builder.stages'), TXT.h2).setOrigin(0, 0));
-    let sy = 44;
+    let sy = 62;
     stats.stages.forEach((st, i) => {
-      const s = t('stats.stage_n', { n: i + 1, dv: Math.round(st.dv), t: st.burn.toFixed(0) });
-      sc.add(this.add.text(16, sy, s, TXT.small).setOrigin(0, 0.5));
-      sy += 24;
+      const s = t('stats.stage_n', { n: i + 1, dv: Math.round(st.dv), t: this.throttle>0?(st.burn/this.throttle).toFixed(0):'∞' });
+      const line = this.add.text(16, sy, s, TXT.small).setOrigin(0, 0.5);
+      sc.add(line); burnTexts.push(line);
+      sy += 28;
     });
 
     // ---- warnings + mission hint ----
-    const wc = this.add.container(px, 272 + 110 + stats.stages.length * 24);
+    const wc = this.add.container(px, 344 + 108 + stats.stages.length * 28);
     this.warnPanel = wc;
     let wy = 0;
     for (const w of stats.warnings) {
-      const txt = this.add.text(0, wy, `⚠ ${t(w.key, w.vars)}`, { ...TXT.warn, wordWrap: { width: STATS_W } }).setOrigin(0, 0);
+      const txt = this.add.text(0, wy, `⚠ ${t(w.key, w.vars)}`, { ...TXT.warn, fontSize:'12px', wordWrap: { width: STATS_W } }).setOrigin(0, 0);
       wc.add(txt);
       wy += txt.height + 6;
     }
@@ -942,7 +992,7 @@ export class BuilderScene extends Phaser.Scene {
     const hintKey = mission?.hintKeys?.[0];
     if (hintKey) {
       const hint = this.add.text(0, wy + 6, `💡 ${t(hintKey)}`, {
-        ...TXT.small, fontSize: '13px', color: '#ffe8a3', wordWrap: { width: STATS_W },
+        ...TXT.small, fontSize: '12px', color: '#ffe8a3', wordWrap: { width: STATS_W },
       }).setOrigin(0, 0);
       wc.add(hint);
     }

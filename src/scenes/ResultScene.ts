@@ -95,8 +95,11 @@ export class ResultScene extends Phaser.Scene {
     }
 
     // ---- one-line fun fact ----
-    if (mission) {
-      const fact = this.add.text(0, y, `${t('result.fact')}: ${t(mission.factKey)}`, {
+    {
+      const keys = [...Array.from({length:8},(_,i)=>`fact.extra.${i}`), ...(mission ? [mission.factKey] : [])];
+      const next = ((this.registry.get('factSequence') as number | undefined) ?? -1)+1;
+      this.registry.set('factSequence',next);
+      const fact = this.add.text(0, y, `${t('result.fact')}: ${t(keys[next % keys.length])}`, {
         ...TXT.small, fontSize: '15px', color: '#ffe8a3',
         wordWrap: { width: INNER_W }, align: 'center', lineSpacing: 4,
       }).setOrigin(0.5, 0);

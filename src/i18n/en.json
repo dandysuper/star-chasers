@@ -261,5 +261,14 @@
   "explore.rover_speed": "Rover · {v} km/h",
   "explore.rover_keys": "E / F: get out · H: horn",
   "explore.rover_keys_touch": "Stick to drive · button to get out",
-  "explore.rover_out_short": "Get out"
+  "explore.rover_out_short": "Get out",
+  "flight.messages": "Crew messages",
+  "fact.extra.0": "Rocket engines work in a vacuum by expelling gas backwards.",
+  "fact.extra.1": "Astronauts in orbit fall together with their spacecraft, which creates weightlessness.",
+  "fact.extra.2": "A heat shield protects a spacecraft during atmospheric entry.",
+  "fact.extra.3": "Solar panels turn light into electricity. In shadow, spacecraft use batteries.",
+  "fact.extra.4": "Spent stages are discarded so the rocket does not have to accelerate their empty mass.",
+  "fact.extra.5": "The Moon has no dense atmosphere, so parachutes cannot help a landing.",
+  "fact.extra.6": "Lower throttle reduces fuel use per second, but too little thrust cannot keep a rocket climbing.",
+  "fact.extra.7": "Sound cannot travel through empty space: it needs a medium such as air."
 }

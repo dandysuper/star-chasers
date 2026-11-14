@@ -16,6 +16,20 @@ import Phaser from 'phaser';
 /** Rendered height of any minion, in world px. The astronaut stands ~90, so
  *  the crew reads as slightly smaller than the player. */
 export const MINION_HEIGHT = 88;
+/** A stable foot-sized body; animated frames have very different dimensions. */
+export const MINION_BODY_FOOT_OFFSET = 14;
+
+export function addMinionCollider(scene: Phaser.Scene, x: number, footY: number): {
+  zone: Phaser.GameObjects.Zone;
+  body: Phaser.Physics.Arcade.Body;
+} {
+  const zone = scene.add.zone(x, footY - MINION_BODY_FOOT_OFFSET, 34, 28);
+  scene.physics.add.existing(zone);
+  const body = zone.body as Phaser.Physics.Arcade.Body;
+  body.setCollideWorldBounds(true);
+  body.setAllowGravity(false);
+  return { zone, body };
+}
 
 type Sized = Phaser.GameObjects.Sprite | Phaser.GameObjects.Image;
 

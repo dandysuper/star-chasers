@@ -311,7 +311,7 @@ const FIN_HEIGHT_RATIO = 1.7;
  *  rather than floating beside it. */
 const FIN_INSET = 6;
 /** Height of the fins' slot in the stack. Small on purpose — see finGeometry. */
-const FIN_ROW_H = 4;
+const FIN_ROW_H = 0;
 
 /**
  * Fin box for the pair.

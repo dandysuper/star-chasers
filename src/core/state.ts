@@ -4,6 +4,7 @@ export type Lang = 'ru' | 'en';
 export type Astronaut = 'female' | 'male';
 
 export interface RocketDesign {
+  throttle?: number;
   /** Part ids, index 0 = top of the rocket. Always the flattened list, so the
    *  physics and the flight scene keep working without knowing about layout. */
   parts: string[];

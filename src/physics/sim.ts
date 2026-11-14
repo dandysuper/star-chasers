@@ -7,7 +7,6 @@ import { EARTH, MOON, MOON_SOI, G0, Body, dominantBody } from '../data/bodies';
 import { splitStages, computeStats } from './rocket';
 
 export const DT = 1 / 60;
-const TURN_RATE = (30 * Math.PI) / 180; // 30°/s max steering rate
 
 /** What the pilot's controls ask of the rocket, read every tick. */
 export interface RocketControl {
@@ -71,6 +70,7 @@ export class FlightSim {
   vx = 0;
   vy = 0;
   angle = 0;               // rad from local vertical
+  angularVelocity = 0;     // rad/s; steering applies torque, never instant rotation
   t = 0;
   phase: FlightPhase = 'pad';
   launched = false;
@@ -178,13 +178,22 @@ export class FlightSim {
     }
     const f = rho / EARTH.rho0; // pressure fraction 0..1
 
-    // --- steering: move angle toward target at 30°/s ---
-    const maxStep = TURN_RATE * DT;
+    // A bounded attitude controller with rotational inertia. Gimbals lose
+    // authority when throttled down; reaction control still works in vacuum.
     let da = control.targetAngle - this.angle;
     // normalize to [-π, π]
     while (da > Math.PI) da -= 2 * Math.PI;
     while (da < -Math.PI) da += 2 * Math.PI;
-    this.angle += Math.max(-maxStep, Math.min(maxStep, da));
+    const authority = 0.12 + (control.engineOn && st && st.fuel > 0 ? 0.48*Math.max(0,Math.min(1,control.throttle)) : 0);
+    const inertia = Math.max(0.6, this.mass / 1750);
+    const command = Math.max(-authority,Math.min(authority,da*1.2-this.angularVelocity*0.65));
+    const speed = Math.hypot(this.vx,this.vy);
+    const flowAngle = Math.atan2(this.vx*ex+this.vy*ey,this.vx*ux+this.vy*uy);
+    const dynamicPressure = 0.5*rho*speed*speed;
+    const aero = this.launched ? Math.min(0.8,dynamicPressure/40000) : 0;
+    const restoring = Math.sin(flowAngle-this.angle)*aero*(this.stats.stable ? 0.8 : -0.25);
+    this.angularVelocity += (command/inertia+restoring-this.angularVelocity*aero*0.5)*DT;
+    this.angle += this.angularVelocity*DT;
 
     // wobble: unstable rocket gets pitch noise in atmosphere
     let thrustAngle = this.angle;
@@ -199,7 +208,8 @@ export class FlightSim {
     const canThrust = control.engineOn && st !== null && st.fuel > 0 && st.hasEngine;
     if (canThrust) {
       const ispEff = st.ispVac - (st.ispVac - st.thrustAslIspFrac) * f;
-      const F = control.throttle * st.thrustVac * (ispEff / st.ispVac);
+      const requestedF = Math.max(0,Math.min(1,control.throttle)) * st.thrustVac * (ispEff / st.ispVac);
+      const F = Math.min(requestedF, st.fuel * ispEff * G0 / DT);
       const mdot = F / (ispEff * G0);
       const burn = mdot * DT;
       st.fuel -= burn;
@@ -223,6 +233,8 @@ export class FlightSim {
       if (sp > 0.01) {
         let cd = this.stats.cd;
         let area = PART_AREA;
+        // A sideways hull presents more area to the airflow.
+        area *= 1+3*Math.abs(Math.sin(this.angle-flowAngle));
         if (this.parachuteDeployed && h < 20000 && body === EARTH) {
           cd = 1.5;
           area += 30;
