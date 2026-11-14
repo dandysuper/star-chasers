@@ -11,6 +11,8 @@ import { BuilderScene } from './scenes/BuilderScene';
 import { FlightScene } from './scenes/FlightScene';
 import { ExploreScene } from './scenes/ExploreScene';
 import { ResultScene } from './scenes/ResultScene';
+import { PlannerScene } from './scenes/PlannerScene';
+import { LabScene } from './scenes/LabScene';
 
 // Phones start reporting touch *after* the first layout, so the input mode is
 // derived once here and then corrected by the first real pointer event.
@@ -40,7 +42,7 @@ const game = new Phaser.Game({
     default: 'arcade',
     arcade: { debug: false },
   },
-  scene: [BootScene, MenuScene, HubScene, BuilderScene, FlightScene, ExploreScene, ResultScene],
+  scene: [BootScene, MenuScene, HubScene, BuilderScene, FlightScene, ExploreScene, ResultScene, PlannerScene, LabScene],
 });
 
 watchOrientation(() => game.scale.refresh());

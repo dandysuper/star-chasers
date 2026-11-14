@@ -4,7 +4,7 @@ import { state } from '../core/state';
 import { t, fmtDist, fmtSpeed, fmtTime } from '../core/i18n';
 import { partDef } from '../data/parts';
 import { missionById } from '../data/missions';
-import { FlightSim, defaultControl, DT, type RocketControl, type SimEvent, type Telemetry } from '../physics/sim';
+import { FlightSim, windAt, defaultControl, DT, type RocketControl, type SimEvent, type Telemetry } from '../physics/sim';
 import { computeStats, splitStages } from '../physics/rocket';
 import { assemblyFromDesign, flatten } from '../data/assembly';
 import { makeButton, makeIconButton, makePanel, ensureMusic, TXT, type LabelButton } from '../ui/widgets';
@@ -155,7 +155,12 @@ export class FlightScene extends Phaser.Scene {
     this.mission = missionById(state.missionId);
     ensureMusic(this, state.music, true);   // ducked under flight
 
-    this.sim = new FlightSim(state.design.parts,state.difficulty);
+    // the launch day picked in Mission Control brings its measured wind
+    const plan = state.launchPlan && state.launchPlan.missionId === state.missionId ? state.launchPlan : null;
+    this.sim = new FlightSim(state.design.parts, {
+      difficulty: state.difficulty,
+      windEast: plan?.windEast ?? 0,
+    });
     const stats = computeStats(state.design.parts);
     this.control = defaultControl();
     this.control.throttle = Phaser.Math.Clamp(state.design.throttle ?? 1,0,1);
@@ -1306,6 +1311,10 @@ export class FlightScene extends Phaser.Scene {
       `${t('flight.hud.apo')}: ${tel.apoapsis === Infinity ? t('flight.escape') : fmtDist(tel.apoapsis)}`,
       `${t('flight.hud.time')}: ${fmtTime(tel.time)}`,
     ];
+    if (this.sim.windEast !== 0 && tel.bodyName === 'earth' && tel.altitude < 25000) {
+      const w = windAt(tel.altitude, this.sim.windEast);
+      lines.push(t('flight.hud.wind', { w: Math.abs(w).toFixed(0), dir: w >= 0 ? '→' : '←' }));
+    }
     if (this.warp > 1) lines.push(t('flight.hud.warp', { n: this.warp }));
     if (this.paused) lines.push(`⏸ ${t('flight.hud.paused')}`);
     this.hudText.setText(lines.join('\n'));

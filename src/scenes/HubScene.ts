@@ -620,8 +620,9 @@ export class HubScene extends Phaser.Scene {
 
   private useStation(id: Station['id']): void {
     if (id === 'pad') {
-      // the planet walks start on the surface, everything else in the builder
-      this.leave(isExploreMission(state.missionId) ? 'explore' : 'builder');
+      // every launch is planned first: Mission Control picks the day, then
+      // the planet walks start on the surface and everything else in the builder
+      this.leave('planner');
       return;
     }
     if (id === 'lab') {
@@ -675,7 +676,23 @@ export class HubScene extends Phaser.Scene {
       ...TXT.small, fontSize: '15px', color: '#cfd2ee',
     }).setOrigin(0.5));
 
-    const close = makeButton(this, width / 2, height / 2 + top + 92 + rows * 62 + 30, t('hub.close'), {
+    // examine samples with the lab's spectrometer and camera
+    const labY = height / 2 + top + 92 + rows * 62 + 30;
+    const exam = makeButton(this, width / 2 + 130, labY, t('lab.examine'), {
+      w: 240, h: 46, fontSize: 16, variant: 'green',
+      onClick: () => {
+        if (this.leaving) return;
+        this.leaving = true;
+        saveGame();
+        const planet = state.missionId === 'mars' ? 'mars' : 'moon';
+        this.scene.start('lab', { planet });
+      },
+    });
+    exam.setDepth(101);
+    this.cameras.main.ignore(exam);
+    if (exam.hitZone) this.cameras.main.ignore(exam.hitZone);
+    this.overlayButtons.push(exam);
+    const close = makeButton(this, width / 2 - 130, height / 2 + top + 92 + rows * 62 + 30, t('hub.close'), {
       w: 200, h: 46, fontSize: 16, variant: 'red', onClick: () => this.closeOverlay(),
     });
     close.setDepth(101);

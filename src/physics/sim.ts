@@ -71,6 +71,26 @@ interface StageState {
   hasEngine: boolean;
 }
 
+/**
+ * Wind speed toward the east at height h, m/s, for a surface wind `w10`.
+ * Wind grows with height to a jet-stream peak around 11 km, then dies out in
+ * the thin upper air: the strong winds aloft are why rockets are checked for
+ * wind shear near max-Q, not only at the pad. Kept simple: 3× the surface
+ * value at the peak, zero by 25 km.
+ */
+export function windAt(h: number, w10: number): number {
+  if (w10 === 0 || h < 0) return 0;
+  if (h <= 11000) return w10 * (1 + 2 * (h / 11000));
+  if (h >= 25000) return 0;
+  return w10 * 3 * (1 - (h - 11000) / 14000);
+}
+
+export interface FlightOptions {
+  /** Surface wind blowing toward the east, m/s (negative = toward the west). */
+  windEast?: number;
+  difficulty?: Difficulty;
+}
+
 export class FlightSim {
   x = 0;
   y = EARTH.R;             // start on the pad at the top of Earth
@@ -90,17 +110,22 @@ export class FlightSim {
   /** stages bottom-first */
   readonly stages: StageState[];
   readonly stats = { mass: 0, stable: true, cd: 0.5, hasParachute: false };
-
+  /** Surface wind toward the east, m/s. */
+  readonly windEast: number;
   readonly earth: Body;
   readonly moon: Body;
   readonly moonSOI: number;
-  readonly profile;
+  readonly difficulty: Difficulty;
+  readonly profile: typeof PROFILES[Difficulty];
   dragForce = 0;
   thrust = 0;
-  constructor(partIds: string[], readonly difficulty: Difficulty = 'normal') {
-    const world=flightWorld(difficulty);
+  constructor(partIds: string[], options: FlightOptions | Difficulty = {}) {
+    const opts = typeof options === 'string' ? { difficulty: options } : options;
+    this.difficulty = opts.difficulty ?? 'normal';
+    this.windEast = opts.windEast ?? 0;
+    const world = flightWorld(this.difficulty);
     this.earth=world.earth; this.moon=world.moon; this.moonSOI=world.moonSOI;
-    this.profile=PROFILES[difficulty]; this.y=this.earth.R;
+    this.profile=PROFILES[this.difficulty]; this.y=this.earth.R;
     const stats = computeStats(partIds);
     this.stats.stable = stats.stable;
     this.stats.cd = stats.cd;
@@ -245,7 +270,12 @@ export class FlightSim {
     let Dy = 0;
     this.dragForce=0;
     if (rho > 0) {
-      const sp = Math.hypot(this.vx, this.vy);
+      // drag acts on the speed through the air, so wind pushes the rocket
+      // sideways once it has left the pad
+      const w = this.launched && body === this.earth ? windAt(h, this.windEast) : 0;
+      const relX = this.vx - w * ex;
+      const relY = this.vy - w * ey;
+      const sp = Math.hypot(relX, relY);
       if (sp > 0.01) {
         let cd = this.stats.cd*this.profile.drag;
         if(this.difficulty !== 'normal') cd *= 1+0.6*Math.exp(-Math.pow((sp/air.sound-1)/0.35,2));
@@ -258,8 +288,8 @@ export class FlightSim {
         }
         const D = Math.min(0.5 * rho * sp * sp * cd * area,this.mass*sp/DT);
         this.dragForce=D;
-        Dx = (-this.vx / sp) * D;
-        Dy = (-this.vy / sp) * D;
+        Dx = (-relX / sp) * D;
+        Dy = (-relY / sp) * D;
       }
     }
 
