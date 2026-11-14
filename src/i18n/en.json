@@ -37,6 +37,8 @@
   "ingame.hub": "Return to Base",
   "ingame.quit": "Quit to Main Menu",
   "ingame.esc_hint": "Press Esc to resume",
+  "ingame.lang": "Language: English",
+  "ingame.lang_later": "Some labels switch on the next screen",
   "mission.m1.title": "First Launch",
   "mission.m1.brief": "Reach 10 km! Build a rocket and light the engine with Space!",
   "mission.m2.title": "Reach Space",

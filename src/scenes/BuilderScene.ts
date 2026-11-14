@@ -174,6 +174,11 @@ export class BuilderScene extends Phaser.Scene {
         this.saveDesign();
         this.scene.start('menu');
       },
+      // the design is saved, so a rebuild in the new language loses nothing
+      onLanguageChange: () => {
+        this.saveDesign();
+        this.scene.restart();
+      },
     });
 
     this.input.on('wheel', (_p: unknown, _o: unknown, _dx: number, dy: number) => {

@@ -28,6 +28,13 @@ export interface InGameMenuOpts {
   onOpen?: () => void;
   /** Optional callback fired when the in-game menu closes and gameplay resumes. */
   onClose?: () => void;
+  /**
+   * Called after the language switch. Scenes that lose nothing by rebuilding
+   * (Hub, Builder) restart here so every label follows. Without it the menu
+   * redraws in the new language and the rest of the scene catches up on the
+   * next screen, so a flight or a sample walk is never thrown away.
+   */
+  onLanguageChange?: () => void;
 }
 
 /**
@@ -43,6 +50,8 @@ export class InGameMenu {
   private container?: Phaser.GameObjects.Container;
   private buttons: LabelButton[] = [];
   private readonly onEscKey: () => void;
+  /** Set once the language changed while the scene kept its old labels. */
+  private langChanged = false;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -147,6 +156,23 @@ export class InGameMenu {
     }
 
     rows.push({
+      label: () => t('ingame.lang'),
+      variant: 'green',
+      onClick: () => {
+        state.lang = state.lang === 'ru' ? 'en' : 'ru';
+        saveGame();
+        if (this.opts.onLanguageChange) {
+          this.opts.onLanguageChange();
+          return;
+        }
+        this.langChanged = true;
+        // redraw on the next tick: this click is still being dispatched by the
+        // button being destroyed
+        this.scene.time.delayedCall(0, () => { if (this.isOpen) this.buildModal(); });
+      },
+    });
+
+    rows.push({
       label: () => (state.music ? t('menu.music') : t('menu.music_off')),
       variant: 'purple',
       onClick: (btn) => {
@@ -213,6 +239,14 @@ export class InGameMenu {
       ignoreOnMain(btn.hitZone);
       this.buttons.push(btn);
     });
+
+    if (this.langChanged) {
+      c.add(this.scene.add.text(0, panelH / 2 - 84, t('ingame.lang_later'), {
+        ...TXT.small,
+        fontSize: '13px',
+        color: '#ffd23f',
+      }).setOrigin(0.5));
+    }
 
     c.add(this.scene.add.text(0, panelH / 2 - 62, t('ingame.esc_hint'), {
       ...TXT.small,

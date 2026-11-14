@@ -124,6 +124,8 @@ export class HubScene extends Phaser.Scene {
         this.player.setVelocity(0, 0);
       },
       onQuit: () => this.leave('menu'),
+      // the base holds no progress, so rebuild it with every label translated
+      onLanguageChange: () => this.scene.restart(),
     });
 
     // plugging a keyboard into a tablet flips the scheme mid-walk; the hint has
