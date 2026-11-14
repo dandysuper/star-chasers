@@ -6,8 +6,8 @@
  * crew member walks a waypoint loop, and at some waypoints stops for a breather
  * on its idle frame — a crew that never stops reads as a bug, not as life.
  *
- * Direction comes from the movement vector and the art has real left/right
- * frames, so nothing is flipped.
+ * The atlas's left cycle consistently faces right; its right cycles contain
+ * mixed orientations. Use the consistent cycle and mirror it for left travel.
  */
 import Phaser from 'phaser';
 import { V2 } from '../ui/theme';
@@ -133,6 +133,7 @@ export class CrewMember {
     if (!this.idleFrame || Math.random() > IDLE_CHANCE) return false;
     this.idleLeft = Phaser.Math.Between(IDLE_MIN_MS, IDLE_MAX_MS);
     this.sprite.anims.stop();
+    this.sprite.setFlipX(false);
     this.sprite.setTexture(V2, this.idleFrame);
     // the idle pose is cut taller than any walk frame — re-fit or the minion
     // visibly grows the moment it stops walking
@@ -150,15 +151,17 @@ export class CrewMember {
 
   private resume(): void {
     if (!this.idleFrame) return;
-    this.sprite.setTexture(V2, `minion_${this.who}_${this.dir}_0`);
+    const frameDir = this.dir === 'right' ? 'left' : this.dir;
+    this.sprite.setTexture(V2, `minion_${this.who}_${frameDir}_0`);
     fitMinion(this.sprite, this.height);
-    if (!this.walkReady) return;
-    this.sprite.play(`${this.animPrefix}_${this.dir}`, true);
+    this.play();
   }
 
   private play(): void {
+    this.sprite.setFlipX(this.dir === 'left');
     if (!this.walkReady) return;
-    const key = `${this.animPrefix}_${this.dir}`;
+    const frameDir = this.dir === 'right' ? 'left' : this.dir;
+    const key = `${this.animPrefix}_${frameDir}`;
     if (this.sprite.anims.currentAnim?.key === key && this.sprite.anims.isPlaying) return;
     this.sprite.play(key);
   }
