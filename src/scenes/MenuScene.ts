@@ -70,6 +70,21 @@ export class MenuScene extends Phaser.Scene {
       this.ui.push(this.add.text(width / 2, 90, t('menu.title'), { ...TXT.title, fontSize: '56px' }).setOrigin(0.5));
     }
 
+    // ---- hackathon logo: top-left sky, above the painted rocket's nose ----
+    // the official logo is white with a red NASA, so a soft dark plate keeps
+    // it readable on the light parts of the dusk sky
+    if (this.textures.exists('spaceapps_logo')) {
+      const logoW = 220;
+      const logoH = logoW * (600 / 1527);
+      const lx = 26;
+      const ly = state.dev ? 40 : 18; // clear of the DEV banner
+      const back = this.add.graphics();
+      back.fillStyle(0x120f24, 0.45);
+      back.fillRoundedRect(lx - 12, ly - 10, logoW + 24, logoH + 20, 14);
+      const sa = this.add.image(lx, ly, 'spaceapps_logo').setOrigin(0, 0).setDisplaySize(logoW, logoH);
+      this.ui.push(back, sa);
+    }
+
     // ---- tagline: left column, clear of the painted rocket ----
     // the plate is created first so it renders under the text
     const taglineX = 70;

@@ -25,6 +25,8 @@ export class BootScene extends Phaser.Scene {
   constructor() { super('boot'); }
 
   preload(): void {
+    // NASA Space Apps Challenge 2026 logo (official white-and-colour version), main menu only
+    this.load.image('spaceapps_logo', 'assets/brand/spaceapps_logo.png');
     const { width, height } = this.scale;
     const label = this.add.text(width / 2, height / 2, t('boot.loading'), TXT.h2).setOrigin(0.5);
     const bar = this.add.rectangle(width / 2, height / 2 + 50, 400, 16, 0x2b2d5c)
