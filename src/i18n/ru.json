@@ -338,5 +338,9 @@
   "flight.hud.wind": "Ветер: {w} м/с {dir}",
   "stats.cost": "Цена",
   "warn.over_budget": "Дороже гранта: ${c} из ${g} млн. Возьми детали подешевле.",
-  "plan.rocket_preset": "Проверено на ракете «{name}»: она долетит"
+  "plan.rocket_preset": "Проверено на ракете «{name}»: она долетит",
+  "plan.apod_untitled": "Астрономический снимок дня",
+  "plan.apod_translated": "Перевод: MyMemory",
+  "plan.apod_english": "Перевожу… пока текст NASA на английском",
+  "builder.engine_swapped": "Двигатель заменён на новый"
 }

@@ -21,7 +21,7 @@ import {
   type DayPlan, type Target, type Weather,
 } from '../data/launch';
 import {
-  loadSiteWeather, measuredOn, sameDateLastYear, scrubChance, offlineWeather, loadApod,
+  loadSiteWeather, measuredOn, sameDateLastYear, scrubChance, offlineWeather, loadApod, translateToRu,
   type SiteWeather, type Apod,
 } from '../core/nasaData';
 import { moonBudget, marsBudget } from '../physics/transfer';
@@ -65,6 +65,8 @@ export class PlannerScene extends Phaser.Scene {
   private objs: Phaser.GameObjects.GameObject[] = [];
   private weather: SiteWeather | null = null;
   private apod: Apod | null | undefined = undefined;
+  /** Russian title and text of the APOD, once translated. */
+  private apodRu: { title: string; text: string } | null = null;
   private plans: DayPlan[] = [];
   private kinds: WeatherKind[] = [];
   private selected = 0;
@@ -86,7 +88,9 @@ export class PlannerScene extends Phaser.Scene {
     this.weather = null;
     this.loadWeather();
     if (this.apod === undefined) {
-      void loadApod().then((a) => { this.apod = a; if (this.alive) this.render(); });
+      void loadApod().then((a) => { this.apod = a; if (this.alive) this.render(); this.translateApod(); });
+    } else {
+      this.translateApod();
     }
     this.input.keyboard?.on('keydown-ESC', () => this.scene.start('hub'));
     this.input.keyboard?.on('keydown-ENTER', () => this.launch());
@@ -229,6 +233,26 @@ export class PlannerScene extends Phaser.Scene {
     this.recompute();
   }
 
+  /** NASA writes APOD in English; fetch a Russian version for the RU game. */
+  private translateApod(): void {
+    const a = this.apod;
+    if (!a || state.lang !== 'ru' || this.apodRu) return;
+    const text = this.apodExcerpt(a);
+    void Promise.all([a.title ? translateToRu(a.title) : Promise.resolve(''), translateToRu(text)]).then(([title, tr]) => {
+      if (tr === null) return;
+      this.apodRu = { title: title ?? a.title, text: tr };
+      if (this.alive) this.render();
+    });
+  }
+
+  /** The first sentences of the explanation, up to ~260 characters. */
+  private apodExcerpt(a: Apod): string {
+    if (a.explanation.length <= 260) return a.explanation;
+    const cut = a.explanation.slice(0, 260);
+    const end = cut.lastIndexOf('. ');
+    return end > 120 ? cut.slice(0, end + 1) : `${cut.trimEnd()}…`;
+  }
+
   private toast(msg: string): void {
     const { width } = this.scale;
     const txt = this.add.text(width / 2, 640, msg, {
@@ -337,17 +361,19 @@ export class PlannerScene extends Phaser.Scene {
     const a = this.apod;
     if (a === undefined) { this.text(x + 20, y + 52, t('plan.loading'), TXT.small); return; }
     if (!a) { this.text(x + 20, y + 52, t('plan.apod_none'), { ...TXT.small, wordWrap: { width: w - 40 } }); return; }
-    this.text(x + 20, y + 48, a.title, { ...TXT.body, fontSize: '17px', color: '#ffd23f', fontStyle: 'bold', wordWrap: { width: w - 40 } });
-    const expl = a.explanation.length > 260 ? `${a.explanation.slice(0, 257).trimEnd()}…` : a.explanation;
+    const ru = state.lang === 'ru' ? this.apodRu : null;
+    const title = (ru?.title || a.title) || t('plan.apod_untitled');
+    this.text(x + 20, y + 48, title, { ...TXT.body, fontSize: '17px', color: '#ffd23f', fontStyle: 'bold', wordWrap: { width: w - 40 } });
+    const expl = ru?.text ?? this.apodExcerpt(a);
     this.text(x + 20, y + 98, expl, { ...TXT.small, fontSize: '13px', color: '#cfd2ff', wordWrap: { width: w - 40 } });
-    const credit = `${a.date} · NASA APOD${a.copyright ? ` · © ${a.copyright}` : ''}`;
-    this.text(x + 20, y + h - 36, credit, { ...TXT.small, fontSize: '12px', color: '#9a9ad0', wordWrap: { width: w - 160 } });
-    if (a.url) {
-      this.add2(makeButton(this, x + w - 70, y + h - 30, t('plan.apod_open'), {
-        w: 110, h: 38, fontSize: 15, variant: 'blue',
-        onClick: () => window.open(a.url, '_blank', 'noopener'),
-      }));
-    }
+    const note = state.lang === 'ru' ? (ru ? t('plan.apod_translated') : t('plan.apod_english')) : '';
+    const credit = `${a.date} · NASA APOD${a.copyright ? ` · © ${a.copyright}` : ''}${note ? `\n${note}` : ''}`;
+    this.text(x + 20, y + h - 44, credit, { ...TXT.small, fontSize: '12px', color: '#9a9ad0', wordWrap: { width: w - 160 } });
+    this.add2(makeButton(this, x + w - 70, y + h - 30, t('plan.apod_open'), {
+      w: 110, h: 38, fontSize: 15, variant: 'blue',
+      // the day's APOD page: the picture, its full story and credits
+      onClick: () => window.open(a.pageUrl, '_blank', 'noopener'),
+    }));
   }
 
   private renderStrip(): void {

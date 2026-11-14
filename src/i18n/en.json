@@ -338,5 +338,9 @@
   "flight.hud.wind": "Wind: {w} m/s {dir}",
   "stats.cost": "Cost",
   "warn.over_budget": "Over the grant: ${c}M of ${g}M. Use cheaper parts.",
-  "plan.rocket_preset": "Checked with the {name} preset: it can make this trip"
+  "plan.rocket_preset": "Checked with the {name} preset: it can make this trip",
+  "plan.apod_untitled": "Astronomy Picture of the Day",
+  "plan.apod_translated": "",
+  "plan.apod_english": "",
+  "builder.engine_swapped": "Engine swapped for the new one"
 }

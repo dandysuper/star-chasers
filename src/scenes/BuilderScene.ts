@@ -12,14 +12,15 @@ import {
 import { buildRocketArt, fitRocketArt } from '../ui/rocketArt';
 import {
   appendToSide, assemblyCount, assemblyFromIds, columnAt, emptyAssembly, flatten,
-  fromSlots, insertAtBottom, insertAtTop, makeNode, removeNode, toSlots,
+  allNodes, fromSlots, insertAtBottom, insertAtTop, makeNode, removeNode, toSlots,
   type Assembly, type Node, type Side,
 } from '../data/assembly';
 import { makeButton, makeIconButton, makePanel, ensureMusic, TXT, drawBar, type LabelButton } from '../ui/widgets';
 import { InGameMenu } from '../ui/ingameMenu';
-import { addPart, partMetrics, makePartInteractive, BG, V2, UI_V2_ART, hasV2, bellDrop, addStarRow } from '../ui/theme';
+import { addPart, partMetrics, BG, V2, UI_V2_ART, hasV2, bellDrop, addStarRow } from '../ui/theme';
 import { PART_W } from '../ui/partArt';
 import { fitInto } from '../ui/overhaul';
+import { PART_INFO, partFacts } from '../data/partInfo';
 
 type PartGO = Phaser.GameObjects.Image | Phaser.GameObjects.Container;
 
@@ -61,6 +62,10 @@ const SIDE_OVERLAP = 8;
 
 /** Parts that make sense strapped to the side as a booster or an instrument. */
 const SIDE_OK = new Set(['tank', 'engine', 'fins', 'decoupler', 'chute']);
+/** Width of the part info plate. */
+const INFO_W = 330;
+/** A press on a placed part that moves this far becomes a drag. */
+const MOVE_START = 12;
 
 export class BuilderScene extends Phaser.Scene {
   /** The rocket being built: a core stack plus optional left/right columns. */
@@ -87,6 +92,10 @@ export class BuilderScene extends Phaser.Scene {
   private presetObjs: Phaser.GameObjects.GameObject[] = [];
   /** The preset the rocket was loaded from, until the player edits it. */
   private loadedPreset: string | null = null;
+  /** The info plate about one part (hover, drag, selection). */
+  private infoPlate?: Phaser.GameObjects.Container;
+  private infoId: string | null = null;
+  private infoTimer?: Phaser.Time.TimerEvent;
 
   constructor() { super('builder'); }
 
@@ -129,6 +138,9 @@ export class BuilderScene extends Phaser.Scene {
     this.isPanningBg = false;
     this.presetObjs = [];
     this.loadedPreset = null;
+    this.infoPlate = undefined;
+    this.infoId = null;
+    this.infoTimer = undefined;
     this.camZoom = 1;
     this.camPan = { x: 0, y: 0 };
     this.asm = this.loadDesign(allowed);
@@ -193,6 +205,9 @@ export class BuilderScene extends Phaser.Scene {
     this.input.on('pointerdown', (p: Phaser.Input.Pointer, currentlyOver: Phaser.GameObjects.GameObject[]) => {
       if (this.dragGhost || !canEdit()) return;
       const inCenter = p.x > PAL_W + 8 && p.x < width - STATS_W - 20 && p.y < height - 68;
+      // a press on a part of the rocket selects or moves it
+      const hit = inCenter && currentlyOver.length === 0 && !p.rightButtonDown() ? this.partAt(this.worldPoint(p)) : null;
+      if (hit) { this.pressPlaced(hit, p); return; }
       if (p.rightButtonDown() || (inCenter && currentlyOver.length === 0)) {
         this.isPanningBg = true;
       }
@@ -374,19 +389,118 @@ export class BuilderScene extends Phaser.Scene {
     card.on('pointerover', () => { bg.clear(); bg.fillStyle(0x3d3f7a, 1).lineStyle(3, 0xffd23f); bg.fillRoundedRect(-CELL_W / 2 + 2, -CELL_H / 2 + 2, CELL_W - 4, CELL_H - 4, 10); bg.strokeRoundedRect(-CELL_W / 2 + 2, -CELL_H / 2 + 2, CELL_W - 4, CELL_H - 4, 10); });
     card.on('pointerout', () => { bg.clear(); bg.fillStyle(0x2b2d5c, 1).lineStyle(3, 0x1d1b2e); bg.fillRoundedRect(-CELL_W / 2 + 2, -CELL_H / 2 + 2, CELL_W - 4, CELL_H - 4, 10); bg.strokeRoundedRect(-CELL_W / 2 + 2, -CELL_H / 2 + 2, CELL_W - 4, CELL_H - 4, 10); });
     card.on('pointerdown', (p: Phaser.Input.Pointer) => this.startDrag(id, p));
+    // a mouse gets the plate on hover; a finger gets it while dragging
+    card.on('pointerover', (p: Phaser.Input.Pointer) => {
+      if (!this.dragGhost && !p.wasTouch && this.canShowInfo()) this.showInfo(id, PAL_W + 12, cy - 40);
+    });
+    card.on('pointerout', () => { if (!this.dragGhost && this.selectedUid === null) this.hideInfo(); });
+  }
+
+  // ---------------- info plate ----------------
+
+  private canShowInfo(): boolean {
+    return !this.presetsOpen && !this.inGameMenu?.isOpen;
+  }
+
+  /**
+   * A plate about one part: what it does, its numbers, the physics formula it
+   * obeys and a real NASA part to compare with. (x, y) is its top-left corner
+   * on screen; it is pushed back inside the screen when it would spill over.
+   */
+  private showInfo(id: string, x: number, y: number, holdMs = 0): void {
+    this.infoTimer?.remove();
+    this.infoTimer = undefined;
+    if (this.infoId !== id || !this.infoPlate) {
+      this.infoPlate?.destroy();
+      this.infoPlate = this.buildInfoPlate(id);
+      this.infoId = id;
+    }
+    this.placeInfo(x, y);
+    if (holdMs > 0) this.infoTimer = this.time.delayedCall(holdMs, () => this.hideInfo());
+  }
+
+  private placeInfo(x: number, y: number): void {
+    const c = this.infoPlate;
+    if (!c) return;
+    const { width, height } = this.scale;
+    const h = (c.getData('h') as number) ?? 200;
+    c.setPosition(Phaser.Math.Clamp(x, 8, width - INFO_W - 8), Phaser.Math.Clamp(y, 8, height - 72 - h));
+  }
+
+  private hideInfo(): void {
+    this.infoTimer?.remove();
+    this.infoTimer = undefined;
+    this.infoPlate?.destroy();
+    this.infoPlate = undefined;
+    this.infoId = null;
+  }
+
+  private buildInfoPlate(id: string): Phaser.GameObjects.Container {
+    const lang = state.lang;
+    const info = PART_INFO[id];
+    const c = this.add.container(0, 0).setDepth(250);
+    const bg = this.add.graphics();
+    c.add(bg);
+    const pad = 14;
+    const inner = INFO_W - pad * 2;
+    let y = pad;
+    const add = (txt: Phaser.GameObjects.Text, gap = 6): void => { c.add(txt); y += txt.height + gap; };
+
+    add(this.add.text(pad, y, t(`part.${id}.name`), { ...TXT.body, fontSize: '18px', fontStyle: 'bold', color: '#ffd23f' }), 4);
+    if (info) add(this.add.text(pad, y, info.role[lang], { ...TXT.small, fontSize: '13px', color: '#ffffff', wordWrap: { width: inner } }), 8);
+
+    // numbers: two columns
+    for (const f of partFacts(id)) {
+      c.add(this.add.text(pad, y, f.label[lang], { ...TXT.small, fontSize: '12px', color: '#cfd2ff' }));
+      const v = this.add.text(INFO_W - pad, y, f.value, { ...TXT.small, fontSize: '12px', color: '#9fe8ff', fontStyle: 'bold' }).setOrigin(1, 0);
+      c.add(v);
+      y += v.height + 2;
+    }
+    y += 6;
+
+    if (info) {
+      const fb = this.add.graphics();
+      c.add(fb);
+      const ft = this.add.text(INFO_W / 2, y + 6, info.formula, {
+        fontFamily: 'system-ui, sans-serif', fontSize: '16px', color: '#ffffff', fontStyle: 'bold',
+      }).setOrigin(0.5, 0);
+      fb.fillStyle(0x0b0b2a, 0.9).fillRoundedRect(pad, y, inner, ft.height + 12, 8);
+      c.add(ft);
+      y += ft.height + 18;
+      add(this.add.text(pad, y, info.formulaNote[lang], { ...TXT.small, fontSize: '12px', color: '#cfd2ff', wordWrap: { width: inner } }), 8);
+      add(this.add.text(pad, y, `🚀 ${info.real[lang]}`, { ...TXT.small, fontSize: '12px', color: '#c8ffd0', wordWrap: { width: inner } }), 0);
+    }
+    const h = y + pad;
+    bg.fillStyle(0x1d1d3a, 0.97).fillRoundedRect(0, 0, INFO_W, h, 14);
+    bg.lineStyle(3, 0x3fe0d0, 1).strokeRoundedRect(0, 0, INFO_W, h, 14);
+    c.setData('h', h);
+    return c;
   }
 
   // ---------------- drag & drop ----------------
 
-  private startDrag(id: string, p: Phaser.Input.Pointer): void {
+  /**
+   * Drag a part onto the rocket. `restore` is set when an already placed part
+   * is being moved: a drop that does not fit puts the rocket back as it was.
+   */
+  private startDrag(id: string, p: Phaser.Input.Pointer, restore?: ReturnType<typeof toSlots>): void {
     this.isPanningBg = false;
     const startX = p.x;
     const startY = p.y;
     this.dragGhost = addPart(this, id, p.x, p.y);
     this.dragGhost.setDepth(100).setAlpha(0.85);
+    // the plate rides next to the part, on whichever side has room
+    const follow = (x: number, y: number): void => {
+      if (!this.canShowInfo()) return;
+      const right = x + 70 + INFO_W < this.scale.width - 8;
+      this.showInfo(id, right ? x + 70 : x - 70 - INFO_W, y - 60);
+    };
+    follow(p.x, p.y);
 
     const move = (ptr: Phaser.Input.Pointer) => {
       this.dragGhost?.setPosition(ptr.x, ptr.y);
+      follow(ptr.x, ptr.y);
+      if (ptr.x < PAL_W) { this.unhighlightTarget(); return; }
       this.highlightTarget(this.worldPoint(ptr), id);
     };
     const up = (ptr: Phaser.Input.Pointer) => {
@@ -394,18 +508,47 @@ export class BuilderScene extends Phaser.Scene {
       this.input.off('pointerup', up);
       const wp = this.worldPoint(ptr);
       this.unhighlightTarget();
-      const target = this.targetAt(wp);
-      const placed = target ? this.place(id, target) : false;
+      const tapped = Math.hypot(ptr.x - startX, ptr.y - startY) < 18;
+      // dropping back on the palette cancels the drag
+      const target = ptr.x < PAL_W ? null : this.resolveTarget(id, wp);
+      let placed = target ? this.place(id, target, !tapped) : false;
       // A quick tap on a palette card, without dragging to the rocket, drops
       // the part where it naturally belongs instead of doing nothing.
-      if (!placed && Math.hypot(ptr.x - startX, ptr.y - startY) < 18) {
-        this.place(id, this.autoTarget(id));
+      if (!placed && tapped && !restore) placed = this.place(id, this.autoTarget(id));
+      if (!placed && restore) {
+        this.asm = fromSlots(restore);
+        this.relayout();
+        this.refreshStats();
       }
       this.dragGhost?.destroy();
       this.dragGhost = undefined;
+      // after a tap the plate stays a moment so it can be read
+      if (tapped && !restore && this.canShowInfo()) this.showInfo(id, PAL_W + 12, 80, 4000);
+      else if (this.selectedUid === null) this.hideInfo();
     };
     this.input.on('pointermove', move);
     this.input.on('pointerup', up);
+  }
+
+  /**
+   * Engines and fins have exactly one sensible home, so a drop anywhere near
+   * the rocket goes there instead of failing on a pixel: an engine to the
+   * bottom of the stack (or under the booster it was dropped beside), fins to
+   * the seam above the bottom engine.
+   */
+  private resolveTarget(id: string, wp: { x: number; y: number }): Target | null {
+    const raw = this.targetAt(wp);
+    const kind = partDef(id).kind;
+    if (kind !== 'engine' && kind !== 'fins') return raw;
+    if (raw?.kind === 'side' && !this.validatePlace(id, raw)) {
+      // fins only go on a booster that already has a tank to sit on
+      const col = columnAt(this.asm, raw.hostUid, raw.side);
+      if (kind === 'engine' || col?.nodes.some((n) => partDef(n.id).kind === 'tank')) return raw;
+    }
+    const L = this.layout();
+    const nearRocket = L.spine.length === 0
+      || (wp.x > L.minX - 160 && wp.x < L.maxX + 160 && wp.y > L.top - 160 && wp.y < L.deepest + 200);
+    return nearRocket ? { kind: 'bottom' } : raw;
   }
 
   /** Where a tapped palette card should land: the fairing and the instruments
@@ -502,7 +645,8 @@ export class BuilderScene extends Phaser.Scene {
 
   private highlightTarget(wp: { x: number; y: number }, id: string): void {
     this.unhighlightTarget();
-    const target = this.targetAt(wp);
+    // show where the drop will really land (engines and fins are redirected)
+    const target = this.resolveTarget(id, wp);
     if (!target) return;
     const err = this.validatePlace(id, target);
     const L = this.layout();
@@ -563,17 +707,17 @@ export class BuilderScene extends Phaser.Scene {
       const last = this.asm.spine[this.asm.spine.length - 1];
       if (!last) return 'warn.engine_attach';
       const lastKind = partDef(last.id).kind;
-      // two engines on top of each other: the upper one would be buried
-      if (lastKind === 'engine') return 'warn.engine_bottom';
+      // a second engine under an engine swaps it out (see place())
+      if (lastKind === 'engine') return null;
       if (lastKind !== 'tank' && lastKind !== 'decoupler') return 'warn.engine_attach';
     }
 
     return null;
   }
 
-  private place(id: string, target: Target): boolean {
+  private place(id: string, target: Target, warn = true): boolean {
     const err = this.validatePlace(id, target);
-    if (err) { this.flashWarn(err); return false; }
+    if (err) { if (warn) this.flashWarn(err); return false; }
 
     const node = makeNode(id);
     const kind = partDef(id).kind;
@@ -585,6 +729,12 @@ export class BuilderScene extends Phaser.Scene {
       }
       insertAtTop(this.asm, node, (pid) => partDef(pid).kind === 'nose');
     } else if (target.kind === 'bottom') {
+      const last = this.asm.spine[this.asm.spine.length - 1];
+      if (kind === 'engine' && last && partDef(last.id).kind === 'engine') {
+        // swap the bottom engine for the new one instead of refusing the drop
+        removeNode(this.asm, last.uid);
+        this.flashInfo(t('builder.engine_swapped'));
+      }
       insertAtBottom(this.asm, node, (pid) => partDef(pid).kind === 'engine');
     } else {
       appendToSide(this.asm, target.hostUid, target.side, node);
@@ -611,15 +761,60 @@ export class BuilderScene extends Phaser.Scene {
       const rect = L.pos.get(node.uid);
       if (!rect) continue;
       const go = addPart(this, node.id, rect.x, rect.y);
-      // fins occupy a seam rather than a slot, so their layout height is a few
-      // pixels; give every part a hit box tall enough to actually click
-      makePartInteractive(go, rect.w, Math.max(rect.h, 44));
-      go.on('pointerdown', () => this.select(node.uid));
+      // clicks are hit-tested against the layout in partAt(): Phaser offsets
+      // the hit box of a Container nested in the workspace, which made the
+      // engines (drawn as Containers) grab clicks meant for the tank above
       this.workspace.add(go);
       this.gos.set(node.uid, go);
     }
     this.applySelectionTint();
     this.updateRemoveBtn();
+  }
+
+  /**
+   * The part under a workspace point. Fins sit on a seam and are only a few
+   * pixels tall in the layout, so every box is at least 44 px tall; where
+   * boxes overlap the smallest wins, so fins and boosters stay clickable.
+   */
+  private partAt(wp: { x: number; y: number }): Node | null {
+    const L = this.layoutCache ?? this.layout();
+    let best: Node | null = null;
+    let bestArea = Infinity;
+    for (const node of allNodes(this.asm)) {
+      const r = L.pos.get(node.uid);
+      if (!r) continue;
+      const h = Math.max(r.h, 44);
+      const w = Math.max(r.w, 44);
+      if (Math.abs(wp.x - r.x) > w / 2 || Math.abs(wp.y - r.y) > h / 2) continue;
+      if (w * h < bestArea) { bestArea = w * h; best = node; }
+    }
+    return best;
+  }
+
+  /** Tap a placed part to select it; press and drag to move it elsewhere. */
+  private pressPlaced(node: Node, p: Phaser.Input.Pointer): void {
+    if (this.dragGhost) return;
+    const sx = p.x;
+    const sy = p.y;
+    const move = (ptr: Phaser.Input.Pointer): void => {
+      if (Math.hypot(ptr.x - sx, ptr.y - sy) < MOVE_START) return;
+      this.input.off('pointermove', move);
+      this.input.off('pointerup', up);
+      const snapshot = toSlots(this.asm);
+      removeNode(this.asm, node.uid);
+      this.selectedUid = null;
+      this.loadedPreset = null;
+      this.relayout();
+      this.refreshStats();
+      this.startDrag(node.id, ptr, snapshot);
+    };
+    const up = (): void => {
+      this.input.off('pointermove', move);
+      this.input.off('pointerup', up);
+      this.select(node.uid);
+    };
+    this.input.on('pointermove', move);
+    this.input.on('pointerup', up);
   }
 
   private applySelectionTint(): void {
@@ -630,10 +825,14 @@ export class BuilderScene extends Phaser.Scene {
     this.selectedUid = this.selectedUid === uid ? null : uid;
     this.applySelectionTint();
     this.updateRemoveBtn();
+    const node = this.selectedUid === null ? null : allNodes(this.asm).find((n) => n.uid === uid);
+    if (node && this.canShowInfo()) this.showInfo(node.id, PAL_W + 12, 80);
+    else this.hideInfo();
   }
 
   private deleteSelected(): void {
     if (this.selectedUid === null) return;
+    this.hideInfo();
     removeNode(this.asm, this.selectedUid);
     this.selectedUid = null;
     this.loadedPreset = null;
@@ -691,6 +890,7 @@ export class BuilderScene extends Phaser.Scene {
 
   private openPresets(): void {
     if (this.presetsOpen || this.inGameMenu?.isOpen) return;
+    this.hideInfo();
     const { width, height } = this.scale;
     const missionId = missionById(state.missionId)?.id ?? null;
     const keep = <T extends Phaser.GameObjects.GameObject>(go: T, depth: number): T => {
