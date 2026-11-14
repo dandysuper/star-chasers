@@ -342,5 +342,6 @@
   "plan.apod_untitled": "Астрономический снимок дня",
   "plan.apod_translated": "Перевод: MyMemory",
   "plan.apod_english": "Перевожу… пока текст NASA на английском",
-  "builder.engine_swapped": "Двигатель заменён на новый"
+  "builder.engine_swapped": "Двигатель заменён на новый",
+  "lab.examine": "🔬 Исследовать образцы"
 }

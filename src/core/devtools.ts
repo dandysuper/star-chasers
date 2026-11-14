@@ -1,6 +1,6 @@
 /** Dev-only conveniences, all inert unless the query string asks for them. */
 
-const DEV_SCENES = ['menu', 'hub', 'builder', 'flight', 'explore', 'planner'] as const;
+const DEV_SCENES = ['menu', 'hub', 'builder', 'flight', 'explore', 'planner', 'lab'] as const;
 export type DevScene = typeof DEV_SCENES[number];
 
 function query(key: string): string | null {

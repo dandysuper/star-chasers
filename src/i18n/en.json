@@ -342,5 +342,6 @@
   "plan.apod_untitled": "Astronomy Picture of the Day",
   "plan.apod_translated": "",
   "plan.apod_english": "",
-  "builder.engine_swapped": "Engine swapped for the new one"
+  "builder.engine_swapped": "Engine swapped for the new one",
+  "lab.examine": "🔬 Examine samples"
 }
