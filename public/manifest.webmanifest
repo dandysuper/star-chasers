@@ -1,0 +1,10 @@
+{
+  "name": "Star Chasers / Звёздные гонщики",
+  "short_name": "Star Chasers",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0b0b2a",
+  "theme_color": "#0b0b2a"
+}

@@ -7,6 +7,7 @@ import { devSceneOverride, devMissionOverride, devLangOverride } from '../core/d
 import { state } from '../core/state';
 import { PRESET_BASIC } from '../data/parts';
 import { MISSIONS } from '../data/missions';
+import { introFinished } from '../core/intro';
 import { musicAssetFiles, TRACKS, VICTORY_JINGLE } from '../core/themeTracks';
 import { preloadMinionAudio } from '../core/minionAudio';
 import { installOverhaul, queueOverhaul } from '../ui/overhaul';
@@ -118,7 +119,8 @@ export class BootScene extends Phaser.Scene {
 
   private _go = false;
   override update(): void {
-    if (!this._go) return;
+    // the first-launch trailer plays over the loaded game; open the menu after it
+    if (!this._go || !introFinished) return;
     this._go = false;
     const target = devSceneOverride();
     if (!target || target === 'menu') {

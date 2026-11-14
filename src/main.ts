@@ -1,6 +1,9 @@
 import Phaser from 'phaser';
 import { watchInputMode } from './core/device';
 import { useMediaAudioSession } from './core/audioState';
+import { watchOrientation } from './core/orientation';
+// starts the first-launch trailer (if due) before the game boots underneath it
+import './core/intro';
 import { BootScene } from './scenes/BootScene';
 import { MenuScene } from './scenes/MenuScene';
 import { HubScene } from './scenes/HubScene';
@@ -40,6 +43,7 @@ const game = new Phaser.Game({
   scene: [BootScene, MenuScene, HubScene, BuilderScene, FlightScene, ExploreScene, ResultScene],
 });
 
+watchOrientation(() => game.scale.refresh());
 // Uncaught errors inside a Phaser frame arrive as a bare message, which made a
 // repeating one impossible to locate. In dev runs, print the stack instead.
 if (typeof location !== 'undefined' && new URLSearchParams(location.search).has('dev')) {
