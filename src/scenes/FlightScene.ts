@@ -2,7 +2,6 @@ import Phaser from 'phaser';
 import { throttleSlider } from '../ui/throttleSlider';
 import { state } from '../core/state';
 import { t, fmtDist, fmtSpeed, fmtTime } from '../core/i18n';
-import { EARTH, MOON } from '../data/bodies';
 import { partDef } from '../data/parts';
 import { missionById } from '../data/missions';
 import { FlightSim, defaultControl, DT, type RocketControl, type SimEvent, type Telemetry } from '../physics/sim';
@@ -111,6 +110,8 @@ export class FlightScene extends Phaser.Scene {
   /** World y of the ground line: the bottom of the stack standing on the pad. */
   private groundY = 0;
   /** Camera zoom on the pad: below 1 for a rocket taller than the screen. */
+  private physicsText!: Phaser.GameObjects.Text;
+  private exhaust!: Phaser.GameObjects.Graphics;
   private groundZoom = 1;
   private manualZoom = 1;
   private site?: Phaser.GameObjects.Container;
@@ -154,7 +155,7 @@ export class FlightScene extends Phaser.Scene {
     this.mission = missionById(state.missionId);
     ensureMusic(this, state.music, true);   // ducked under flight
 
-    this.sim = new FlightSim(state.design.parts);
+    this.sim = new FlightSim(state.design.parts,state.difficulty);
     const stats = computeStats(state.design.parts);
     this.control = defaultControl();
     this.control.throttle = Phaser.Math.Clamp(state.design.throttle ?? 1,0,1);
@@ -334,12 +335,12 @@ export class FlightScene extends Phaser.Scene {
   // ---------------- HUD ----------------
 
   private buildHUD(width: number, height: number): void {
-    const panel = makePanel(this, 8, 8, 300, 236, 0.82);
+    const panel = makePanel(this, 8, 8, 350, 270, 0.82);
     this.uiObjects.push(panel);
 
-    this.hudText = this.add.text(20, 18, '', { ...TXT.small, fontSize: '14px', lineSpacing: 2 })
+    this.hudText = this.add.text(20, 18, '', { ...TXT.small, fontSize: '17px', lineSpacing: 2 })
       .setDepth(50);
-    this.logText = this.add.text(20, 548, '', {
+    this.logText = this.add.text(20, 566, '', {
       ...TXT.small, fontSize: '11px', lineSpacing: 2, wordWrap: {width:264},
       backgroundColor: '#0b0b2acc', padding: { x: 8, y: 6 },
     }).setDepth(61);
@@ -349,7 +350,7 @@ export class FlightScene extends Phaser.Scene {
     this.fuelBar = this.add.graphics().setDepth(50);
     this.uiObjects.push(this.hudText, this.logText, this.statusText, this.fuelBar);
     if (hasV2(this, UI_V2_ART.iconFuel)) {
-      const fuelIcon = fitInto(this.add.image(28, 204, V2, UI_V2_ART.iconFuel), 22, 26).setDepth(51);
+      const fuelIcon = fitInto(this.add.image(28, 251, V2, UI_V2_ART.iconFuel), 22, 26).setDepth(51);
       this.uiObjects.push(fuelIcon);
     }
 
@@ -366,9 +367,11 @@ export class FlightScene extends Phaser.Scene {
     this.uiObjects.push(giveUp);
     if (giveUp.hitZone) this.uiObjects.push(giveUp.hitZone);
 
+    this.physicsText=this.add.text(width-260,80,'',{...TXT.small,fontSize:'17px',lineSpacing:4,backgroundColor:'#10142cdd',padding:{x:10,y:10}}).setDepth(55);
+    this.uiObjects.push(this.physicsText);
     this.buildPilotPad(height - 44);
-    this.uiObjects.push(throttleSlider(this,20,332,270,()=>this.control.throttle,v=>{this.control.throttle=v;},()=>!this.paused && !this.ended));
-    const messages = this.add.container(8,394).setDepth(60);
+    this.uiObjects.push(throttleSlider(this,20,358,270,()=>this.control.throttle,v=>{this.control.throttle=v;},()=>!this.paused && !this.ended));
+    const messages = this.add.container(8,412).setDepth(60);
     const background = this.add.rectangle(150,116,300,232,0x10142c,0.94).setStrokeStyle(2,0x566589);
     const title = this.add.text(12,10,t('flight.messages'),{...TXT.small,fontStyle:'bold',fontSize:'14px'});
     const speech = this.add.text(12,42,'',{...TXT.small,fontSize:'13px',color:'#cdefff',wordWrap:{width:270}});
@@ -383,14 +386,14 @@ export class FlightScene extends Phaser.Scene {
       speech.setCrop(0,0,270,104);
     };
     this.uiObjects.push(messages);
-    const collapse = makeButton(this,282,412,'−',{w:32,h:28,fontSize:18,onClick:()=>{
+    const collapse = makeButton(this,282,430,'−',{w:32,h:28,fontSize:18,onClick:()=>{
       this.messagesCollapsed=!this.messagesCollapsed;
       collapse.setLabel?.(this.messagesCollapsed ? '+' : '−');
     }}).setDepth(62);
     this.uiObjects.push(collapse);
     if (collapse.hitZone) {collapse.hitZone.setDepth(63);this.uiObjects.push(collapse.hitZone);}
 
-    this.hintText = this.add.text(14, 256, '', {
+    this.hintText = this.add.text(14, 286, '', {
       ...TXT.small, fontSize: '12px', color: '#b9bde0', lineSpacing: 2,
       backgroundColor: '#0b0b2acc', padding: { x: 8, y: 4 },
       wordWrap: { width: 290 },
@@ -483,7 +486,7 @@ export class FlightScene extends Phaser.Scene {
     if (thr !== 0) {
       this.control.throttle = Phaser.Math.Clamp(this.control.throttle + thr * THROTTLE_RATE * dt, 0, 1);
     }
-    if (tilt !== 0) {
+    if (tilt !== 0 && this.control.engineOn && this.control.throttle > 0 && (this.sim.stage?.fuel ?? 0)>0) {
       if (!this.hasControl) {
         this.tip('flight.tip_no_control');
         return;
@@ -500,7 +503,7 @@ export class FlightScene extends Phaser.Scene {
     const st = this.sim.stage;
     const moreStages = this.sim.stageIndex < this.sim.stages.length - 1;
     if (st && st.fuel <= 0 && moreStages) this.tip('flight.tip_stage');
-    if (this.mission?.id === 'm2' && tel.altitude >= SPACE_ALT && this.control.engineOn) this.tip('flight.tip_cutoff');
+    if (this.mission?.id === 'm2' && tel.altitude >= (state.difficulty === 'realistic' ? 100000 : SPACE_ALT*this.sim.profile.distance) && this.control.engineOn) this.tip('flight.tip_cutoff');
     if (this.mission?.id === 'm2' && tel.altitude > 15000 && tel.altitude < 25000 && this.hasControl) this.tip('flight.tip_tilt');
     const falling = tel.vspeed < -20 && tel.altitude < 8000;
     if (falling && this.sim.stats.hasParachute && !this.sim.parachuteDeployed) this.tip('flight.tip_chute');
@@ -528,15 +531,15 @@ export class FlightScene extends Phaser.Scene {
   }
 
   private setWarp(dir: 1 | -1): void {
-    const steps = [1, 2, 5, 10];
+    const steps = [1, 2, 5, 10, 50, 100];
     let i = steps.indexOf(this.warp) + dir;
     if (dir === 1 && i >= steps.length) i = 0; // wrap around on tap so mobile players can return to 1×
     i = Phaser.Math.Clamp(i, 0, steps.length - 1);
     const want = steps[i];
     // warp > 2 is disabled in the atmosphere with the engine burning
     const tel = this.sim.telemetry(this.control);
-    const inAtmo = tel.bodyName === 'earth' && tel.altitude < EARTH.atmHeight;
-    if (want > 2 && inAtmo && this.control.engineOn && this.sim.stage && this.sim.stage.fuel > 0) {
+    const inAtmo = tel.bodyName === 'earth' && tel.altitude < this.sim.earth.atmHeight;
+    if (want > 2 && (inAtmo || this.control.engineOn)) {
       this.warp = 1;
       return;
     }
@@ -553,6 +556,7 @@ export class FlightScene extends Phaser.Scene {
     this.tankLabels = [];
     this.reentry = this.add.graphics();
     this.rocket.addAt(this.reentry,0);
+    this.exhaust=this.add.graphics(); this.rocket.addAt(this.exhaust,0);
     for (const part of this.art.parts) if (partDef(part.node.id).kind === 'tank') {
       const text = this.add.text(part.x,part.y,'100%',{fontFamily:'system-ui',fontSize:'11px',fontStyle:'bold',color:'#ffffff',stroke:'#152139',strokeThickness:3}).setOrigin(0.5);
       this.rocket.add(text);
@@ -634,7 +638,7 @@ export class FlightScene extends Phaser.Scene {
    * as the camera climbs and fades out once the curved Earth takes over.
    */
   private buildLaunchSite(): void {
-    const gy = this.groundY;
+    const gy = this.groundY + 10;
     const site = this.add.container(0, 0).setDepth(-7);
     this.site = site;
     const rng = new Phaser.Math.RandomDataGenerator(['launch-site']);
@@ -804,6 +808,8 @@ export class FlightScene extends Phaser.Scene {
 
   override update(_time: number, delta: number): void {
     if (this.ended) return;
+    const current = this.sim.telemetry(this.control);
+    if(this.warp>2 && (this.control.engineOn || (current.bodyName==='earth' && current.altitude<this.sim.earth.atmHeight))) this.warp=1;
     const frameSec = Math.min(delta / 1000, 0.1);
     const running = !this.paused && this.sim.phase !== 'crashed' && this.sim.phase !== 'landed';
 
@@ -831,10 +837,10 @@ export class FlightScene extends Phaser.Scene {
 
     // ---- rocket transform ----
     const px = this.sim.x;
-    const py = -(this.sim.y - EARTH.R);
+    const py = -(this.sim.y - this.sim.earth.R);
     this.rocket.setPosition(px, py);
     const localUp = Math.atan2(this.sim.y, this.sim.x);
-    this.rocket.setRotation(localUp - Math.PI / 2 + this.sim.angle);
+    this.rocket.setRotation(Math.PI / 2 - localUp + this.sim.angle);
     // keep the rocket readable when the camera pulls far out
     const visScale = zoom < 0.15 ? Phaser.Math.Clamp(0.15 / zoom, 1, 24) : 1;
     this.rocket.setScale(visScale);
@@ -892,8 +898,8 @@ export class FlightScene extends Phaser.Scene {
 
   /** Air pressure fraction at this altitude: 1 on the pad, 0 in space. */
   private airFraction(tel: Telemetry): number {
-    if (tel.bodyName !== 'earth' || tel.altitude >= EARTH.atmHeight) return 0;
-    return Math.exp(-tel.altitude / EARTH.scaleH);
+    if (tel.bodyName !== 'earth' || tel.altitude >= this.sim.earth.atmHeight) return 0;
+    return Math.exp(-tel.altitude / this.sim.earth.scaleH);
   }
 
   private updateTankLabels(): void {
@@ -908,85 +914,57 @@ export class FlightScene extends Phaser.Scene {
 
   private drawReentry(tel: Telemetry): void {
     const g = this.reentry.clear();
-    if (tel.bodyName !== 'earth' || tel.altitude >= EARTH.atmHeight || this.sim.phase !== 'flying') return;
+    if (tel.bodyName !== 'earth' || tel.altitude >= this.sim.earth.atmHeight || this.sim.phase !== 'flying') return;
     // Convective heating scales approximately with sqrt(density) * speed cubed.
-    const density = EARTH.rho0*Math.exp(-Math.max(0,tel.altitude)/EARTH.scaleH);
+    const density = tel.density;
     const heat = Phaser.Math.Clamp((Math.sqrt(density)*Math.pow(tel.speed,3)-2e7)/3e8,0,1);
     if (heat <= 0) return;
     const parts = this.art.parts.filter(p=>!this.detached.has(p.node.uid));
     if (!parts.length) return;
-    const top = Math.min(...parts.map(p=>p.y-p.h/2));
-    const bottom = Math.max(...parts.map(p=>p.y+p.h/2+p.bell));
-    const radius = Math.max(24,...parts.map(p=>Math.abs(p.x)+p.w/2));
-    const cy = (top+bottom)/2;
-    const angle = Math.atan2(-this.sim.vy,this.sim.vx)-this.rocket.rotation;
-    const dx=Math.cos(angle), dy=Math.sin(angle);
-    const reach=Math.abs(dy)*(bottom-top)/2+Math.abs(dx)*radius;
-    for(let layer=3;layer>=0;layer--) {
-      const width=radius+8+layer*5;
-      const points: Phaser.Types.Math.Vector2Like[]=[];
-      for(let i=0;i<=32;i++) {
-        const a=-Math.PI/2+i*Math.PI/32;
-        const forward=reach*Math.cos(a)-Math.pow(Math.abs(Math.sin(a)),3)*(25+heat*80);
-        const ripple=Math.sin(i*0.7-this.sim.t*16+layer)*heat*3*Math.abs(Math.sin(a));
-        const side=(width+ripple)*Math.sin(a);
-        points.push({x:dx*forward-dy*side,y:cy+dy*forward+dx*side});
+    const r=this.rocket.rotation;
+    const flow={x:-this.sim.vx*Math.cos(r)+this.sim.vy*Math.sin(r),y:this.sim.vx*Math.sin(r)+this.sim.vy*Math.cos(r)};
+    const speed=Math.max(1,Math.hypot(flow.x,flow.y));flow.x/=speed;flow.y/=speed;
+    for(const part of parts) {
+      if(partDef(part.node.id).kind === 'fins') continue;
+      for(const side of [-1,1]) for(let strand=0;strand<5;strand++) {
+        const phase=(this.sim.t*(1+heat)+strand/5)%1;
+        const pts: Phaser.Types.Math.Vector2Like[]=[];
+        for(let j=0;j<12;j++) {
+          const u=Math.max(0,phase-j*0.015);
+          const y=part.y+(flow.y>=0 ? -1 : 1)*part.h/2+flow.y*u*(part.h+30);
+          const nose=partDef(part.node.id).kind === 'nose' ? Math.min(1,u*3+0.15) : 1;
+          const x=part.x+side*(part.w/2*nose+3+strand)+flow.x*u*35+Math.sin(u*20-this.sim.t*25+strand)*u*3;
+          pts.push({x,y});
+        }
+        g.lineStyle(2+heat*3,strand===0?0xffd076:0xff4b20,heat*(1-phase)*0.6);
+        g.strokePoints(pts,false);
       }
-      g.lineStyle(4+layer*5,layer===0?0xffd179:layer===1?0xff702e:0xff2818,heat*(0.55-layer*0.12));
-      g.strokePoints(points,false);
-    }
-    // Advect bright streaks from the stagnation point around the hull and
-    // downstream. Simulation time freezes the flow when the flight is paused.
-    for (let side=-1;side<=1;side+=2) for(let strand=0;strand<12;strand++) {
-      const phase=(this.sim.t*(0.8+heat*1.4)+strand/12)%1;
-      const points: Phaser.Types.Math.Vector2Like[]=[];
-      for(let segment=0;segment<9;segment++) {
-        const u=Math.max(0,phase-segment*0.018);
-        const wrap=Math.min(1,u*2.4);
-        const lateral=side*(radius+9+strand%3*3)*Math.sin(wrap*Math.PI/2);
-        const forward=reach*Math.cos(wrap*Math.PI/2)-Math.max(0,u-0.4)*(reach*2+60+heat*90);
-        const flicker=Math.sin(u*19-this.sim.t*14+strand)*u*heat*5;
-        points.push({x:dx*forward-dy*(lateral+flicker),y:cy+dy*forward+dx*(lateral+flicker)});
-      }
-      g.lineStyle(1.5+heat*2,strand%3===0?0xffd78a:0xff4b20,heat*(1-phase)*0.8);
-      g.strokePoints(points,false);
     }
   }
 
   private drawFlames(tel: Telemetry): void {
-    const on = this.engineBurning(tel);
-    const air = this.airFraction(tel);
-    for (const fx of this.engines) {
-      const active = on && fx.stage === this.sim.stageIndex && !this.detached.has(fx.uid);
-      fx.flame?.setVisible(active);
-      fx.glow?.setVisible(active);
-      if (!active) continue;
-      const flicker = 0.86 + Math.random() * 0.28;
-      // the plume stays in proportion to its own engine, and in thin air it
-      // swells longer and wider, the way a real exhaust balloons in vacuum
-      const len = fx.w * (0.3 + 4.5 * tel.throttle) * fx.power * (1 + 0.45 * (1 - air)) * flicker;
-      if (fx.flame) {
-        if (this.flameMode === 'additive') {
-          // additive art keeps its own aspect (219×420) and must not be tinted
-          // or dimmed: ADD multiplies by alpha, so any fade kills the bright core
-          fx.flame.setDisplaySize(len * (0.5 + 0.32 * (1 - air)), len);
-          fx.flame.setAlpha(1);
-        } else if (this.flameMode === 'painted') {
-          // the painted plume fills its canvas, so it is drawn narrower than
-          // the black-background art; never narrower than the nozzle it leaves
-          const pw = Math.max(fx.mouth * 1.3, len * 0.3 * (1 + 0.35 * (1 - air)));
-          fx.flame.setDisplaySize(pw, len);
-          fx.flame.setAlpha(1);
-        } else {
-          fx.flame.setDisplaySize(fx.w * 0.6 + 14 * tel.throttle, len);
-          fx.flame.setAlpha(0.9);
-          fx.flame.setTint(this.sim.launched ? 0xffffff : 0xffe9b0);
+    const g=this.exhaust.clear(), on=this.engineBurning(tel), air=this.airFraction(tel);
+    const r=this.rocket.rotation;
+    const lateral=-this.sim.vx*Math.cos(r)+this.sim.vy*Math.sin(r);
+    for(const fx of this.engines) {
+      const active=on && fx.stage===this.sim.stageIndex && !this.detached.has(fx.uid);
+      fx.flame?.setVisible(false); fx.glow?.setVisible(active);
+      if(!active) continue;
+      const len=fx.w*(0.3+3.6*tel.throttle)*fx.power*(1+0.4*(1-air));
+      const bend=Phaser.Math.Clamp(lateral/500,-1,1)*air*len*0.25-this.sim.angularVelocity*len*0.2;
+      for(let layer=0;layer<4;layer++) {
+        const points: Phaser.Types.Math.Vector2Like[]=[];
+        const length=len*(1-layer*0.16);
+        for(const side of [1,-1]) for(let j=0;j<=28;j++) {
+          const u=side===1?j/28:1-j/28;
+          const ripple=Math.sin(u*22-this.sim.t*30+fx.uid)*Math.sin(Math.PI*u)*0.06;
+          const width=fx.mouth*(0.52-layer*0.105)*(1-u)*(1+u*(1-air)*2);
+          points.push({x:fx.x+bend*u*u+Math.sin(u*12-this.sim.t*24)*u*u*5+side*width*(1+ripple),y:fx.y+u*length});
         }
+        g.fillStyle([0xff4014,0xff861d,0xffcc53,0xfff5d4][layer],[0.3,0.6,0.8,0.95][layer]);
+        g.fillPoints(points,true);
       }
-      if (fx.glow) {
-        const g = fx.w * (1.7 + 1.1 * tel.throttle) * fx.power * flicker;
-        fx.glow.setDisplaySize(g, g * 0.8).setAlpha(0.55 + 0.3 * tel.throttle);
-      }
+      fx.glow?.setDisplaySize(fx.mouth*2,fx.mouth*1.5).setAlpha(0.3+tel.throttle*0.3);
     }
   }
 
@@ -1015,7 +993,7 @@ export class FlightScene extends Phaser.Scene {
 
   private emitSmoke(tel: Telemetry): void {
     if (!this.smoke || this.paused) return;
-    const inAtmo = tel.bodyName === 'earth' && tel.altitude < EARTH.atmHeight * 0.6;
+    const inAtmo = tel.bodyName === 'earth' && tel.altitude < this.sim.earth.atmHeight * 0.6;
     if (!inAtmo || !this.engineBurning(tel)) return;
     for (const fx of this.engines) {
       if (fx.stage !== this.sim.stageIndex || this.detached.has(fx.uid)) continue;
@@ -1085,13 +1063,13 @@ export class FlightScene extends Phaser.Scene {
       // pulled back toward Earth (world Earth centre is (0, R)); thick air
       // brakes it, which is what makes it fall behind the still-burning rocket
       const gx = 0 - d.c.x;
-      const gy = EARTH.R - d.c.y;
+      const gy = this.sim.earth.R - d.c.y;
       const r = Math.hypot(gx, gy) || 1;
-      const g = EARTH.GM / (r * r);
+      const g = this.sim.earth.GM / (r * r);
       d.vx += (gx / r) * g * dt;
       d.vy += (gy / r) * g * dt;
-      const alt = r - EARTH.R;
-      const brake = alt < EARTH.atmHeight ? 0.25 * Math.exp(-Math.max(0, alt) / EARTH.scaleH) + 0.04 : 0.02;
+      const alt = r - this.sim.earth.R;
+      const brake = alt < this.sim.earth.atmHeight ? 0.25 * Math.exp(-Math.max(0, alt) / this.sim.earth.scaleH) + 0.04 : 0.02;
       const keep = Math.exp(-brake * dt);
       d.vx *= keep;
       d.vy *= keep;
@@ -1265,29 +1243,29 @@ export class FlightScene extends Phaser.Scene {
     if (zoom > 0.2) return;
 
     // centred so the planet's top meets the pad's ground line
-    const ey = EARTH.R + this.groundY;
+    const ey = this.sim.earth.R + this.groundY;
     g.fillStyle(0x4a90e2, 1);
-    g.fillCircle(0, ey, EARTH.R);
+    g.fillCircle(0, ey, this.sim.earth.R);
     g.fillStyle(0x7ac74f, 0.85);
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2 + 1;
-      g.fillEllipse(Math.cos(a) * EARTH.R * 0.55, ey + Math.sin(a) * EARTH.R * 0.55,
-        EARTH.R * 0.5, EARTH.R * 0.3);
+      g.fillEllipse(Math.cos(a) * this.sim.earth.R * 0.55, ey + Math.sin(a) * this.sim.earth.R * 0.55,
+        this.sim.earth.R * 0.5, this.sim.earth.R * 0.3);
     }
     // a layered blue limb: the atmosphere as a soft halo, not one hard ring
     const band = Math.max(9000, 3 / zoom);
     for (let i = 0; i < 4; i++) {
       g.lineStyle(band, 0x6ec6ff, 0.26 - i * 0.05);
-      g.strokeCircle(0, ey, EARTH.R + band * (0.5 + i));
+      g.strokeCircle(0, ey, this.sim.earth.R + band * (0.5 + i));
     }
 
     if (tel.bodyName === 'moon' || tel.altitude > 40000) {
-      const my = -(MOON.y - EARTH.R);
+      const my = -(this.sim.moon.y - this.sim.earth.R);
       g.fillStyle(0xbfc3c7, 1);
-      g.fillCircle(MOON.x, my, MOON.R);
+      g.fillCircle(this.sim.moon.x, my, this.sim.moon.R);
       g.fillStyle(0x8f939a, 1);
       for (let i = 0; i < 6; i++) {
-        g.fillCircle(MOON.x + (i - 3) * MOON.R * 0.3, my + ((i % 3) - 1) * MOON.R * 0.3, MOON.R * 0.09);
+        g.fillCircle(this.sim.moon.x + (i - 3) * this.sim.moon.R * 0.3, my + ((i % 3) - 1) * this.sim.moon.R * 0.3, this.sim.moon.R * 0.09);
       }
     }
   }
@@ -1302,9 +1280,9 @@ export class FlightScene extends Phaser.Scene {
     for (let i = 1; i < this.previewPts.length; i++) {
       const a = this.previewPts[i - 1];
       const b = this.previewPts[i];
-      if (i % 2 === 1) g.lineBetween(a.x, -(a.y - EARTH.R), b.x, -(b.y - EARTH.R));
+      if (i % 2 === 1) g.lineBetween(a.x, -(a.y - this.sim.earth.R), b.x, -(b.y - this.sim.earth.R));
       const r = Math.hypot(b.x, b.y);
-      if (r > apo.r) apo = { x: b.x, y: -(b.y - EARTH.R), r };
+      if (r > apo.r) apo = { x: b.x, y: -(b.y - this.sim.earth.R), r };
     }
     const last = this.previewPts[this.previewPts.length - 1];
     // only mark a real summit, not the end of a still-climbing preview
@@ -1323,7 +1301,7 @@ export class FlightScene extends Phaser.Scene {
       `${t('flight.hud.speed')}: ${fmtSpeed(tel.speed)}`,
       `${t('flight.hud.vspeed')}: ${fmtSpeed(tel.vspeed)}`,
       `${t('flight.hud.engine')}: ${t(tel.engineOn ? 'common.on' : 'common.off')} · ${t('flight.hud.throttle')} ${Math.round(tel.throttle * 100)}%`,
-      `${t('flight.hud.pitch')}: ${Math.round(tel.targetAngle)}°`,
+      `${t('flight.hud.pitch')}: ${Math.round(tel.angle)}°`,
       `${t('flight.hud.stage')}: ${tel.stage}`,
       `${t('flight.hud.apo')}: ${tel.apoapsis === Infinity ? t('flight.escape') : fmtDist(tel.apoapsis)}`,
       `${t('flight.hud.time')}: ${fmtTime(tel.time)}`,
@@ -1331,17 +1309,18 @@ export class FlightScene extends Phaser.Scene {
     if (this.warp > 1) lines.push(t('flight.hud.warp', { n: this.warp }));
     if (this.paused) lines.push(`⏸ ${t('flight.hud.paused')}`);
     this.hudText.setText(lines.join('\n'));
+    this.physicsText.setText([t(`difficulty.${state.difficulty}`), `${t('stats.mass')}: ${tel.mass.toFixed(0)} kg`, `${t('physics.thrust')}: ${(tel.thrust/1000).toFixed(1)} kN`, `${t('physics.drag')}: ${(tel.dragForce/1000).toFixed(2)} kN`, `ρ: ${tel.density.toExponential(2)} kg/m³`, `q: ${(tel.dynamicPressure/1000).toFixed(2)} kPa`, `Mach: ${tel.mach.toFixed(2)}`].join('\n'));
 
     // fuel bar + fuel canister badge
     const g = this.fuelBar;
     g.clear();
     const barX = hasV2(this, UI_V2_ART.iconFuel) ? 44 : 20;
     const barW = hasV2(this, UI_V2_ART.iconFuel) ? 252 : 276;
-    g.fillStyle(0x1d1b2e, 1).fillRoundedRect(barX, 196, barW, 16, 8);
+    g.fillStyle(0x1d1b2e, 1).fillRoundedRect(barX, 243, barW, 16, 8);
     const frac = Phaser.Math.Clamp(tel.fuelPercent, 0, 1);
     if (frac > 0) {
       g.fillStyle(frac > 0.3 ? 0xffd23f : 0xff6b6b, 1)
-        .fillRoundedRect(barX, 196, Math.max(16, barW * frac), 16, 8);
+        .fillRoundedRect(barX, 243, Math.max(16, barW * frac), 16, 8);
     }
 
     this.logText.setText(this.logLines.slice(-2).join('\n')).setCrop(0,0,280,74).setVisible(!this.messagesCollapsed);

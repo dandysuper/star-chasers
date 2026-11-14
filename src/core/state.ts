@@ -1,3 +1,4 @@
+import type { Difficulty } from '../physics/environment';
 import type { DesignSlot } from '../data/assembly';
 
 export type Lang = 'ru' | 'en';
@@ -26,6 +27,7 @@ export type Mode = 'mission' | 'sandbox';
 class GameState {
   lang: Lang = 'ru';
   music = true;
+  difficulty: Difficulty = 'normal';
   astronaut: Astronaut = 'female';
 
   /** Current mission id ('m1' | 'm2' | 'moon' | 'mars') or null in sandbox. */

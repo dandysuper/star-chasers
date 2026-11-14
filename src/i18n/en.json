@@ -270,5 +270,13 @@
   "fact.extra.4": "Spent stages are discarded so the rocket does not have to accelerate their empty mass.",
   "fact.extra.5": "The Moon has no dense atmosphere, so parachutes cannot help a landing.",
   "fact.extra.6": "Lower throttle reduces fuel use per second, but too little thrust cannot keep a rocket climbing.",
-  "fact.extra.7": "Sound cannot travel through empty space: it needs a medium such as air."
+  "fact.extra.7": "Sound cannot travel through empty space: it needs a medium such as air.",
+  "difficulty.normal": "Normal",
+  "difficulty.hard": "Hard",
+  "difficulty.realistic": "Real scale",
+  "difficulty.normal.hint": "Game scale. Click the mode to change difficulty.",
+  "difficulty.hard.hint": "Targets and distances ×1.5; dry mass +15%; consumption +20%; stricter aerodynamics.",
+  "difficulty.realistic.hint": "Earth 6371 km; Moon 384,400 km. NASA/SI model with approximations. See NASA / SI.",
+  "physics.thrust": "Thrust",
+  "physics.drag": "Drag"
 }

@@ -16,13 +16,13 @@ describe('flight sim (spec §4)', () => {
   it('retains angular momentum when the steering target reverses', () => {
     const sim = new FlightSim(PRESET_BASIC);
     sim.y = EARTH.R+80000; sim.launched=true; sim.phase='flying';
-    const c = {...defaultControl(),targetAngle:0.5};
+    const c = {...defaultControl(),engineOn:true,targetAngle:0.5};
     run(sim,60,c);
     expect(sim.angularVelocity).toBeGreaterThan(0);
     const angle=sim.angle;
     run(sim,1,{...c,targetAngle:-0.5});
     expect(sim.angle).toBeGreaterThan(angle);
-    run(sim,240,{...c,targetAngle:-0.5});
+    run(sim,90,{...c,targetAngle:-0.5});
     expect(sim.angularVelocity).toBeLessThan(0);
   });
 

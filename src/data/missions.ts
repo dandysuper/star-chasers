@@ -62,13 +62,13 @@ export const MISSIONS: Record<string, MissionDef> = {
     dvNeed: 1500,
     check: (sim) => {
       if (sim.phase === 'crashed') return { fail: 'fail.crashed' };
-      if (sim.maxAltitude >= 10000) return 'success';
-      if (sim.t > 120) return { fail: 'fail.timeout' };
-      if (sim.phase === 'landed' && sim.launched && sim.maxAltitude < 10000) {
+      if (sim.maxAltitude >= 10000*sim.profile.distance) return 'success';
+      if (sim.t > 120*sim.profile.distance) return { fail: 'fail.timeout' };
+      if (sim.phase === 'landed' && sim.launched && sim.maxAltitude < 10000*sim.profile.distance) {
         return { fail: 'fail.fell_back', vars: { h: `${Math.round(sim.maxAltitude / 100) / 10} km` } };
       }
       // fell back: fuel empty, descending and below goal
-      if (sim.launched && sim.maxAltitude < 10000) {
+      if (sim.launched && sim.maxAltitude < 10000*sim.profile.distance) {
         const st = sim.stages[sim.stageIndex];
         const fuelLeft = sim.stages.reduce((s, x) => s + x.fuel, 0);
         const falling = sim.telemetry().vspeed < -1;
@@ -100,16 +100,16 @@ export const MISSIONS: Record<string, MissionDef> = {
     dvNeed: 3000,
     check: (sim, info) => {
       if (sim.phase === 'crashed') return { fail: 'fail.crashed' };
-      if (sim.t > 300) return { fail: 'fail.timeout' };
-      if (sim.maxAltitude >= 70000) {
+      if (sim.t > 300*(sim.difficulty === 'realistic' ? 2 : sim.profile.distance)) return { fail: 'fail.timeout' };
+      if (sim.maxAltitude >= (sim.difficulty === 'realistic' ? 100000 : 70000*sim.profile.distance)) {
         // in space: the pilot has to switch the engine off before falling back
         if (!info.engineOn) return 'success';
         const tel = sim.telemetry();
-        if (tel.altitude < 70000 && tel.vspeed < 0) return { fail: 'fail.no_cutoff' };
+        if (tel.altitude < (sim.difficulty === 'realistic' ? 100000 : 70000*sim.profile.distance) && tel.vspeed < 0) return { fail: 'fail.no_cutoff' };
         return 'running';
       }
       if (sim.launched) {
-        const falling = sim.telemetry().vspeed < -1 && sim.maxAltitude < 70000;
+        const falling = sim.telemetry().vspeed < -1 && sim.maxAltitude < (sim.difficulty === 'realistic' ? 100000 : 70000*sim.profile.distance);
         const fuelLeft = sim.stages.reduce((s, x) => s + x.fuel, 0);
         if ((fuelLeft <= 0 || sim.phase === 'landed') && falling) {
           return { fail: 'fail.low_dv', vars: { h: `${Math.round(sim.maxAltitude / 100) / 10} km` } };

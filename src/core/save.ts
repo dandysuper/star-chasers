@@ -4,6 +4,7 @@ import { isKnownPart } from '../data/parts';
 const KEY = 'starchasers.save.v1';
 
 interface SaveData {
+  difficulty?: typeof state.difficulty;
   version: 1;
   lang: 'ru' | 'en';
   music: boolean;
@@ -36,6 +37,7 @@ export function loadSave(): boolean {
     const data = JSON.parse(raw) as SaveData;
     if (data.version !== 1) return false;
     state.lang = data.lang === 'en' ? 'en' : 'ru';
+    state.difficulty = data.difficulty === 'hard' || data.difficulty === 'realistic' ? data.difficulty : 'normal';
     state.music = data.music !== false;
     state.astronaut = data.astronaut === 'male' ? 'male' : 'female';
     state.progress = data.progress ?? {};
@@ -51,6 +53,7 @@ export function saveGame(): void {
   try {
     const data: SaveData = {
       version: 1,
+      difficulty: state.difficulty,
       lang: state.lang,
       music: state.music,
       astronaut: state.astronaut,

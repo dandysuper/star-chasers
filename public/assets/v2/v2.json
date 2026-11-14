@@ -483,9 +483,9 @@
   "minion_radio_left_0": {
    "frame": {
     "x": 664,
-    "y": 1476,
+    "y": 1505,
     "w": 190,
-    "h": 192
+    "h": 163
    },
    "rotated": false,
    "trimmed": false,
@@ -493,19 +493,19 @@
     "x": 0,
     "y": 0,
     "w": 190,
-    "h": 192
+    "h": 163
    },
    "sourceSize": {
     "w": 190,
-    "h": 192
+    "h": 163
    }
   },
   "minion_radio_left_1": {
    "frame": {
     "x": 856,
-    "y": 1476,
+    "y": 1505,
     "w": 189,
-    "h": 192
+    "h": 163
    },
    "rotated": false,
    "trimmed": false,
@@ -513,11 +513,11 @@
     "x": 0,
     "y": 0,
     "w": 189,
-    "h": 192
+    "h": 163
    },
    "sourceSize": {
     "w": 189,
-    "h": 192
+    "h": 163
    }
   },
   "minion_radio_back_3": {
@@ -743,9 +743,9 @@
   "minion_mechanic_left_2": {
    "frame": {
     "x": 1042,
-    "y": 1691,
+    "y": 1729,
     "w": 164,
-    "h": 192
+    "h": 154
    },
    "rotated": false,
    "trimmed": false,
@@ -753,11 +753,11 @@
     "x": 0,
     "y": 0,
     "w": 164,
-    "h": 192
+    "h": 154
    },
    "sourceSize": {
     "w": 164,
-    "h": 192
+    "h": 154
    }
   },
   "minion_chemist_back_0": {
@@ -1103,9 +1103,9 @@
   "minion_mechanic_left_3": {
    "frame": {
     "x": 0,
-    "y": 2079,
+    "y": 2117,
     "w": 154,
-    "h": 192
+    "h": 154
    },
    "rotated": false,
    "trimmed": false,
@@ -1113,11 +1113,11 @@
     "x": 0,
     "y": 0,
     "w": 154,
-    "h": 192
+    "h": 154
    },
    "sourceSize": {
     "w": 154,
-    "h": 192
+    "h": 154
    }
   },
   "minion_chemist_right_3": {
@@ -1263,9 +1263,9 @@
   "minion_driller_left_0": {
    "frame": {
     "x": 1241,
-    "y": 2079,
+    "y": 2100,
     "w": 147,
-    "h": 192
+    "h": 171
    },
    "rotated": false,
    "trimmed": false,
@@ -1273,19 +1273,19 @@
     "x": 0,
     "y": 0,
     "w": 147,
-    "h": 192
+    "h": 171
    },
    "sourceSize": {
     "w": 147,
-    "h": 192
+    "h": 171
    }
   },
   "minion_mechanic_left_1": {
    "frame": {
     "x": 1390,
-    "y": 2079,
+    "y": 2116,
     "w": 143,
-    "h": 192
+    "h": 155
    },
    "rotated": false,
    "trimmed": false,
@@ -1293,19 +1293,19 @@
     "x": 0,
     "y": 0,
     "w": 143,
-    "h": 192
+    "h": 155
    },
    "sourceSize": {
     "w": 143,
-    "h": 192
+    "h": 155
    }
   },
   "minion_mechanic_left_0": {
    "frame": {
     "x": 1535,
-    "y": 2079,
+    "y": 2116,
     "w": 192,
-    "h": 191
+    "h": 154
    },
    "rotated": false,
    "trimmed": false,
@@ -1313,19 +1313,19 @@
     "x": 0,
     "y": 0,
     "w": 192,
-    "h": 191
+    "h": 154
    },
    "sourceSize": {
     "w": 192,
-    "h": 191
+    "h": 154
    }
   },
   "minion_radio_left_3": {
    "frame": {
     "x": 1729,
-    "y": 2079,
+    "y": 2107,
     "w": 192,
-    "h": 191
+    "h": 163
    },
    "rotated": false,
    "trimmed": false,
@@ -1333,11 +1333,11 @@
     "x": 0,
     "y": 0,
     "w": 192,
-    "h": 191
+    "h": 163
    },
    "sourceSize": {
     "w": 192,
-    "h": 191
+    "h": 163
    }
   },
   "bell_bull": {
@@ -1363,9 +1363,9 @@
   "minion_radio_right_0": {
    "frame": {
     "x": 147,
-    "y": 2273,
+    "y": 2295,
     "w": 192,
-    "h": 188
+    "h": 166
    },
    "rotated": false,
    "trimmed": false,
@@ -1373,19 +1373,19 @@
     "x": 0,
     "y": 0,
     "w": 192,
-    "h": 188
+    "h": 166
    },
    "sourceSize": {
     "w": 192,
-    "h": 188
+    "h": 166
    }
   },
   "minion_driller_left_3": {
    "frame": {
     "x": 341,
-    "y": 2273,
+    "y": 2293,
     "w": 192,
-    "h": 184
+    "h": 164
    },
    "rotated": false,
    "trimmed": false,
@@ -1393,11 +1393,11 @@
     "x": 0,
     "y": 0,
     "w": 192,
-    "h": 184
+    "h": 164
    },
    "sourceSize": {
     "w": 192,
-    "h": 184
+    "h": 164
    }
   },
   "minion_radio_front_0": {
@@ -1643,9 +1643,9 @@
   "minion_radio_left_2": {
    "frame": {
     "x": 970,
-    "y": 2464,
+    "y": 2488,
     "w": 192,
-    "h": 159
+    "h": 135
    },
    "rotated": false,
    "trimmed": false,
@@ -1653,11 +1653,11 @@
     "x": 0,
     "y": 0,
     "w": 192,
-    "h": 159
+    "h": 135
    },
    "sourceSize": {
     "w": 192,
-    "h": 159
+    "h": 135
    }
   },
   "minion_radio_front_1": {
@@ -1683,9 +1683,9 @@
   "minion_radio_right_2": {
    "frame": {
     "x": 1358,
-    "y": 2464,
+    "y": 2482,
     "w": 192,
-    "h": 155
+    "h": 137
    },
    "rotated": false,
    "trimmed": false,
@@ -1693,11 +1693,11 @@
     "x": 0,
     "y": 0,
     "w": 192,
-    "h": 155
+    "h": 137
    },
    "sourceSize": {
     "w": 192,
-    "h": 155
+    "h": 137
    }
   },
   "minion_radio_front_3": {
@@ -2143,9 +2143,9 @@
   "minion_driller_left_1": {
    "frame": {
     "x": 1024,
-    "y": 2773,
+    "y": 2785,
     "w": 192,
-    "h": 106
+    "h": 94
    },
    "rotated": false,
    "trimmed": false,
@@ -2153,11 +2153,11 @@
     "x": 0,
     "y": 0,
     "w": 192,
-    "h": 106
+    "h": 94
    },
    "sourceSize": {
     "w": 192,
-    "h": 106
+    "h": 94
    }
   },
   "fx_cloud_l": {

@@ -17,6 +17,7 @@ import {
 import { makeButton, makeIconButton, makePanel, ensureMusic, TXT, drawBar, type LabelButton } from '../ui/widgets';
 import { InGameMenu } from '../ui/ingameMenu';
 import { addPart, partMetrics, BG, V2, UI_V2_ART, hasV2, bellDrop, addStarRow } from '../ui/theme';
+import { PROFILES, type Difficulty } from '../physics/environment';
 import { PART_W } from '../ui/partArt';
 import { partBounds, drawPartOutline, enablePartSelection } from '../ui/partShape';
 import { throttleSlider } from '../ui/throttleSlider';
@@ -140,6 +141,15 @@ export class BuilderScene extends Phaser.Scene {
 
     // ---- on-screen zoom & delete controls for touchscreens ----
     this.buildTouchToolbar();
+    const modes: Difficulty[]=['normal','hard','realistic'];
+    const modeButton=makeButton(this,WORK_X+30,30,t(`difficulty.${state.difficulty}`),{w:250,h:38,fontSize:15,onClick:()=>{
+      state.difficulty=modes[(modes.indexOf(state.difficulty)+1)%modes.length];
+      modeButton.setLabel?.(t(`difficulty.${state.difficulty}`));
+      modeHint.setText(t(`difficulty.${state.difficulty}.hint`));
+      saveGame();this.refreshStats();
+    }});
+    const modeHint=this.add.text(PAL_W+20,54,t(`difficulty.${state.difficulty}.hint`),{...TXT.small,fontSize:'11px',wordWrap:{width:620}});
+    makeButton(this,WORK_X+220,30,'NASA / SI',{w:110,h:34,fontSize:12,onClick:()=>window.open('physics.html','_blank','noopener')});
 
     // ---- bottom bar ----
     const bar = this.add.graphics();
@@ -900,7 +910,7 @@ export class BuilderScene extends Phaser.Scene {
     this.stagePanel?.destroy();
 
     const { width } = this.scale;
-    const stats = computeAssemblyStats(this.asm);
+    const stats = this.designStats();
     const mission = missionById(state.missionId);
     const px = width - STATS_W - 16;
 
@@ -1006,8 +1016,27 @@ export class BuilderScene extends Phaser.Scene {
     this.tweens.add({ targets: msg, alpha: 0, delay: 2400, duration: 400, onComplete: () => msg.destroy() });
   }
 
+  private designStats() {
+    const stats=computeAssemblyStats(this.asm), p=PROFILES[state.difficulty];
+    const original=stats.mass;
+    stats.mass=(stats.mass-stats.fuelTotal)*p.dryMass+stats.fuelTotal;
+    stats.twr*=original/Math.max(1,stats.mass);
+    stats.dvTotal=0;
+    for(const [i,st] of stats.stages.entries()) {
+      const upperFuel=stats.stages.slice(i+1).reduce((sum,s)=>sum+s.fuel,0);
+      st.m1=(st.m1-upperFuel)*p.dryMass+upperFuel; st.m0=st.m1+st.fuel;
+      st.dv=st.isp/p.consumption*9.80665*Math.log(Math.max(1,st.m0/Math.max(1,st.m1)));
+      st.burn/=p.consumption; stats.dvTotal+=st.dv;
+    }
+    if(stats.twr<1 && stats.stages.some(st=>st.hasEngine)) {
+      stats.blocking=true;
+      if(!stats.warnings.some(w=>w.key==='warn.twr_low')) stats.warnings.unshift({key:'warn.twr_low',vars:{twr:stats.twr.toFixed(2)}});
+    }
+    return stats;
+  }
+
   private next(): void {
-    const stats = computeAssemblyStats(this.asm);
+    const stats = this.designStats();
     if (stats.blocking) {
       this.flashWarn(stats.warnings[0]?.key ?? 'warn.no_engine');
       return;

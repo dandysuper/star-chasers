@@ -3,7 +3,8 @@
  * Semi-implicit Euler, patched conic (Earth + static Moon), CORE_SPEC §4.
  */
 import { partDef, PART_AREA } from '../data/parts';
-import { EARTH, MOON, MOON_SOI, G0, Body, dominantBody } from '../data/bodies';
+import { EARTH, G0, Body } from '../data/bodies';
+import { atmosphere, flightWorld, PROFILES, type Difficulty } from './environment';
 import { splitStages, computeStats } from './rocket';
 
 export const DT = 1 / 60;
@@ -33,6 +34,12 @@ export interface SimEvent {
 }
 
 export interface Telemetry {
+  density: number;
+  dynamicPressure: number;
+  dragForce: number;
+  mass: number;
+  mach: number;
+  thrust: number;
   altitude: number;        // m above dominant body
   speed: number;
   vspeed: number;          // radial (up = +)
@@ -84,7 +91,16 @@ export class FlightSim {
   readonly stages: StageState[];
   readonly stats = { mass: 0, stable: true, cd: 0.5, hasParachute: false };
 
-  constructor(partIds: string[]) {
+  readonly earth: Body;
+  readonly moon: Body;
+  readonly moonSOI: number;
+  readonly profile;
+  dragForce = 0;
+  thrust = 0;
+  constructor(partIds: string[], readonly difficulty: Difficulty = 'normal') {
+    const world=flightWorld(difficulty);
+    this.earth=world.earth; this.moon=world.moon; this.moonSOI=world.moonSOI;
+    this.profile=PROFILES[difficulty]; this.y=this.earth.R;
     const stats = computeStats(partIds);
     this.stats.stable = stats.stable;
     this.stats.cd = stats.cd;
@@ -106,7 +122,7 @@ export class FlightSim {
           F > 0
             ? F / engines.reduce((s, e) => s + (e.thrustVac ?? 0) / (e.ispVac ?? 1), 0)
             : 0,
-        dry: g.reduce((s, id) => s + partDef(id).massDry, 0),
+        dry: g.reduce((s, id) => s + partDef(id).massDry, 0)*this.profile.dryMass,
         hasEngine: engines.length > 0,
       };
     });
@@ -123,9 +139,9 @@ export class FlightSim {
   }
 
   get body(): Body {
-    const dx = this.x - MOON.x;
-    const dy = this.y - MOON.y;
-    return Math.hypot(dx, dy) < MOON_SOI ? MOON : EARTH;
+    const dx = this.x - this.moon.x;
+    const dy = this.y - this.moon.y;
+    return Math.hypot(dx, dy) < this.moonSOI ? this.moon : this.earth;
   }
 
   get stage(): StageState | null {
@@ -139,8 +155,6 @@ export class FlightSim {
       return;
     }
 
-    const st = this.stage;
-
     // --- staging command ---
     if (control.stageRequest) {
       control.stageRequest = false;
@@ -150,6 +164,7 @@ export class FlightSim {
       }
     }
 
+    const st = this.stage;
     // --- parachute command ---
     if (control.parachute && !this.parachuteDeployed) {
       control.parachute = false;
@@ -172,20 +187,18 @@ export class FlightSim {
     const g = body.GM / (r * r);
 
     // --- atmosphere (Earth only) ---
-    let rho = 0;
-    if (body === EARTH && h < body.atmHeight) {
-      rho = body.rho0 * Math.exp(-Math.max(0, h) / body.scaleH);
-    }
-    const f = rho / EARTH.rho0; // pressure fraction 0..1
+    const air=atmosphere(h,this.earth,this.difficulty === 'realistic');
+    const rho=body === this.earth ? air.density : 0;
+    const f=body === this.earth ? Math.min(1,air.pressure/101325) : 0;
 
     // A bounded attitude controller with rotational inertia. Gimbals lose
-    // authority when throttled down; reaction control still works in vacuum.
+    // authority when throttled down; no reaction-control thrusters are fitted.
     let da = control.targetAngle - this.angle;
     // normalize to [-π, π]
     while (da > Math.PI) da -= 2 * Math.PI;
     while (da < -Math.PI) da += 2 * Math.PI;
-    const authority = 0.12 + (control.engineOn && st && st.fuel > 0 ? 0.48*Math.max(0,Math.min(1,control.throttle)) : 0);
-    const inertia = Math.max(0.6, this.mass / 1750);
+    const authority = control.engineOn && st?.hasEngine && st.fuel > 0 ? 0.6*Math.max(0,Math.min(1,control.throttle)) : 0;
+    const inertia = Math.max(0.6, this.mass / 1750)*this.profile.inertia;
     const command = Math.max(-authority,Math.min(authority,da*1.2-this.angularVelocity*0.65));
     const speed = Math.hypot(this.vx,this.vy);
     const flowAngle = Math.atan2(this.vx*ex+this.vy*ey,this.vx*ux+this.vy*uy);
@@ -206,11 +219,13 @@ export class FlightSim {
     let Fy = 0;
     let fuelEmptyEvent = false;
     const canThrust = control.engineOn && st !== null && st.fuel > 0 && st.hasEngine;
+    this.thrust=0;
     if (canThrust) {
       const ispEff = st.ispVac - (st.ispVac - st.thrustAslIspFrac) * f;
       const requestedF = Math.max(0,Math.min(1,control.throttle)) * st.thrustVac * (ispEff / st.ispVac);
-      const F = Math.min(requestedF, st.fuel * ispEff * G0 / DT);
-      const mdot = F / (ispEff * G0);
+      const F = Math.min(requestedF, st.fuel * ispEff * G0 / (DT*this.profile.consumption));
+      this.thrust=F;
+      const mdot = F / (ispEff * G0)*this.profile.consumption;
       const burn = mdot * DT;
       st.fuel -= burn;
       this.fuelBurnedTotal += burn;
@@ -228,18 +243,21 @@ export class FlightSim {
     // --- drag ---
     let Dx = 0;
     let Dy = 0;
+    this.dragForce=0;
     if (rho > 0) {
       const sp = Math.hypot(this.vx, this.vy);
       if (sp > 0.01) {
-        let cd = this.stats.cd;
+        let cd = this.stats.cd*this.profile.drag;
+        if(this.difficulty !== 'normal') cd *= 1+0.6*Math.exp(-Math.pow((sp/air.sound-1)/0.35,2));
         let area = PART_AREA;
         // A sideways hull presents more area to the airflow.
         area *= 1+3*Math.abs(Math.sin(this.angle-flowAngle));
-        if (this.parachuteDeployed && h < 20000 && body === EARTH) {
+        if (this.parachuteDeployed && h < 20000 && body === this.earth) {
           cd = 1.5;
           area += 30;
         }
-        const D = 0.5 * rho * sp * sp * cd * area;
+        const D = Math.min(0.5 * rho * sp * sp * cd * area,this.mass*sp/DT);
+        this.dragForce=D;
         Dx = (-this.vx / sp) * D;
         Dy = (-this.vy / sp) * D;
       }
@@ -319,8 +337,11 @@ export class FlightSim {
     }
 
     const st = this.stage;
-    const fuelLeft = this.stages.reduce((s, s_) => s + s_.fuel, 0);
+    const fuelLeft = this.stages.slice(this.stageIndex).reduce((s, s_) => s + s_.fuel, 0);
+    const air=atmosphere(h,this.earth,this.difficulty === 'realistic');
+    const density=body === this.earth ? air.density : 0;
     return {
+      density, dynamicPressure:0.5*density*speed*speed, dragForce:this.dragForce, mass:this.mass, mach:density>0?speed/air.sound:0, thrust:this.thrust,
       altitude: Math.max(0, h),
       speed, vspeed: vUp, hspeed: vEast,
       fuelPercent: this.fuelTotalStart > 0 ? fuelLeft / this.fuelTotalStart : 0,
@@ -345,7 +366,7 @@ export class FlightSim {
     let x = this.x, y = this.y, vx = this.vx, vy = this.vy;
     const step = DT * 10; // coarser preview
     for (let i = 0; i < maxPoints; i++) {
-      const body = dominantBody(x, y);
+      const body = Math.hypot(x-this.moon.x,y-this.moon.y)<this.moonSOI ? this.moon : this.earth;
       const rx = x - body.x, ry = y - body.y;
       const r = Math.hypot(rx, ry) || 1;
       if (r - body.R < 0) break; // hit ground
