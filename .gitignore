@@ -16,3 +16,7 @@ public/__inspect/
 .DS_Store
 .vscode/
 *.log
+
+# Local secrets (NASA API key: VITE_NASA_API_KEY)
+.env.local
+.env.*.local

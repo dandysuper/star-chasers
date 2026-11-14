@@ -18,7 +18,13 @@ import { weatherVerdict, type LaunchSite, type Weather } from '../data/launch';
 
 const POWER_URL = 'https://power.larc.nasa.gov/api/temporal/daily/point';
 const APOD_URL = 'https://api.nasa.gov/planetary/apod';
-const APOD_KEY = 'DEMO_KEY';
+/**
+ * api.nasa.gov key, injected at build time from VITE_NASA_API_KEY (.env.local
+ * locally, a GitHub Actions secret on deploy). A static site cannot hide it:
+ * it ends up in the shipped JS, which NASA's per-key rate limit is built for.
+ * Without it the shared DEMO_KEY is used (~30 requests an hour per visitor).
+ */
+const APOD_KEY: string = import.meta.env.VITE_NASA_API_KEY || 'DEMO_KEY';
 const FILL = -999;
 const DAY_MS = 86400000;
 const CACHE_PREFIX = 'starchasers.nasa.';
