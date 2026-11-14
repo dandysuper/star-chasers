@@ -65,6 +65,25 @@ interface StageState {
   hasEngine: boolean;
 }
 
+/**
+ * Wind speed toward the east at height h, m/s, for a surface wind `w10`.
+ * Wind grows with height to a jet-stream peak around 11 km, then dies out in
+ * the thin upper air: the strong winds aloft are why rockets are checked for
+ * wind shear near max-Q, not only at the pad. Kept simple: 3× the surface
+ * value at the peak, zero by 25 km.
+ */
+export function windAt(h: number, w10: number): number {
+  if (w10 === 0 || h < 0) return 0;
+  if (h <= 11000) return w10 * (1 + 2 * (h / 11000));
+  if (h >= 25000) return 0;
+  return w10 * 3 * (1 - (h - 11000) / 14000);
+}
+
+export interface FlightOptions {
+  /** Surface wind blowing toward the east, m/s (negative = toward the west). */
+  windEast?: number;
+}
+
 export class FlightSim {
   x = 0;
   y = EARTH.R;             // start on the pad at the top of Earth
@@ -83,8 +102,11 @@ export class FlightSim {
   /** stages bottom-first */
   readonly stages: StageState[];
   readonly stats = { mass: 0, stable: true, cd: 0.5, hasParachute: false };
+  /** Surface wind toward the east, m/s. */
+  readonly windEast: number;
 
-  constructor(partIds: string[]) {
+  constructor(partIds: string[], opts: FlightOptions = {}) {
+    this.windEast = opts.windEast ?? 0;
     const stats = computeStats(partIds);
     this.stats.stable = stats.stable;
     this.stats.cd = stats.cd;
@@ -219,7 +241,12 @@ export class FlightSim {
     let Dx = 0;
     let Dy = 0;
     if (rho > 0) {
-      const sp = Math.hypot(this.vx, this.vy);
+      // drag acts on the speed through the air, so wind pushes the rocket
+      // sideways once it has left the pad
+      const w = this.launched && body === EARTH ? windAt(h, this.windEast) : 0;
+      const relX = this.vx - w * ex;
+      const relY = this.vy - w * ey;
+      const sp = Math.hypot(relX, relY);
       if (sp > 0.01) {
         let cd = this.stats.cd;
         let area = PART_AREA;
@@ -228,8 +255,8 @@ export class FlightSim {
           area += 30;
         }
         const D = 0.5 * rho * sp * sp * cd * area;
-        Dx = (-this.vx / sp) * D;
-        Dy = (-this.vy / sp) * D;
+        Dx = (-relX / sp) * D;
+        Dy = (-relY / sp) * D;
       }
     }
 

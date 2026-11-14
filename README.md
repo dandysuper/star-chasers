@@ -22,6 +22,7 @@ npm run typecheck  # tsc --noEmit
 |---|---|
 | **Menu** | switch language / sound, choose the astronaut, jump into the game |
 | **Hub** | walk the base on foot, use the mission board, the sample lab and the pad |
+| **Mission Control** | pick the launch day: real Moon phase, NASA POWER launch-site weather and launch rules, Moon trip time and landing light, Mars windows, Δv budget, rocket cost vs grant, NASA picture of the day, and a replay of Artemis II (April 2026). See [`NASA_GAMEPLAY.md`](NASA_GAMEPLAY.md) |
 | **Builder** | drag parts onto the stack, watch mass / Δv / TWR / stability update live, or load a ready-made rocket from **Presets** |
 | **Flight** | you pilot the rocket in a real 2-D physics sim: engine, throttle, tilt, staging, parachute |
 | **Explore** | walk the Moon or Mars (or drive the rover), drill samples to finish the task list, beam the data home |
@@ -187,7 +188,7 @@ Add these to the URL:
 | Query | Effect |
 |---|---|
 | `?dev=1` | unlock all missions, show the DEV banner |
-| `?scene=builder` | boot straight into a scene (`menu`, `hub`, `builder`, `flight`, `explore`) |
+| `?scene=builder` | boot straight into a scene (`menu`, `hub`, `planner`, `builder`, `flight`, `explore`) |
 | `?mission=m2` | boot a real mission (pairs with `?scene=`; `moon` / `mars` with `?scene=explore`) |
 | `?lang=en` | pin the language for this run |
 | `?spawn=pad` | hub only: start next to a station (`board`, `lab`, `pad`) |

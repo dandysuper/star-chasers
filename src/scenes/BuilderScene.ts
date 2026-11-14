@@ -1,3 +1,4 @@
+import { designCost, missionGrant } from '../data/budget';
 import Phaser from 'phaser';
 import { state } from '../core/state';
 import { saveGame } from '../core/save';
@@ -868,7 +869,9 @@ export class BuilderScene extends Phaser.Scene {
     // ---- flight numbers ----
     const c = this.add.container(px, 20);
     this.statsPanel = c;
-    c.add(makePanel(this, 0, 0, STATS_W, 236));
+    const cost = designCost(flatten(this.asm).ids);
+    const grant = missionGrant(state.missionId);
+    c.add(makePanel(this, 0, 0, STATS_W, 272));
     if (hasV2(this, UI_V2_ART.iconGear)) {
       c.add(this.add.image(28, 26, V2, UI_V2_ART.iconGear).setDisplaySize(22, 22));
     }
@@ -879,6 +882,7 @@ export class BuilderScene extends Phaser.Scene {
       [t('stats.dv'), `${Math.round(stats.dvTotal)} m/s`],
       [t('stats.twr'), stats.twr.toFixed(2)],
       [t('stats.fuel'), `${Math.round(stats.fuelTotal)} kg`],
+      [t('stats.cost'), grant === null ? `$${cost}M` : `$${cost}M / $${grant}M`],
     ];
     rows.forEach(([k, v], i) => {
       const isFuel = i === 3 && hasV2(this, UI_V2_ART.iconFuel);
@@ -886,7 +890,8 @@ export class BuilderScene extends Phaser.Scene {
         c.add(fitInto(this.add.image(24, 52 + i * 26, V2, UI_V2_ART.iconFuel), 16, 19));
       }
       c.add(this.add.text(isFuel ? 38 : 16, 52 + i * 26, k, TXT.small).setOrigin(0, 0.5));
-      c.add(this.add.text(STATS_W - 16, 52 + i * 26, v, { ...TXT.body, fontSize: '15px' }).setOrigin(1, 0.5));
+      const over = i === 4 && grant !== null && cost > grant;
+      c.add(this.add.text(STATS_W - 16, 52 + i * 26, v, { ...TXT.body, fontSize: '15px', color: over ? '#ff8080' : '#ffffff' }).setOrigin(1, 0.5));
     });
 
     c.add(this.add.text(16, 52 + rows.length * 26 + 6, stats.stable ? t('stats.stable') : t('stats.wobbly'), {
@@ -907,7 +912,7 @@ export class BuilderScene extends Phaser.Scene {
     }
 
     // ---- stages ----
-    const sc = this.add.container(px, 272);
+    const sc = this.add.container(px, 306);
     this.stagePanel = sc;
     sc.add(makePanel(this, 0, 0, STATS_W, 96 + stats.stages.length * 24));
     if (hasV2(this, UI_V2_ART.iconRocket)) {
@@ -922,7 +927,7 @@ export class BuilderScene extends Phaser.Scene {
     });
 
     // ---- warnings + mission hint ----
-    const wc = this.add.container(px, 272 + 110 + stats.stages.length * 24);
+    const wc = this.add.container(px, 306 + 110 + stats.stages.length * 24);
     this.warnPanel = wc;
     let wy = 0;
     for (const w of stats.warnings) {
@@ -948,9 +953,9 @@ export class BuilderScene extends Phaser.Scene {
     }
   }
 
-  private flashWarn(key: string): void {
+  private flashWarn(key: string, vars?: Record<string, string | number>): void {
     const { width } = this.scale;
-    const msg = this.add.text(width / 2, 44, t(key), {
+    const msg = this.add.text(width / 2, 44, t(key, vars), {
       ...TXT.warn, backgroundColor: '#3a1020', padding: { x: 14, y: 8 },
     }).setOrigin(0.5, 0).setDepth(200);
     this.tweens.add({ targets: msg, alpha: 0, delay: 2400, duration: 400, onComplete: () => msg.destroy() });
@@ -960,6 +965,13 @@ export class BuilderScene extends Phaser.Scene {
     const stats = computeAssemblyStats(this.asm);
     if (stats.blocking) {
       this.flashWarn(stats.warnings[0]?.key ?? 'warn.no_engine');
+      return;
+    }
+    // a mission rocket has to fit its grant, like a real one
+    const cost = designCost(flatten(this.asm).ids);
+    const grant = missionGrant(state.missionId);
+    if (grant !== null && cost > grant) {
+      this.flashWarn('warn.over_budget', { c: cost, g: grant });
       return;
     }
     this.saveDesign();

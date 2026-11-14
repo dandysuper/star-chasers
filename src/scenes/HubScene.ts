@@ -574,8 +574,9 @@ export class HubScene extends Phaser.Scene {
 
   private useStation(id: Station['id']): void {
     if (id === 'pad') {
-      // the planet walks start on the surface, everything else in the builder
-      this.leave(isExploreMission(state.missionId) ? 'explore' : 'builder');
+      // every launch is planned first: Mission Control picks the day, then
+      // the planet walks start on the surface and everything else in the builder
+      this.leave('planner');
       return;
     }
     if (id === 'lab') {

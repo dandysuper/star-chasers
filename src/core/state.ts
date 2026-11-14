@@ -21,6 +21,25 @@ export interface MissionProgress {
 
 export type Mode = 'mission' | 'sandbox';
 
+/** The launch day picked in Mission Control; lives for the session only. */
+export interface LaunchPlan {
+  missionId: string | null;
+  /** ISO date of the launch day. */
+  date: string;
+  site: 'ksc' | 'baikonur' | 'vostochny';
+  /** Surface wind toward the east the flight will meet, m/s. */
+  windEast: number;
+  windMax: number;
+  go: boolean;
+  /** Moon trips: coast time and how the landing site is lit on arrival. */
+  tripDays?: number;
+  lighting?: 'good' | 'ok' | 'harsh' | 'dark';
+  /** Where the weather came from. */
+  source: 'power' | 'offline' | 'history';
+  /** Re-living a real mission (Artemis II). */
+  historic?: 'artemis2';
+}
+
 /** Global game state singleton. Persisted parts live in save.ts. */
 class GameState {
   lang: Lang = 'ru';
@@ -35,6 +54,10 @@ class GameState {
 
   progress: Record<string, MissionProgress> = {};
   designs: Record<string, RocketDesign> = {};
+  /** Launch site chosen in Mission Control (saved). */
+  site: LaunchPlan['site'] = 'ksc';
+  /** The launch day picked in Mission Control, if any (not saved). */
+  launchPlan: LaunchPlan | null = null;
   /** Sample id → how many the player has ever brought home, across all walks. */
   collection: Record<string, number> = {};
 

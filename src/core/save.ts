@@ -14,6 +14,8 @@ interface SaveData {
   designs: Record<string, RocketDesign>;
   /** Sample id → count. Absent on saves from before the sample collection. */
   collection?: Record<string, number>;
+  /** Launch site picked in Mission Control. Absent on older saves. */
+  site?: string;
 }
 
 /** Saves from the coding era can hold parts that no longer exist (the sensor
@@ -41,6 +43,7 @@ export function loadSave(): boolean {
     state.progress = data.progress ?? {};
     state.designs = cleanDesigns((data.designs ?? {}) as typeof state.designs);
     state.collection = data.collection ?? {};
+    state.site = data.site === 'baikonur' || data.site === 'vostochny' ? data.site : 'ksc';
     return true;
   } catch {
     return false;
@@ -57,6 +60,7 @@ export function saveGame(): void {
       progress: state.progress,
       designs: state.designs,
       collection: state.collection,
+      site: state.site,
     };
     localStorage.setItem(KEY, JSON.stringify(data));
   } catch {
