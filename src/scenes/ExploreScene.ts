@@ -545,10 +545,23 @@ export class ExploreScene extends Phaser.Scene {
       if (!clearOfBase(x, y, r)) continue;
       const art = craterArt(r > 52);
       if (art) {
-        // the canvas carries the rim and its soft fade, a little wider than
-        // the drawn rim (r × 2.3) it replaces
-        const img = this.add.image(x, y, OVERHAUL, art).setDepth(-9);
-        img.setScale((r * 2.6) / img.frame.width);
+        const frame = this.textures.getFrame(OVERHAUL, art);
+        const halfWidth = Math.floor(frame.width / 2);
+        const halfKey = `explore_crater_half_${art}`;
+        if (!this.textures.exists(halfKey)) {
+          const half = this.textures.createCanvas(halfKey, halfWidth, frame.height);
+          if (!half) throw new Error(`Could not create crater texture: ${halfKey}`);
+          half.context.drawImage(
+            frame.source.image as CanvasImageSource,
+            frame.cutX, frame.cutY, halfWidth, frame.height,
+            0, 0, halfWidth, frame.height,
+          );
+          half.refresh();
+        }
+        const scale = (r * 2.6) / frame.width;
+        const halfOffset = halfWidth * scale / 2;
+        this.add.image(x - halfOffset, y, halfKey).setScale(scale).setDepth(-9);
+        this.add.image(x + halfOffset, y, halfKey).setScale(scale).setRotation(Math.PI).setDepth(-9);
         continue;
       }
       const ry = r * 0.62;   // seen at a slant, the bowl is an ellipse

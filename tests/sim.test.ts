@@ -51,6 +51,37 @@ describe('flight sim (spec §4)', () => {
     expect(sim.fuelBurnedTotal).toBeCloseTo(0.001,10);
     expect(sim.stage!.fuel).toBe(0);
   });
+
+  it('only deploys a parachute installed on a live stage', () => {
+    const sim = new FlightSim(PRESET_BASIC);
+    sim.y = EARTH.R + 5000;
+    sim.launched = true;
+    sim.phase = 'flying';
+    const events: { type: string }[] = [];
+    sim.step({...defaultControl(), parachute: true}, events as never);
+    expect(sim.parachuteDeployed).toBe(false);
+    expect(events.some((event) => event.type === 'parachute')).toBe(false);
+  });
+
+  it('uses the installed canopy area and heavier rockets descend faster under it', () => {
+    const lightParts = ['nose_cone', 'parachute', 'probe_core', 'tank_m', 'engine_spark'];
+    const heavyParts = ['nose_cone', 'parachute', 'probe_core', 'tank_m', 'tank_l', 'engine_spark'];
+    const light = new FlightSim(lightParts);
+    const heavy = new FlightSim(heavyParts);
+    for (const sim of [light, heavy]) {
+      sim.y = EARTH.R + 5000;
+      sim.vy = -80;
+      sim.launched = true;
+      sim.phase = 'flying';
+      sim.step({...defaultControl(), parachute: true}, [] as never);
+      expect(sim.parachuteDeployed).toBe(true);
+      expect(sim.parachuteStageIndex).toBe(0);
+      expect(sim.telemetry().dragForce).toBeGreaterThan(0);
+    }
+    expect(heavy.mass).toBeGreaterThan(light.mass);
+    expect(heavy.vy).toBeLessThan(light.vy);
+  });
+
   it('stationary rocket stays on the pad', () => {
     const sim = new FlightSim(PRESET_BASIC);
     const c = defaultControl();

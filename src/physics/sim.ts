@@ -64,6 +64,7 @@ interface StageState {
   parts: string[];
   fuel: number;          // remaining kg
   fuelMax: number;
+  chuteDragArea: number;
   thrustVac: number;
   thrustAslIspFrac: number; // Σ F_i·ispAsl_i / F_total — for isp_eff
   ispVac: number;        // combined
@@ -106,6 +107,7 @@ export class FlightSim {
   fuelTotalStart = 0;
   maxAltitude = 0;
   parachuteDeployed = false;
+  parachuteStageIndex: number | null = null;
 
   /** stages bottom-first */
   readonly stages: StageState[];
@@ -140,6 +142,10 @@ export class FlightSim {
       return {
         parts: g,
         fuel, fuelMax: fuel,
+        chuteDragArea: g.reduce((sum, id) => {
+          const part = partDef(id);
+          return sum + (part.chuteArea ?? 0) * (part.cdChute ?? 0);
+        }, 0),
         thrustVac: F,
         thrustAslIspFrac:
           F > 0 ? engines.reduce((s, e) => s + (e.thrustVac ?? 0) * (e.ispAsl ?? 0), 0) / F : 0,
@@ -173,6 +179,10 @@ export class FlightSim {
     return this.stages[this.stageIndex] ?? null;
   }
 
+  get hasLiveParachute(): boolean {
+    return this.stages.slice(this.stageIndex).some((stage) => stage.chuteDragArea > 0);
+  }
+
   /** one fixed step; appends events. */
   step(control: RocketControl, events: SimEvent[]): void {
     if (this.phase === 'crashed' || this.phase === 'landed') {
@@ -185,6 +195,10 @@ export class FlightSim {
       control.stageRequest = false;
       if (this.stageIndex < this.stages.length - 1) {
         this.stageIndex++;
+        if (this.parachuteStageIndex !== null && this.parachuteStageIndex < this.stageIndex) {
+          this.parachuteStageIndex = null;
+          this.parachuteDeployed = false;
+        }
         events.push({ type: 'stage', data: this.stageIndex + 1 });
       }
     }
@@ -193,8 +207,11 @@ export class FlightSim {
     // --- parachute command ---
     if (control.parachute && !this.parachuteDeployed) {
       control.parachute = false;
-      if (this.stats.hasParachute) {
+      const chuteStage = this.stages.findIndex((stage, index) =>
+        index >= this.stageIndex && stage.chuteDragArea > 0);
+      if (chuteStage >= 0) {
         this.parachuteDeployed = true;
+        this.parachuteStageIndex = chuteStage;
         events.push({ type: 'parachute' });
       }
     }
@@ -282,11 +299,14 @@ export class FlightSim {
         let area = PART_AREA;
         // A sideways hull presents more area to the airflow.
         area *= 1+3*Math.abs(Math.sin(this.angle-flowAngle));
-        if (this.parachuteDeployed && h < 20000 && body === this.earth) {
-          cd = 1.5;
-          area += 30;
-        }
-        const D = Math.min(0.5 * rho * sp * sp * cd * area,this.mass*sp/DT);
+        const chuteDragArea = this.parachuteDeployed
+          && this.parachuteStageIndex !== null
+          && this.stageIndex <= this.parachuteStageIndex
+          && h < 20000
+          && body === this.earth
+          ? this.stages[this.parachuteStageIndex].chuteDragArea
+          : 0;
+        const D = Math.min(0.5 * rho * sp * sp * (cd * area + chuteDragArea),this.mass*sp/DT);
         this.dragForce=D;
         Dx = (-relX / sp) * D;
         Dy = (-relY / sp) * D;

@@ -51,6 +51,15 @@ interface EngineFx {
   glow?: Phaser.GameObjects.Image;
 }
 
+interface ParachuteFx {
+  uid: number;
+  stage: number;
+  x: number;
+  y: number;
+  area: number;
+  image: Phaser.GameObjects.Image;
+}
+
 /** A spent stage tumbling away after separation. Purely visual. */
 interface Debris {
   c: Phaser.GameObjects.Container;
@@ -85,6 +94,7 @@ export class FlightScene extends Phaser.Scene {
   private reentry!: Phaser.GameObjects.Graphics;
   private rocketH = 0;
   private engines: EngineFx[] = [];
+  private chutes: ParachuteFx[] = [];
   /** Part uid → the stage (0 = fires first) it belongs to. */
   private partStage = new Map<number, number>();
   /** Uids already dropped with a spent stage. */
@@ -93,7 +103,6 @@ export class FlightScene extends Phaser.Scene {
   /** How the plume art is drawn: today's black-background frames additively,
    *  the overhaul's painted (transparent) flames normally, or the ui_v1 stub. */
   private flameMode: 'additive' | 'painted' | 'stub' = 'stub';
-  private chute?: Phaser.GameObjects.Image;
   private smoke?: Phaser.GameObjects.Particles.ParticleEmitter;
   private padSmoke?: Phaser.GameObjects.Particles.ParticleEmitter;
   private skyGfx!: Phaser.GameObjects.Graphics;
@@ -144,7 +153,6 @@ export class FlightScene extends Phaser.Scene {
   private messagesCollapsed = false;
   private previewPts: { x: number; y: number }[] = [];
   private previewTimer = 0;
-  private chuteOpen = false;
 
   constructor() { super('flight'); }
 
@@ -318,8 +326,8 @@ export class FlightScene extends Phaser.Scene {
     this.previewPts = [];
     this.worldObjects = [];
     this.uiObjects = [];
-    this.chuteOpen = false;
     this.engines = [];
+    this.chutes = [];
     this.partStage = new Map();
     this.detached = new Set();
     this.debris = [];
@@ -329,7 +337,6 @@ export class FlightScene extends Phaser.Scene {
     this.skyAlt = -1;
     this.site = undefined;
     this.siteFront = undefined;
-    this.chute = undefined;
     this.backdrop = undefined;
     this.skyImg = undefined;
     this.smoke = undefined;
@@ -471,7 +478,7 @@ export class FlightScene extends Phaser.Scene {
 
   private requestChute(): void {
     if (this.ended || this.sim.parachuteDeployed) return;
-    if (!this.sim.stats.hasParachute) {
+    if (!this.sim.hasLiveParachute) {
       this.pushLog(`⚠ ${t('warn.no_parachute')}`);
       return;
     }
@@ -628,9 +635,21 @@ export class FlightScene extends Phaser.Scene {
     }
 
     if (hasFrame(this, 'fx_chute')) {
-      this.chute = this.add.image(0, this.art.top + 4, UI, 'fx_chute')
-        .setOrigin(0.5, 1).setVisible(false);
-      this.rocket.add(this.chute);
+      for (const part of this.art.parts) {
+        const def = partDef(part.node.id);
+        if (def.kind !== 'chute') continue;
+        const image = this.add.image(0, 0, UI, 'fx_chute')
+          .setOrigin(0.5, 1).setDepth(7).setVisible(false);
+        this.chutes.push({
+          uid: part.node.uid,
+          stage: this.partStage.get(part.node.uid) ?? 0,
+          x: part.x,
+          y: part.y - part.h / 2,
+          area: def.chuteArea ?? 0,
+          image,
+        });
+        this.worldObjects.push(image);
+      }
     }
   }
 
@@ -974,13 +993,22 @@ export class FlightScene extends Phaser.Scene {
   }
 
   private drawChute(): void {
-    if (!this.chute) return;
-    const open = this.sim.parachuteDeployed;
-    this.chute.setVisible(open);
-    if (open) {
-      const wobble = 1 + Math.sin(this.sim.t * 3) * 0.05;
-      const w = Math.max(this.rocketH, 160) * 1.4 * wobble;
-      this.chute.setDisplaySize(w, w * 0.7);
+    const zoom = this.cameras.main.zoom;
+    const visScale = zoom < 0.15 ? Phaser.Math.Clamp(0.15 / zoom, 1, 24) : 1;
+    for (const chute of this.chutes) {
+      const open = this.sim.parachuteDeployed
+        && this.sim.parachuteStageIndex === chute.stage
+        && !this.detached.has(chute.uid);
+      chute.image.setVisible(open);
+      if (open) {
+        const anchor = this.rocketToWorld(chute.x, chute.y);
+        const width = Phaser.Math.Clamp(Math.sqrt(chute.area) * 26, 80, 180);
+        const frame = chute.image.frame;
+        chute.image
+          .setPosition(anchor.x, anchor.y)
+          .setRotation(0)
+          .setDisplaySize(width * visScale, width * frame.height / frame.width * visScale);
+      }
     }
   }
 
