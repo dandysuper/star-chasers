@@ -85,6 +85,12 @@ export class MenuScene extends Phaser.Scene {
       this.ui.push(back, sa);
     }
 
+    // ---- SI disclosure (NASA Space Apps rule): always visible on the home screen ----
+    const ai = this.add.text(width / 2, height - 14, `✦ ${t('menu.ai_made')}`, {
+      ...TXT.small, fontSize: '13px', color: '#ffffff', stroke: '#1d1b2e', strokeThickness: 4,
+    }).setOrigin(0.5, 1).setAlpha(0.8);
+    this.ui.push(ai);
+
     // ---- tagline: left column, clear of the painted rocket ----
     // the plate is created first so it renders under the text
     const taglineX = 70;

@@ -360,5 +360,6 @@
   "plan.apod_translated": "",
   "plan.apod_english": "",
   "builder.engine_swapped": "Engine swapped for the new one",
-  "lab.examine": "🔬 Examine samples"
+  "lab.examine": "🔬 Examine samples",
+  "menu.ai_made": "Made with the assistance of AI"
 }
